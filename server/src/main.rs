@@ -6,6 +6,7 @@ use tracing::info;
 
 #[path = "routes/lib.rs"]
 mod routes;
+mod docker;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -15,6 +16,8 @@ async fn main() -> Result<(), anyhow::Error> {
     let addr: SocketAddr = SocketAddr::from(([0, 0, 0, 0], 8080));
 
     info!("Robot Farm API listening on {}", addr);
+
+
 
     let listener = TcpListener::bind(addr).await?;
     serve(listener, app).await?;

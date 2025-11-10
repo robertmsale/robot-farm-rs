@@ -1,16 +1,20 @@
 pub const DOCKER_PREFIX: &str = include_str!("../../images/Dockerfile");
 pub const DOCKER_SUFFIX: &str = include_str!("../../images/Dockerfile.cleanup");
+pub const DOCKER_WIZARD: &str = include_str!("../../images/Dockerfile.wizard");
 pub const DOCKER_IMAGE_PREFIX: &str = "robot-farm_";
+pub const DOCKER_IMAGE_WIZARD: &str = "robot-farm-wizard";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageType {
     Worker,
+    Wizard,
 }
 
 impl ImageType {
     pub fn as_str(&self) -> &'static str {
         match self {
             ImageType::Worker => "_worker",
+            ImageType::Wizard => "_wizard"
         }
     }
 }
