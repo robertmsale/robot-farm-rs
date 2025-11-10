@@ -32,20 +32,3 @@ pub fn append_files(paths: Vec<&str>) -> String {
 
     contents
 }
-
-{
-    "appendAgentsFile": {
-        "orchestrator": ["../directives/AGENTS.orchestrator.md"],
-        "worker": ["../directives/AGENTS.compact.md"]
-    },
-    "commands": [
-        {
-            "id": "db-migrate",
-            "exec": ["bash", "-lc", "../db-migrate.sh"],
-            "stdout_success_message": "DB Migrated successfully!",
-            "hidden": true,
-            "timeout_seconds": 900
-        }
-    ],
-    "postTurnChecks": ["db-migrate", "cargo-test", "flutter-ffi", "flutter-drift", "flutter-analyze", "forbid-sqlx"]
-}

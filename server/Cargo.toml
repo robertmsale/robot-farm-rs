@@ -45,10 +45,11 @@ async-stream = "0.3.6"
 semver = "1.0.27"
 tower-service = "0.3.3"
 inventory = "0.3.21"
-schemars = { version = "1.0.4", features = ["chrono04", "uuid1"] }
+schemars = { version = "1.0.4", features = ["chrono04", "uuid1", "derive"] }
 futures = { workspace = true }
 percent-encoding = "2.3.2"
 openapi = { path = "../openapi/rust" }
+path-clean = "1.0.1"
 
 
 [build-dependencies]
