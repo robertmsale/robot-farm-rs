@@ -25,7 +25,7 @@ tracing-error = "0.2.1"
 tower-http = { version = "0.6.6", features = ["trace", "request-id", "util", "cors", "fs", "compression-gzip", "set-header"] }
 # Environment
 sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "json", "ipnetwork", "bigdecimal"] }
-validator = { version = "0.18", features = ["derive"] }
+validator = { workspace = true }
 bigdecimal = "0.4.9"
 num-traits = "0.2.19"
 dotenvy = "0.15.7"
@@ -45,10 +45,11 @@ async-stream = "0.3.6"
 semver = "1.0.27"
 tower-service = "0.3.3"
 inventory = "0.3.21"
-schemars = { version = "1.0.4", features = ["chrono04", "uuid1", "derive"] }
+schemars = { workspace = true }
 futures = { workspace = true }
 percent-encoding = "2.3.2"
 openapi = { path = "../openapi/rust" }
+oai_strict_schema = { path = "../oai_strict_schema" }
 path-clean = "1.0.1"
 
 

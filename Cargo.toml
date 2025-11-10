@@ -2,6 +2,7 @@
 members = [
     "server",
     "openapi/rust",
+    "oai_strict_schema",
 ]
 resolver = "2"
 
@@ -19,3 +20,5 @@ tokio-util = { version = "0.7.16", features = ["rt"] }
 futures = { version = "0.3.31" }
 reqwest = { version = "0.12.23", features = ["json", "rustls-tls", "stream", "blocking"], default-features = false }
 rust_decimal = { version = "1.38.0", features = ["serde"] }
+schemars = { version = "1.1.0", features = ["chrono04", "uuid1", "derive"] }
+validator = { version = "0.20", features = ["derive"] }

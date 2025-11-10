@@ -10,6 +10,8 @@ mod docker;
 mod globals;
 #[path = "models/lib.rs"]
 mod models;
+#[path = "ai/lib.rs"]
+mod ai;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
