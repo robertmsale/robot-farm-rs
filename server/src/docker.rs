@@ -1,3 +1,5 @@
+use crate::globals::{PROJECT_DIR};
+
 pub const DOCKER_PREFIX: &str = include_str!("../../images/Dockerfile");
 pub const DOCKER_SUFFIX: &str = include_str!("../../images/Dockerfile.cleanup");
 pub const DOCKER_WIZARD: &str = include_str!("../../images/Dockerfile.wizard");
@@ -17,6 +19,10 @@ impl ImageType {
             ImageType::Wizard => "_wizard"
         }
     }
+}
+
+pub fn make_worker_image() -> String {
+    //
 }
 
 pub fn combine_dockerfiles(paths: &[&str]) -> String {

@@ -2,16 +2,21 @@ use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as SerdeError;
 use std::fs;
+use std::sync::LazyLock;
 use validator::Validate;
+use std::path::PathBuf;
+use num_traits::abs;
 
-pub const PROJECT_CONFIG_PATH: &str = "./";
+pub static CONFIG_DIR: LazyLock<String> = LazyLock::new(|| {
+    format!("{}/.robot-farm", crate::globals::PROJECT_DIR.as_str())
+});
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, JsonSchema, Default)]
 pub struct Config {
-    #[validate]
+    #[validate(nested)]
     pub append_agents_file: AppendFilesConfig,
 
-    #[validate(length(min = 1))]
+    #[validate(nested)]
     #[serde(default)]
     pub commands: Vec<CommandConfig>,
 
@@ -47,8 +52,13 @@ pub struct CommandConfig {
     pub timeout_seconds: Option<u64>,
 }
 
-pub fn load_config_from_path(path: &str) -> Config {
-    let raw = fs::read_to_string(path).unwrap_or_else(|err| {
+pub fn load_config_from_path() -> Config {
+    let p = PathBuf::from(format!("{}/config.json", CONFIG_DIR.as_str()));
+    let abs = fs::canonicalize(&p).unwrap_or_else(|err| {
+        panic!("failed to canonicalize {}: {}", CONFIG_DIR.as_str(), err);
+    });
+    let path = abs.display().to_string();
+    let raw = fs::read_to_string(path.as_str()).unwrap_or_else(|err| {
         panic!("Failed to read config file '{path}': {err}");
     });
 

@@ -7,17 +7,22 @@ use tracing::info;
 #[path = "routes/lib.rs"]
 mod routes;
 mod docker;
+mod globals;
+#[path = "models/lib.rs"]
+mod models;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     tracing_subscriber::fmt::init();
 
+    // Load Config
+    let config = models::load_config_from_path();
+
+
     let app: Router = routes::build_routes();
     let addr: SocketAddr = SocketAddr::from(([0, 0, 0, 0], 8080));
 
     info!("Robot Farm API listening on {}", addr);
-
-
 
     let listener = TcpListener::bind(addr).await?;
     serve(listener, app).await?;
