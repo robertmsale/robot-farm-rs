@@ -4,6 +4,7 @@ pub mod harden;
 pub mod walk;
 pub mod errors;
 mod types;
+#[cfg(test)]
 mod schema_check;
 
 pub use openai::{responses_text_format_for, chat_response_format_for};

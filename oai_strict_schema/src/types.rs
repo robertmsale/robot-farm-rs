@@ -1,39 +1,26 @@
-use crate::{harden_root_schema, rules::{validate_schema, Rules}, errors::Report};
-use schemars::{schema_for, JsonSchema};
-use serde_json::Value;
+#![allow(dead_code)]
 
-/// Build the value you can drop into the **Responses API** request under:
-/// ```json
-/// "text": {
-///   "format": { "type": "json_schema", "json_schema": { "name": "...", "strict": true, "schema": { ... } } }
-/// }
-/// ```
-/// NOTE: we return `(format_value, validation_report)` so you can decide whether to fail fast.
-pub fn responses_text_format_for<T: JsonSchema>(
-    name: &str,
-    rules: &Rules,
-) -> (Value, Report) {
-    let mut root = schema_for!(T);
-    // Harden then validate
-    harden_root_schema(&mut root);
-    let report = validate_schema(&root, rules);
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
-    let format_val = serde_json::json!({
-        "type": "json_schema",
-        "json_schema": {
-            "name": name,
-            "strict": true,
-            "schema": root.schema, // only the inner schema, not $defs metadata
-        }
-    });
-    (format_val, report)
+/// Example schema used by the self-test to ensure end-to-end validation works.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct MathReasoning {
+    pub problem: String,
+    pub plan: Vec<ReasoningStep>,
+    pub final_answer: FinalAnswer,
 }
 
-/// If you still use Chat Completions (legacy), this builds the old container:
-/// { "type": "json_schema", "json_schema": { "name": "...", "strict": true, "schema": { ... } } }
-pub fn chat_response_format_for<T: JsonSchema>(
-    name: &str,
-    rules: &Rules,
-) -> (Value, Report) {
-    responses_text_format_for::<T>(name, rules)
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ReasoningStep {
+    pub statement: String,
+    pub justification: String,
+    pub intermediate_result: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct FinalAnswer {
+    pub result: String,
+    #[serde(default)]
+    pub confidence: Option<f32>,
 }

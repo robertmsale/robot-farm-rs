@@ -15,7 +15,6 @@ schemars = { workspace = true }
 validator = { workspace = true }
 thiserror = { workspace = true }
 regex = "1"
-indexmap = "2"
 
 [dev-dependencies]
 pretty_assertions = "1"

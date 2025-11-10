@@ -1290,7 +1290,6 @@ dependencies = [
 name = "oai_strict_schema"
 version = "0.1.0"
 dependencies = [
- "indexmap",
  "pretty_assertions",
  "regex",
  "schemars",
