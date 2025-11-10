@@ -1,0 +1,12 @@
+{
+    "name": "robot-farm-rs",
+    "processes": [
+        {
+            "id": "auto-api-generator",
+            "cmd": "scripts/generate_openapi_clients.sh",
+            "watch": ["openapi/openapi.json"],
+            "autostart": true,
+            "restart": "error"
+        }
+    ]
+}

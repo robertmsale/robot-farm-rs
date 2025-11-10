@@ -18,3 +18,5 @@ openapi-generator generate \
   -g dart \
   -o "$FLUTTER_CLIENT" \
   --additional-properties pubName=my_api_client,pubVersion=1.0.0,pubAuthor="Robert Sale",pubHomepage="https://example.com",pubDescription="Auto-generated Flutter API client",pubRepository="https://github.com/robertsale/my_api_client",serializationLibrary=native_serialization,disallowAdditionalPropertiesIfNotPresent=false
+
+exit 0
