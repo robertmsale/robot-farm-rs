@@ -7,13 +7,13 @@ void main() {
     Get.reset();
   });
 
-  testWidgets('Displays login form requesting connection URL', (tester) async {
+  testWidgets('Displays connection form', (tester) async {
     Get.put(ConnectionController(), permanent: true);
 
     await tester.pumpWidget(const RobotFarmApp());
 
     expect(find.text('Robot Farm Client'), findsOneWidget);
-    expect(find.text('Connection URL'), findsOneWidget);
-    expect(find.text('Connect'), findsOneWidget);
+    expect(find.text('Server host'), findsOneWidget);
+    expect(find.text('Check Health'), findsOneWidget);
   });
 }
