@@ -1,0 +1,59 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[dependencies]
+# Networking
+axum = { version = "0.8.5", features = ["ws", "json", "macros"] }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+fastrand = "2.3.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
+# Util
+uuid = { workspace = true }
+chrono = { workspace = true }
+# Tracing
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
+tracing-error = "0.2.1"
+tower-http = { version = "0.6.6", features = ["trace", "request-id", "util", "cors", "fs", "compression-gzip", "set-header"] }
+# Environment
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "json", "ipnetwork", "bigdecimal"] }
+bigdecimal = "0.4.9"
+num-traits = "0.2.19"
+dotenvy = "0.15.7"
+thiserror = "2.0.17"
+anyhow = "1.0.100"
+futures-util = "0.3.31"
+http = "1.3.1"
+tower = { version = "0.5.2", features = ["util"] }
+http-body-util = "0.1.3"
+crc32fast = "1.5.0"
+async-trait = "0.1.89"
+dashmap = "6.1.0"
+once_cell = "1.21.3"
+reqwest = { workspace = true }
+tokio-stream = "0.1.17"
+async-stream = "0.3.6"
+semver = "1.0.27"
+tower-service = "0.3.3"
+inventory = "0.3.21"
+schemars = { version = "1.0.4", features = ["chrono04", "uuid1"] }
+futures = { workspace = true }
+percent-encoding = "2.3.2"
+openapi = { path = "../openapi/rust" }
+
+
+[build-dependencies]
+hash32 = "1.0.0"
+
+[dev-dependencies]
+tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros", "time", "process", "fs", "test-util"] }
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "json", "ipnetwork", "bigdecimal"] }
+serde_json = { workspace = true }

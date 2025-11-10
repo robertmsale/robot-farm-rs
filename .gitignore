@@ -1,0 +1,26 @@
+/target
+.vscode/
+.idea/
+*.iml
+
+# macOS filesystem noise
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Rust / tooling caches
+**/*.rs.bk
+
+# Editor swap files
+*.swp
+*.swo
+*.tmp
+
+# Generated logs and coverage
+*.log
+coverage/
+.nyc_output/
