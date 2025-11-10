@@ -1,8 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:my_api_client/api.dart' as robot_farm_api;
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+import 'utils/ws_channel.dart';
 
 const int kDefaultApiPort = 8080;
+const String kWebsocketPath = '/ws';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,16 +34,27 @@ class RobotFarmApp extends StatelessWidget {
 
 enum HealthStatus { idle, checking, ok, down }
 
+enum WebsocketStatus { idle, connecting, good, failed }
+
 class ConnectionController extends GetxController {
   final TextEditingController urlController = TextEditingController();
   final Rx<HealthStatus> healthStatus = HealthStatus.idle.obs;
+  final Rx<WebsocketStatus> websocketStatus = WebsocketStatus.idle.obs;
   final RxnString errorMessage = RxnString();
+  final RxnString websocketError = RxnString();
+  WebSocketChannel? _webSocketChannel;
+  StreamSubscription? _webSocketSubscription;
 
   Future<void> checkHealth() async {
     final rawUrl = urlController.text.trim();
+    websocketStatus.value = WebsocketStatus.idle;
+    websocketError.value = null;
+
     if (rawUrl.isEmpty) {
-      errorMessage.value = 'Please enter a server URL.';
+      errorMessage.value = 'Please enter a server host.';
       healthStatus.value = HealthStatus.down;
+      websocketStatus.value = WebsocketStatus.failed;
+      _closeWebSocket();
       return;
     }
 
@@ -46,9 +63,21 @@ class ConnectionController extends GetxController {
       errorMessage.value =
           'Please enter a host or host:port (paths and schemes are not required).';
       healthStatus.value = HealthStatus.down;
+      websocketStatus.value = WebsocketStatus.failed;
+      _closeWebSocket();
       return;
     }
 
+    final healthy = await _performHealthCheck(baseUrl);
+    if (healthy) {
+      await _connectWebsocket(baseUrl);
+    } else {
+      websocketStatus.value = WebsocketStatus.failed;
+      _closeWebSocket();
+    }
+  }
+
+  Future<bool> _performHealthCheck(String baseUrl) async {
     try {
       healthStatus.value = HealthStatus.checking;
       errorMessage.value = null;
@@ -59,6 +88,7 @@ class ConnectionController extends GetxController {
 
       if (response != null && response.status.toLowerCase() == 'ok') {
         healthStatus.value = HealthStatus.ok;
+        return true;
       } else {
         healthStatus.value = HealthStatus.down;
         errorMessage.value = 'Server responded but did not return OK.';
@@ -71,22 +101,69 @@ class ConnectionController extends GetxController {
       errorMessage.value = 'Failed to contact server: $error';
       healthStatus.value = HealthStatus.down;
     }
+
+    return false;
   }
 
-  String get statusLabel {
-    switch (healthStatus.value) {
-      case HealthStatus.ok:
-        return 'OK';
-      case HealthStatus.down:
-        return 'Down';
-      case HealthStatus.checking:
-        return 'Checking...';
-      case HealthStatus.idle:
-        return 'Unknown';
+  Future<void> _connectWebsocket(String baseUrl) async {
+    websocketStatus.value = WebsocketStatus.connecting;
+    websocketError.value = null;
+
+    final wsUri = _buildWebsocketUri(baseUrl);
+
+    try {
+      _closeWebSocket();
+      _webSocketChannel = createWebSocketChannel(wsUri);
+      _webSocketSubscription = _webSocketChannel!.stream.listen(
+        (_) {
+          websocketStatus.value = WebsocketStatus.good;
+          websocketError.value = null;
+        },
+        onError: (error) {
+          websocketStatus.value = WebsocketStatus.failed;
+          websocketError.value = 'WebSocket error: $error';
+        },
+        onDone: () {
+          if (websocketStatus.value == WebsocketStatus.good) {
+            websocketError.value = 'WebSocket closed.';
+          }
+          websocketStatus.value = WebsocketStatus.failed;
+        },
+        cancelOnError: true,
+      );
+    } catch (error) {
+      websocketStatus.value = WebsocketStatus.failed;
+      websocketError.value = 'WebSocket failed: $error';
     }
   }
 
-  Color statusColor(ThemeData theme) {
+  String get healthStatusLabel {
+    switch (healthStatus.value) {
+      case HealthStatus.ok:
+        return 'Health OK';
+      case HealthStatus.down:
+        return 'Health down';
+      case HealthStatus.checking:
+        return 'Checking health...';
+      case HealthStatus.idle:
+        return 'Health unknown';
+    }
+  }
+
+  String get websocketStatusLabel {
+    switch (websocketStatus.value) {
+      case WebsocketStatus.good:
+        return 'WebSocket good';
+      case WebsocketStatus.failed:
+        return 'WebSocket down';
+      case WebsocketStatus.connecting:
+        return 'WebSocket connecting...';
+      case WebsocketStatus.idle:
+        return 'WebSocket idle';
+    }
+  }
+
+  Color healthStatusColor(ThemeData theme) {
     switch (healthStatus.value) {
       case HealthStatus.ok:
         return Colors.green;
@@ -95,6 +172,19 @@ class ConnectionController extends GetxController {
       case HealthStatus.checking:
         return theme.colorScheme.primary;
       case HealthStatus.idle:
+        return theme.colorScheme.outline;
+    }
+  }
+
+  Color websocketStatusColor(ThemeData theme) {
+    switch (websocketStatus.value) {
+      case WebsocketStatus.good:
+        return Colors.green;
+      case WebsocketStatus.failed:
+        return theme.colorScheme.error;
+      case WebsocketStatus.connecting:
+        return theme.colorScheme.primary;
+      case WebsocketStatus.idle:
         return theme.colorScheme.outline;
     }
   }
@@ -122,16 +212,31 @@ class ConnectionController extends GetxController {
     final scheme = uri.scheme.isEmpty ? 'http' : uri.scheme;
     final port = uri.hasPort ? uri.port : kDefaultApiPort;
 
+    return Uri(scheme: scheme, host: uri.host, port: port).toString();
+  }
+
+  Uri _buildWebsocketUri(String baseUrl) {
+    final httpUri = Uri.parse(baseUrl);
+    final scheme = httpUri.scheme == 'https' ? 'wss' : 'ws';
     return Uri(
       scheme: scheme,
-      host: uri.host,
-      port: port,
-    ).toString();
+      host: httpUri.host,
+      port: httpUri.hasPort ? httpUri.port : kDefaultApiPort,
+      path: kWebsocketPath,
+    );
+  }
+
+  void _closeWebSocket() {
+    _webSocketSubscription?.cancel();
+    _webSocketSubscription = null;
+    _webSocketChannel?.sink.close();
+    _webSocketChannel = null;
   }
 
   @override
   void onClose() {
     urlController.dispose();
+    _closeWebSocket();
     super.onClose();
   }
 }
@@ -178,11 +283,13 @@ class ConnectionScreen extends GetView<ConnectionController> {
                     () => SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: controller.healthStatus.value ==
+                        onPressed:
+                            controller.healthStatus.value ==
                                 HealthStatus.checking
                             ? null
                             : controller.checkHealth,
-                        child: controller.healthStatus.value ==
+                        child:
+                            controller.healthStatus.value ==
                                 HealthStatus.checking
                             ? const SizedBox(
                                 width: 18,
@@ -203,9 +310,9 @@ class ConnectionScreen extends GetView<ConnectionController> {
                     () => Column(
                       children: [
                         Text(
-                          controller.statusLabel,
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            color: controller.statusColor(theme),
+                          controller.healthStatusLabel,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: controller.healthStatusColor(theme),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -213,6 +320,30 @@ class ConnectionScreen extends GetView<ConnectionController> {
                           const SizedBox(height: 8),
                           Text(
                             controller.errorMessage.value!,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Obx(
+                    () => Column(
+                      children: [
+                        Text(
+                          controller.websocketStatusLabel,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: controller.websocketStatusColor(theme),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (controller.websocketError.value != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            controller.websocketError.value!,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.error,

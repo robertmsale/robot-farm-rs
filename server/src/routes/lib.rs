@@ -1,4 +1,5 @@
 mod healthz;
+mod ws;
 
 use axum::{Router, http::Method, routing::get};
 use tower_http::cors::{Any, CorsLayer};
@@ -11,5 +12,6 @@ pub fn build_routes() -> Router {
 
     Router::new()
         .route("/healthz", get(healthz::healthz_handler))
+        .route("/ws", get(ws::websocket_handler))
         .layer(cors)
 }
