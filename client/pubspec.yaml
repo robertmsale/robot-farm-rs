@@ -38,6 +38,7 @@ dependencies:
     path: ../openapi/flutter_client
   get: ^4.6.6
   web_socket_channel: ^2.4.0
+  shared_preferences: ^2.3.3
 
 dev_dependencies:
   flutter_test:

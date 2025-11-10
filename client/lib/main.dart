@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:my_api_client/api.dart' as robot_farm_api;
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'utils/ws_channel.dart';
 
 const int kDefaultApiPort = 8080;
 const String kWebsocketPath = '/ws';
+const String kPastLoginsKey = 'past_logins';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +29,17 @@ class RobotFarmApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.greenAccent),
         useMaterial3: true,
       ),
-      home: const ConnectionScreen(),
+      initialRoute: '/',
+      getPages: [
+        GetPage(
+          name: '/',
+          page: () => const ConnectionScreen(),
+        ),
+        GetPage(
+          name: '/home',
+          page: () => const HomeScreen(),
+        ),
+      ],
     );
   }
 }
@@ -42,10 +54,18 @@ class ConnectionController extends GetxController {
   final Rx<WebsocketStatus> websocketStatus = WebsocketStatus.idle.obs;
   final RxnString errorMessage = RxnString();
   final RxnString websocketError = RxnString();
+  final RxList<String> pastLogins = <String>[].obs;
   WebSocketChannel? _webSocketChannel;
   StreamSubscription? _webSocketSubscription;
+  SharedPreferences? _prefs;
 
-  Future<void> checkHealth() async {
+  @override
+  void onInit() {
+    super.onInit();
+    _loadPastLogins();
+  }
+
+  Future<void> connect() async {
     final rawUrl = urlController.text.trim();
     websocketStatus.value = WebsocketStatus.idle;
     websocketError.value = null;
@@ -69,12 +89,21 @@ class ConnectionController extends GetxController {
     }
 
     final healthy = await _performHealthCheck(baseUrl);
-    if (healthy) {
-      await _connectWebsocket(baseUrl);
-    } else {
+    if (!healthy) {
       websocketStatus.value = WebsocketStatus.failed;
       _closeWebSocket();
+      return;
     }
+
+    final socketConnected = await _connectWebsocket(baseUrl);
+    if (!socketConnected) {
+      return;
+    }
+
+    final hostPort = _hostPortFromBase(baseUrl);
+    await _recordLogin(hostPort);
+
+    Get.offAllNamed('/home');
   }
 
   Future<bool> _performHealthCheck(String baseUrl) async {
@@ -105,7 +134,7 @@ class ConnectionController extends GetxController {
     return false;
   }
 
-  Future<void> _connectWebsocket(String baseUrl) async {
+  Future<bool> _connectWebsocket(String baseUrl) async {
     websocketStatus.value = WebsocketStatus.connecting;
     websocketError.value = null;
 
@@ -131,9 +160,11 @@ class ConnectionController extends GetxController {
         },
         cancelOnError: true,
       );
+      return true;
     } catch (error) {
       websocketStatus.value = WebsocketStatus.failed;
       websocketError.value = 'WebSocket failed: $error';
+      return false;
     }
   }
 
@@ -226,11 +257,43 @@ class ConnectionController extends GetxController {
     );
   }
 
+  String _hostPortFromBase(String baseUrl) {
+    final uri = Uri.parse(baseUrl);
+    final port = uri.hasPort ? uri.port : kDefaultApiPort;
+    return '${
+      uri.host
+    }:$port';
+  }
+
   void _closeWebSocket() {
     _webSocketSubscription?.cancel();
     _webSocketSubscription = null;
     _webSocketChannel?.sink.close();
     _webSocketChannel = null;
+  }
+
+  bool get isConnecting =>
+      healthStatus.value == HealthStatus.checking ||
+      websocketStatus.value == WebsocketStatus.connecting;
+
+  Future<void> _loadPastLogins() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final stored = _prefs!.getStringList(kPastLoginsKey) ?? <String>[];
+    pastLogins.assignAll(stored);
+  }
+
+  Future<void> _recordLogin(String hostPort) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final updated = <String>[hostPort, ...pastLogins.where((v) => v != hostPort)];
+    if (updated.length > 5) {
+      updated.removeRange(5, updated.length);
+    }
+    pastLogins.assignAll(updated);
+    await _prefs!.setStringList(kPastLoginsKey, updated);
+  }
+
+  void usePastLogin(String hostPort) {
+    urlController.text = hostPort;
   }
 
   @override
@@ -248,6 +311,9 @@ class ConnectionScreen extends GetView<ConnectionController> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Robot Farm'),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -283,14 +349,10 @@ class ConnectionScreen extends GetView<ConnectionController> {
                     () => SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed:
-                            controller.healthStatus.value ==
-                                HealthStatus.checking
+                        onPressed: controller.isConnecting
                             ? null
-                            : controller.checkHealth,
-                        child:
-                            controller.healthStatus.value ==
-                                HealthStatus.checking
+                            : controller.connect,
+                        child: controller.isConnecting
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
@@ -301,9 +363,40 @@ class ConnectionScreen extends GetView<ConnectionController> {
                                   ),
                                 ),
                               )
-                            : const Text('Check Health'),
+                            : const Text('Connect'),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  Obx(
+                    () {
+                      if (controller.pastLogins.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Recent connections',
+                            style: theme.textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: controller.pastLogins
+                                .map(
+                                  (host) => ActionChip(
+                                    label: Text(host),
+                                    onPressed: () =>
+                                        controller.usePastLogin(host),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
                   Obx(
@@ -357,6 +450,29 @@ class ConnectionScreen extends GetView<ConnectionController> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Robot Farm'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Get.offAllNamed('/'),
+        ),
+      ),
+      body: const Center(
+        child: Text(
+          'Coming soon',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
         ),
       ),
     );

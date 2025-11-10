@@ -14,6 +14,6 @@ void main() {
 
     expect(find.text('Robot Farm Client'), findsOneWidget);
     expect(find.text('Server host'), findsOneWidget);
-    expect(find.text('Check Health'), findsOneWidget);
+    expect(find.text('Connect'), findsOneWidget);
   });
 }
