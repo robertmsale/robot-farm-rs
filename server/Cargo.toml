@@ -25,6 +25,7 @@ tracing-error = "0.2.1"
 tower-http = { version = "0.6.6", features = ["trace", "request-id", "util", "cors", "fs", "compression-gzip", "set-header"] }
 # Environment
 sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "json", "ipnetwork", "bigdecimal"] }
+validator = { version = "0.18", features = ["derive"] }
 bigdecimal = "0.4.9"
 num-traits = "0.2.19"
 dotenvy = "0.15.7"
