@@ -31,6 +31,18 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [GetHealthz200Response](docs/GetHealthz200Response.md)
+ - [Task](docs/Task.md)
+ - [TaskCreateInput](docs/TaskCreateInput.md)
+ - [TaskDependency](docs/TaskDependency.md)
+ - [TaskDependencyCreateInput](docs/TaskDependencyCreateInput.md)
+ - [TaskGroup](docs/TaskGroup.md)
+ - [TaskGroupCreateInput](docs/TaskGroupCreateInput.md)
+ - [TaskGroupStatus](docs/TaskGroupStatus.md)
+ - [TaskGroupUpdateInput](docs/TaskGroupUpdateInput.md)
+ - [TaskStatus](docs/TaskStatus.md)
+ - [TaskUpdateInput](docs/TaskUpdateInput.md)
+ - [Worker](docs/Worker.md)
+ - [WorkerState](docs/WorkerState.md)
 
 
 To get access to the crate's generated documentation, use:

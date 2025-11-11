@@ -184,6 +184,30 @@ class ApiClient {
           return value is DateTime ? value : DateTime.tryParse(value);
         case 'GetHealthz200Response':
           return GetHealthz200Response.fromJson(value);
+        case 'Task':
+          return Task.fromJson(value);
+        case 'TaskCreateInput':
+          return TaskCreateInput.fromJson(value);
+        case 'TaskDependency':
+          return TaskDependency.fromJson(value);
+        case 'TaskDependencyCreateInput':
+          return TaskDependencyCreateInput.fromJson(value);
+        case 'TaskGroup':
+          return TaskGroup.fromJson(value);
+        case 'TaskGroupCreateInput':
+          return TaskGroupCreateInput.fromJson(value);
+        case 'TaskGroupStatus':
+          return TaskGroupStatusTypeTransformer().decode(value);
+        case 'TaskGroupUpdateInput':
+          return TaskGroupUpdateInput.fromJson(value);
+        case 'TaskStatus':
+          return TaskStatusTypeTransformer().decode(value);
+        case 'TaskUpdateInput':
+          return TaskUpdateInput.fromJson(value);
+        case 'Worker':
+          return Worker.fromJson(value);
+        case 'WorkerState':
+          return WorkerStateTypeTransformer().decode(value);
         default:
           dynamic match;
           if (value is List && (match = _regList.firstMatch(targetType)?.group(1)) != null) {

@@ -31,6 +31,18 @@ part 'auth/http_bearer_auth.dart';
 part 'api/default_api.dart';
 
 part 'model/get_healthz200_response.dart';
+part 'model/task.dart';
+part 'model/task_create_input.dart';
+part 'model/task_dependency.dart';
+part 'model/task_dependency_create_input.dart';
+part 'model/task_group.dart';
+part 'model/task_group_create_input.dart';
+part 'model/task_group_status.dart';
+part 'model/task_group_update_input.dart';
+part 'model/task_status.dart';
+part 'model/task_update_input.dart';
+part 'model/worker.dart';
+part 'model/worker_state.dart';
 
 
 /// An [ApiClient] instance that uses the default values obtained from

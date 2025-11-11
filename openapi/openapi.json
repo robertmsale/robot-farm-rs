@@ -40,6 +40,729 @@
           }
         }
       }
+    },
+    "/tasks": {
+      "get": {
+        "summary": "List tasks",
+        "operationId": "listTasks",
+        "parameters": [
+          {
+            "name": "group_slug",
+            "in": "query",
+            "description": "Filter by owning task group's slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "query",
+            "description": "Filter by task slug.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "title",
+            "in": "query",
+            "description": "Filter by task title.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commit_hash",
+            "in": "query",
+            "description": "Filter by commit hash.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by task status.",
+            "schema": {
+              "$ref": "#/components/schemas/TaskStatus"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "description": "Filter by owner display text (e.g., Orchestrator, Quality Assurance, ws42).",
+            "schema": {
+              "type": "string",
+              "pattern": "^(Orchestrator|Quality Assurance|ws\\d+)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of tasks.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create task",
+        "operationId": "createTask",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Task created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{taskId}": {
+      "parameters": [
+        {
+          "name": "taskId",
+          "in": "path",
+          "required": true,
+          "description": "Unique identifier of the task.",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Get task",
+        "operationId": "getTask",
+        "responses": {
+          "200": {
+            "description": "Task found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found."
+          }
+        }
+      },
+      "put": {
+        "summary": "Update task",
+        "operationId": "updateTask",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found."
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete task",
+        "operationId": "deleteTask",
+        "responses": {
+          "204": {
+            "description": "Task deleted."
+          },
+          "404": {
+            "description": "Task not found."
+          }
+        }
+      }
+    },
+    "/task-groups": {
+      "get": {
+        "summary": "List task groups",
+        "operationId": "listTaskGroups",
+        "responses": {
+          "200": {
+            "description": "Array of task groups.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaskGroup"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create task group",
+        "operationId": "createTaskGroup",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskGroupCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Task group created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskGroup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/task-groups/{taskGroupId}": {
+      "parameters": [
+        {
+          "name": "taskGroupId",
+          "in": "path",
+          "required": true,
+          "description": "Unique identifier of the task group.",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Get task group",
+        "operationId": "getTaskGroup",
+        "responses": {
+          "200": {
+            "description": "Task group found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskGroup"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task group not found."
+          }
+        }
+      },
+      "put": {
+        "summary": "Update task group",
+        "operationId": "updateTaskGroup",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskGroupUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task group updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskGroup"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task group not found."
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete task group",
+        "operationId": "deleteTaskGroup",
+        "responses": {
+          "204": {
+            "description": "Task group deleted."
+          },
+          "404": {
+            "description": "Task group not found."
+          }
+        }
+      }
+    },
+    "/task-deps": {
+      "get": {
+        "summary": "List dependencies for a task",
+        "operationId": "listTaskDependencies",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": true,
+            "description": "Task identifier to fetch dependencies for.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identifiers of tasks that the specified task depends on.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create task dependency",
+        "operationId": "createTaskDependency",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskDependencyCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dependency created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskDependency"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/task-deps/{taskId}/{dependsOnTaskId}": {
+      "parameters": [
+        {
+          "name": "taskId",
+          "in": "path",
+          "required": true,
+          "description": "Task that holds the dependency.",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        {
+          "name": "dependsOnTaskId",
+          "in": "path",
+          "required": true,
+          "description": "Task that is depended on.",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "delete": {
+        "summary": "Delete task dependency",
+        "operationId": "deleteTaskDependency",
+        "responses": {
+          "204": {
+            "description": "Dependency deleted."
+          },
+          "404": {
+            "description": "Dependency not found."
+          }
+        }
+      }
+    },
+    "/workers": {
+      "get": {
+        "summary": "List workers",
+        "operationId": "listWorkers",
+        "responses": {
+          "200": {
+            "description": "Current workers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Worker"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create worker",
+        "operationId": "createWorker",
+        "responses": {
+          "201": {
+            "description": "Worker created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worker"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workers/{workerId}": {
+      "parameters": [
+        {
+          "name": "workerId",
+          "in": "path",
+          "required": true,
+          "description": "Identifier of the worker.",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "delete": {
+        "summary": "Delete worker",
+        "operationId": "deleteWorker",
+        "responses": {
+          "204": {
+            "description": "Worker deleted."
+          },
+          "404": {
+            "description": "Worker not found."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TaskStatus": {
+        "type": "string",
+        "description": "High-level state for a task.",
+        "enum": [
+          "Ready",
+          "Blocked",
+          "Done"
+        ]
+      },
+      "WorkerState": {
+        "type": "string",
+        "description": "State reported by the worker.",
+        "enum": [
+          "Ready",
+          "Working",
+          "Blocked",
+          "Done"
+        ]
+      },
+      "TaskGroupStatus": {
+        "type": "string",
+        "description": "Derived status for a task group: Done when it has no tasks or every task is Done, otherwise Ready.",
+        "enum": [
+          "Ready",
+          "Done"
+        ]
+      },
+      "Owner": {
+        "type": "string",
+        "description": "Owner information encoded as display text (\"Orchestrator\", \"Quality Assurance\", or worker handles like \"ws42\").",
+        "pattern": "^(Orchestrator|Quality Assurance|ws\\d+)$"
+      },
+      "TaskGroup": {
+        "type": "object",
+        "description": "Task grouping metadata with derived status.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskGroupStatus",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "description",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "TaskGroupCreateInput": {
+        "type": "object",
+        "description": "Payload for creating a task group. Status is derived automatically.",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "TaskGroupUpdateInput": {
+        "type": "object",
+        "description": "Payload for updating mutable task group fields. Status cannot be modified directly.",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "TaskDependency": {
+        "type": "object",
+        "description": "Represents a dependency relationship where a task depends on another task.",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "depends_on_task_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "task_id",
+          "depends_on_task_id"
+        ],
+        "additionalProperties": false
+      },
+      "TaskDependencyCreateInput": {
+        "type": "object",
+        "description": "Payload for creating a dependency between two tasks.",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "depends_on_task_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "task_id",
+          "depends_on_task_id"
+        ],
+        "additionalProperties": false
+      },
+      "Task": {
+        "type": "object",
+        "description": "Primary task resource mirroring server/src/models/task.rs.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "group_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "commit_hash": {
+            "type": "string",
+            "description": "Commit hash associated with the task.",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/Owner"
+          }
+        },
+        "required": [
+          "id",
+          "group_id",
+          "slug",
+          "title",
+          "status",
+          "owner"
+        ],
+        "additionalProperties": false
+      },
+      "TaskCreateInput": {
+        "type": "object",
+        "description": "Payload for creating a task.",
+        "properties": {
+          "group_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "commit_hash": {
+            "type": "string",
+            "description": "Commit hash associated with the task.",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/Owner"
+          }
+        },
+        "required": [
+          "group_id",
+          "slug",
+          "title",
+          "status",
+          "owner"
+        ],
+        "additionalProperties": false
+      },
+      "TaskUpdateInput": {
+        "type": "object",
+        "description": "Payload for updating a task.",
+        "properties": {
+          "group_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "commit_hash": {
+            "type": "string",
+            "description": "Commit hash associated with the task.",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/Owner"
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "Worker": {
+        "type": "object",
+        "description": "Worker metadata.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_seen": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix timestamp in seconds when the worker last reported."
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkerState"
+          }
+        },
+        "required": [
+          "id",
+          "last_seen",
+          "state"
+        ],
+        "additionalProperties": false
+      }
     }
   }
 }

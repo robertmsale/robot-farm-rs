@@ -16,6 +16,401 @@ class DefaultApi {
 
   final ApiClient apiClient;
 
+  /// Create task
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [TaskCreateInput] taskCreateInput (required):
+  Future<Response> createTaskWithHttpInfo(TaskCreateInput taskCreateInput,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/tasks';
+
+    // ignore: prefer_final_locals
+    Object? postBody = taskCreateInput;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Create task
+  ///
+  /// Parameters:
+  ///
+  /// * [TaskCreateInput] taskCreateInput (required):
+  Future<Task?> createTask(TaskCreateInput taskCreateInput,) async {
+    final response = await createTaskWithHttpInfo(taskCreateInput,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Task',) as Task;
+    
+    }
+    return null;
+  }
+
+  /// Create task dependency
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [TaskDependencyCreateInput] taskDependencyCreateInput (required):
+  Future<Response> createTaskDependencyWithHttpInfo(TaskDependencyCreateInput taskDependencyCreateInput,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/task-deps';
+
+    // ignore: prefer_final_locals
+    Object? postBody = taskDependencyCreateInput;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Create task dependency
+  ///
+  /// Parameters:
+  ///
+  /// * [TaskDependencyCreateInput] taskDependencyCreateInput (required):
+  Future<TaskDependency?> createTaskDependency(TaskDependencyCreateInput taskDependencyCreateInput,) async {
+    final response = await createTaskDependencyWithHttpInfo(taskDependencyCreateInput,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'TaskDependency',) as TaskDependency;
+    
+    }
+    return null;
+  }
+
+  /// Create task group
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [TaskGroupCreateInput] taskGroupCreateInput (required):
+  Future<Response> createTaskGroupWithHttpInfo(TaskGroupCreateInput taskGroupCreateInput,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/task-groups';
+
+    // ignore: prefer_final_locals
+    Object? postBody = taskGroupCreateInput;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Create task group
+  ///
+  /// Parameters:
+  ///
+  /// * [TaskGroupCreateInput] taskGroupCreateInput (required):
+  Future<TaskGroup?> createTaskGroup(TaskGroupCreateInput taskGroupCreateInput,) async {
+    final response = await createTaskGroupWithHttpInfo(taskGroupCreateInput,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'TaskGroup',) as TaskGroup;
+    
+    }
+    return null;
+  }
+
+  /// Create worker
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> createWorkerWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/workers';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Create worker
+  Future<Worker?> createWorker() async {
+    final response = await createWorkerWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Worker',) as Worker;
+    
+    }
+    return null;
+  }
+
+  /// Delete task
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  Future<Response> deleteTaskWithHttpInfo(int taskId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/tasks/{taskId}'
+      .replaceAll('{taskId}', taskId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Delete task
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  Future<void> deleteTask(int taskId,) async {
+    final response = await deleteTaskWithHttpInfo(taskId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
+  /// Delete task dependency
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Task that holds the dependency.
+  ///
+  /// * [int] dependsOnTaskId (required):
+  ///   Task that is depended on.
+  Future<Response> deleteTaskDependencyWithHttpInfo(int taskId, int dependsOnTaskId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/task-deps/{taskId}/{dependsOnTaskId}'
+      .replaceAll('{taskId}', taskId.toString())
+      .replaceAll('{dependsOnTaskId}', dependsOnTaskId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Delete task dependency
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Task that holds the dependency.
+  ///
+  /// * [int] dependsOnTaskId (required):
+  ///   Task that is depended on.
+  Future<void> deleteTaskDependency(int taskId, int dependsOnTaskId,) async {
+    final response = await deleteTaskDependencyWithHttpInfo(taskId, dependsOnTaskId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
+  /// Delete task group
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskGroupId (required):
+  ///   Unique identifier of the task group.
+  Future<Response> deleteTaskGroupWithHttpInfo(int taskGroupId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/task-groups/{taskGroupId}'
+      .replaceAll('{taskGroupId}', taskGroupId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Delete task group
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskGroupId (required):
+  ///   Unique identifier of the task group.
+  Future<void> deleteTaskGroup(int taskGroupId,) async {
+    final response = await deleteTaskGroupWithHttpInfo(taskGroupId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
+  /// Delete worker
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] workerId (required):
+  ///   Identifier of the worker.
+  Future<Response> deleteWorkerWithHttpInfo(int workerId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/workers/{workerId}'
+      .replaceAll('{workerId}', workerId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Delete worker
+  ///
+  /// Parameters:
+  ///
+  /// * [int] workerId (required):
+  ///   Identifier of the worker.
+  Future<void> deleteWorker(int workerId,) async {
+    final response = await deleteWorkerWithHttpInfo(workerId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
   /// Health check
   ///
   /// Note: This method returns the HTTP [Response].
@@ -55,6 +450,493 @@ class DefaultApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'GetHealthz200Response',) as GetHealthz200Response;
+    
+    }
+    return null;
+  }
+
+  /// Get task
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  Future<Response> getTaskWithHttpInfo(int taskId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/tasks/{taskId}'
+      .replaceAll('{taskId}', taskId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Get task
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  Future<Task?> getTask(int taskId,) async {
+    final response = await getTaskWithHttpInfo(taskId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Task',) as Task;
+    
+    }
+    return null;
+  }
+
+  /// Get task group
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskGroupId (required):
+  ///   Unique identifier of the task group.
+  Future<Response> getTaskGroupWithHttpInfo(int taskGroupId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/task-groups/{taskGroupId}'
+      .replaceAll('{taskGroupId}', taskGroupId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Get task group
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskGroupId (required):
+  ///   Unique identifier of the task group.
+  Future<TaskGroup?> getTaskGroup(int taskGroupId,) async {
+    final response = await getTaskGroupWithHttpInfo(taskGroupId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'TaskGroup',) as TaskGroup;
+    
+    }
+    return null;
+  }
+
+  /// List dependencies for a task
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Task identifier to fetch dependencies for.
+  Future<Response> listTaskDependenciesWithHttpInfo(int taskId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/task-deps';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+      queryParams.addAll(_queryParams('', 'task_id', taskId));
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// List dependencies for a task
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Task identifier to fetch dependencies for.
+  Future<List<int>?> listTaskDependencies(int taskId,) async {
+    final response = await listTaskDependenciesWithHttpInfo(taskId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      final responseBody = await _decodeBodyBytes(response);
+      return (await apiClient.deserializeAsync(responseBody, 'List<int>') as List)
+        .cast<int>()
+        .toList(growable: false);
+
+    }
+    return null;
+  }
+
+  /// List task groups
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> listTaskGroupsWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/task-groups';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// List task groups
+  Future<List<TaskGroup>?> listTaskGroups() async {
+    final response = await listTaskGroupsWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      final responseBody = await _decodeBodyBytes(response);
+      return (await apiClient.deserializeAsync(responseBody, 'List<TaskGroup>') as List)
+        .cast<TaskGroup>()
+        .toList(growable: false);
+
+    }
+    return null;
+  }
+
+  /// List tasks
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] groupSlug:
+  ///   Filter by owning task group's slug.
+  ///
+  /// * [String] slug:
+  ///   Filter by task slug.
+  ///
+  /// * [String] title:
+  ///   Filter by task title.
+  ///
+  /// * [String] commitHash:
+  ///   Filter by commit hash.
+  ///
+  /// * [TaskStatus] status:
+  ///   Filter by task status.
+  ///
+  /// * [String] owner:
+  ///   Filter by owner display text (e.g., Orchestrator, Quality Assurance, ws42).
+  Future<Response> listTasksWithHttpInfo({ String? groupSlug, String? slug, String? title, String? commitHash, TaskStatus? status, String? owner, }) async {
+    // ignore: prefer_const_declarations
+    final path = r'/tasks';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    if (groupSlug != null) {
+      queryParams.addAll(_queryParams('', 'group_slug', groupSlug));
+    }
+    if (slug != null) {
+      queryParams.addAll(_queryParams('', 'slug', slug));
+    }
+    if (title != null) {
+      queryParams.addAll(_queryParams('', 'title', title));
+    }
+    if (commitHash != null) {
+      queryParams.addAll(_queryParams('', 'commit_hash', commitHash));
+    }
+    if (status != null) {
+      queryParams.addAll(_queryParams('', 'status', status));
+    }
+    if (owner != null) {
+      queryParams.addAll(_queryParams('', 'owner', owner));
+    }
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// List tasks
+  ///
+  /// Parameters:
+  ///
+  /// * [String] groupSlug:
+  ///   Filter by owning task group's slug.
+  ///
+  /// * [String] slug:
+  ///   Filter by task slug.
+  ///
+  /// * [String] title:
+  ///   Filter by task title.
+  ///
+  /// * [String] commitHash:
+  ///   Filter by commit hash.
+  ///
+  /// * [TaskStatus] status:
+  ///   Filter by task status.
+  ///
+  /// * [String] owner:
+  ///   Filter by owner display text (e.g., Orchestrator, Quality Assurance, ws42).
+  Future<List<Task>?> listTasks({ String? groupSlug, String? slug, String? title, String? commitHash, TaskStatus? status, String? owner, }) async {
+    final response = await listTasksWithHttpInfo( groupSlug: groupSlug, slug: slug, title: title, commitHash: commitHash, status: status, owner: owner, );
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      final responseBody = await _decodeBodyBytes(response);
+      return (await apiClient.deserializeAsync(responseBody, 'List<Task>') as List)
+        .cast<Task>()
+        .toList(growable: false);
+
+    }
+    return null;
+  }
+
+  /// List workers
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> listWorkersWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/workers';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// List workers
+  Future<List<Worker>?> listWorkers() async {
+    final response = await listWorkersWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      final responseBody = await _decodeBodyBytes(response);
+      return (await apiClient.deserializeAsync(responseBody, 'List<Worker>') as List)
+        .cast<Worker>()
+        .toList(growable: false);
+
+    }
+    return null;
+  }
+
+  /// Update task
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  ///
+  /// * [TaskUpdateInput] taskUpdateInput (required):
+  Future<Response> updateTaskWithHttpInfo(int taskId, TaskUpdateInput taskUpdateInput,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/tasks/{taskId}'
+      .replaceAll('{taskId}', taskId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody = taskUpdateInput;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PUT',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Update task
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  ///
+  /// * [TaskUpdateInput] taskUpdateInput (required):
+  Future<Task?> updateTask(int taskId, TaskUpdateInput taskUpdateInput,) async {
+    final response = await updateTaskWithHttpInfo(taskId, taskUpdateInput,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Task',) as Task;
+    
+    }
+    return null;
+  }
+
+  /// Update task group
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskGroupId (required):
+  ///   Unique identifier of the task group.
+  ///
+  /// * [TaskGroupUpdateInput] taskGroupUpdateInput (required):
+  Future<Response> updateTaskGroupWithHttpInfo(int taskGroupId, TaskGroupUpdateInput taskGroupUpdateInput,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/task-groups/{taskGroupId}'
+      .replaceAll('{taskGroupId}', taskGroupId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody = taskGroupUpdateInput;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PUT',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Update task group
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskGroupId (required):
+  ///   Unique identifier of the task group.
+  ///
+  /// * [TaskGroupUpdateInput] taskGroupUpdateInput (required):
+  Future<TaskGroup?> updateTaskGroup(int taskGroupId, TaskGroupUpdateInput taskGroupUpdateInput,) async {
+    final response = await updateTaskGroupWithHttpInfo(taskGroupId, taskGroupUpdateInput,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'TaskGroup',) as TaskGroup;
     
     }
     return null;

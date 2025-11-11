@@ -55,6 +55,15 @@ String parameterToString(dynamic value) {
   if (value is DateTime) {
     return value.toUtc().toIso8601String();
   }
+  if (value is TaskGroupStatus) {
+    return TaskGroupStatusTypeTransformer().encode(value).toString();
+  }
+  if (value is TaskStatus) {
+    return TaskStatusTypeTransformer().encode(value).toString();
+  }
+  if (value is WorkerState) {
+    return WorkerStateTypeTransformer().encode(value).toString();
+  }
   return value.toString();
 }
 

@@ -42,12 +42,13 @@ import 'package:my_api_client/api.dart';
 
 
 final api_instance = DefaultApi();
+final taskCreateInput = TaskCreateInput(); // TaskCreateInput | 
 
 try {
-    final result = api_instance.getHealthz();
+    final result = api_instance.createTask(taskCreateInput);
     print(result);
 } catch (e) {
-    print('Exception when calling DefaultApi->getHealthz: $e\n');
+    print('Exception when calling DefaultApi->createTask: $e\n');
 }
 
 ```
@@ -58,12 +59,40 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*DefaultApi* | [**createTask**](doc//DefaultApi.md#createtask) | **POST** /tasks | Create task
+*DefaultApi* | [**createTaskDependency**](doc//DefaultApi.md#createtaskdependency) | **POST** /task-deps | Create task dependency
+*DefaultApi* | [**createTaskGroup**](doc//DefaultApi.md#createtaskgroup) | **POST** /task-groups | Create task group
+*DefaultApi* | [**createWorker**](doc//DefaultApi.md#createworker) | **POST** /workers | Create worker
+*DefaultApi* | [**deleteTask**](doc//DefaultApi.md#deletetask) | **DELETE** /tasks/{taskId} | Delete task
+*DefaultApi* | [**deleteTaskDependency**](doc//DefaultApi.md#deletetaskdependency) | **DELETE** /task-deps/{taskId}/{dependsOnTaskId} | Delete task dependency
+*DefaultApi* | [**deleteTaskGroup**](doc//DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
+*DefaultApi* | [**deleteWorker**](doc//DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check
+*DefaultApi* | [**getTask**](doc//DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
+*DefaultApi* | [**getTaskGroup**](doc//DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
+*DefaultApi* | [**listTaskDependencies**](doc//DefaultApi.md#listtaskdependencies) | **GET** /task-deps | List dependencies for a task
+*DefaultApi* | [**listTaskGroups**](doc//DefaultApi.md#listtaskgroups) | **GET** /task-groups | List task groups
+*DefaultApi* | [**listTasks**](doc//DefaultApi.md#listtasks) | **GET** /tasks | List tasks
+*DefaultApi* | [**listWorkers**](doc//DefaultApi.md#listworkers) | **GET** /workers | List workers
+*DefaultApi* | [**updateTask**](doc//DefaultApi.md#updatetask) | **PUT** /tasks/{taskId} | Update task
+*DefaultApi* | [**updateTaskGroup**](doc//DefaultApi.md#updatetaskgroup) | **PUT** /task-groups/{taskGroupId} | Update task group
 
 
 ## Documentation For Models
 
  - [GetHealthz200Response](doc//GetHealthz200Response.md)
+ - [Task](doc//Task.md)
+ - [TaskCreateInput](doc//TaskCreateInput.md)
+ - [TaskDependency](doc//TaskDependency.md)
+ - [TaskDependencyCreateInput](doc//TaskDependencyCreateInput.md)
+ - [TaskGroup](doc//TaskGroup.md)
+ - [TaskGroupCreateInput](doc//TaskGroupCreateInput.md)
+ - [TaskGroupStatus](doc//TaskGroupStatus.md)
+ - [TaskGroupUpdateInput](doc//TaskGroupUpdateInput.md)
+ - [TaskStatus](doc//TaskStatus.md)
+ - [TaskUpdateInput](doc//TaskUpdateInput.md)
+ - [Worker](doc//Worker.md)
+ - [WorkerState](doc//WorkerState.md)
 
 
 ## Documentation For Authorization
