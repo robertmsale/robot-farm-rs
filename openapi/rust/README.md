@@ -30,7 +30,9 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [ActiveStrategy](docs/ActiveStrategy.md)
  - [GetHealthz200Response](docs/GetHealthz200Response.md)
+ - [Strategy](docs/Strategy.md)
  - [Task](docs/Task.md)
  - [TaskCreateInput](docs/TaskCreateInput.md)
  - [TaskDependency](docs/TaskDependency.md)

@@ -2,8 +2,10 @@
 .travis.yml
 README.md
 analysis_options.yaml
+doc/ActiveStrategy.md
 doc/DefaultApi.md
 doc/GetHealthz200Response.md
+doc/Strategy.md
 doc/Task.md
 doc/TaskCreateInput.md
 doc/TaskDependency.md
@@ -27,7 +29,9 @@ lib/auth/authentication.dart
 lib/auth/http_basic_auth.dart
 lib/auth/http_bearer_auth.dart
 lib/auth/oauth.dart
+lib/model/active_strategy.dart
 lib/model/get_healthz200_response.dart
+lib/model/strategy.dart
 lib/model/task.dart
 lib/model/task_create_input.dart
 lib/model/task_dependency.dart
@@ -41,5 +45,5 @@ lib/model/task_update_input.dart
 lib/model/worker.dart
 lib/model/worker_state.dart
 pubspec.yaml
-test/worker_state_test.dart
-test/worker_test.dart
+test/active_strategy_test.dart
+test/strategy_test.dart

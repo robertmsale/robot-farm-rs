@@ -17,6 +17,7 @@ Method | HTTP request | Description
 [**deleteTaskDependency**](DefaultApi.md#deletetaskdependency) | **DELETE** /task-deps/{taskId}/{dependsOnTaskId} | Delete task dependency
 [**deleteTaskGroup**](DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 [**deleteWorker**](DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
+[**getActiveStrategy**](DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 [**getHealthz**](DefaultApi.md#gethealthz) | **GET** /healthz | Health check
 [**getTask**](DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
 [**getTaskGroup**](DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
@@ -24,6 +25,7 @@ Method | HTTP request | Description
 [**listTaskGroups**](DefaultApi.md#listtaskgroups) | **GET** /task-groups | List task groups
 [**listTasks**](DefaultApi.md#listtasks) | **GET** /tasks | List tasks
 [**listWorkers**](DefaultApi.md#listworkers) | **GET** /workers | List workers
+[**updateActiveStrategy**](DefaultApi.md#updateactivestrategy) | **PUT** /strategy | Update active strategy
 [**updateTask**](DefaultApi.md#updatetask) | **PUT** /tasks/{taskId} | Update task
 [**updateTaskGroup**](DefaultApi.md#updatetaskgroup) | **PUT** /task-groups/{taskGroupId} | Update task group
 
@@ -350,6 +352,43 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **getActiveStrategy**
+> ActiveStrategy getActiveStrategy()
+
+Get active strategy
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+
+try {
+    final result = api_instance.getActiveStrategy();
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getActiveStrategy: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+[**ActiveStrategy**](ActiveStrategy.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **getHealthz**
 > GetHealthz200Response getHealthz()
 
@@ -631,6 +670,47 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateActiveStrategy**
+> ActiveStrategy updateActiveStrategy(activeStrategy)
+
+Update active strategy
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final activeStrategy = ActiveStrategy(); // ActiveStrategy | 
+
+try {
+    final result = api_instance.updateActiveStrategy(activeStrategy);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->updateActiveStrategy: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **activeStrategy** | [**ActiveStrategy**](ActiveStrategy.md)|  | 
+
+### Return type
+
+[**ActiveStrategy**](ActiveStrategy.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

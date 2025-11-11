@@ -492,6 +492,50 @@
           }
         }
       }
+    },
+    "/strategy": {
+      "get": {
+        "summary": "Get active strategy",
+        "operationId": "getActiveStrategy",
+        "responses": {
+          "200": {
+            "description": "Current active strategy configuration.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveStrategy"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update active strategy",
+        "operationId": "updateActiveStrategy",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActiveStrategy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated strategy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveStrategy"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -503,6 +547,19 @@
           "Ready",
           "Blocked",
           "Done"
+        ]
+      },
+      "Strategy": {
+        "type": "string",
+        "description": "System-wide execution strategy.",
+        "enum": [
+          "AGGRESSIVE",
+          "MODERATE",
+          "ECONOMICAL",
+          "BUG_SMASH",
+          "HOTFIX_SWARM",
+          "PLANNING",
+          "WIND_DOWN"
         ]
       },
       "WorkerState": {
@@ -760,6 +817,28 @@
           "id",
           "last_seen",
           "state"
+        ],
+        "additionalProperties": false
+      },
+      "ActiveStrategy": {
+        "type": "object",
+        "description": "Represents the globally active strategy and optional focus task groups.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Strategy"
+          },
+          "focus": {
+            "type": "array",
+            "description": "Optional list of task group identifiers receiving additional focus.",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "nullable": true
+          }
+        },
+        "required": [
+          "id"
         ],
         "additionalProperties": false
       }

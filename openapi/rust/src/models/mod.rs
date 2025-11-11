@@ -1,5 +1,9 @@
+pub mod active_strategy;
+pub use self::active_strategy::ActiveStrategy;
 pub mod get_healthz_200_response;
 pub use self::get_healthz_200_response::GetHealthz200Response;
+pub mod strategy;
+pub use self::strategy::Strategy;
 pub mod task;
 pub use self::task::Task;
 pub mod task_create_input;

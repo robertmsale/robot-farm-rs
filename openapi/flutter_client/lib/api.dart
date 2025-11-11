@@ -30,7 +30,9 @@ part 'auth/http_bearer_auth.dart';
 
 part 'api/default_api.dart';
 
+part 'model/active_strategy.dart';
 part 'model/get_healthz200_response.dart';
+part 'model/strategy.dart';
 part 'model/task.dart';
 part 'model/task_create_input.dart';
 part 'model/task_dependency.dart';

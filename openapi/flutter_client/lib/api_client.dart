@@ -182,8 +182,12 @@ class ApiClient {
           return valueString == 'true' || valueString == '1';
         case 'DateTime':
           return value is DateTime ? value : DateTime.tryParse(value);
+        case 'ActiveStrategy':
+          return ActiveStrategy.fromJson(value);
         case 'GetHealthz200Response':
           return GetHealthz200Response.fromJson(value);
+        case 'Strategy':
+          return StrategyTypeTransformer().decode(value);
         case 'Task':
           return Task.fromJson(value);
         case 'TaskCreateInput':

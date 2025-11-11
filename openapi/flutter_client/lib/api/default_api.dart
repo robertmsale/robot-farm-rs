@@ -411,6 +411,50 @@ class DefaultApi {
     }
   }
 
+  /// Get active strategy
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> getActiveStrategyWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/strategy';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Get active strategy
+  Future<ActiveStrategy?> getActiveStrategy() async {
+    final response = await getActiveStrategyWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'ActiveStrategy',) as ActiveStrategy;
+    
+    }
+    return null;
+  }
+
   /// Health check
   ///
   /// Note: This method returns the HTTP [Response].
@@ -820,6 +864,58 @@ class DefaultApi {
         .cast<Worker>()
         .toList(growable: false);
 
+    }
+    return null;
+  }
+
+  /// Update active strategy
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [ActiveStrategy] activeStrategy (required):
+  Future<Response> updateActiveStrategyWithHttpInfo(ActiveStrategy activeStrategy,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/strategy';
+
+    // ignore: prefer_final_locals
+    Object? postBody = activeStrategy;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PUT',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Update active strategy
+  ///
+  /// Parameters:
+  ///
+  /// * [ActiveStrategy] activeStrategy (required):
+  Future<ActiveStrategy?> updateActiveStrategy(ActiveStrategy activeStrategy,) async {
+    final response = await updateActiveStrategyWithHttpInfo(activeStrategy,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'ActiveStrategy',) as ActiveStrategy;
+    
     }
     return null;
   }

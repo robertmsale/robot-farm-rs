@@ -67,6 +67,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**deleteTaskDependency**](doc//DefaultApi.md#deletetaskdependency) | **DELETE** /task-deps/{taskId}/{dependsOnTaskId} | Delete task dependency
 *DefaultApi* | [**deleteTaskGroup**](doc//DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 *DefaultApi* | [**deleteWorker**](doc//DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
+*DefaultApi* | [**getActiveStrategy**](doc//DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check
 *DefaultApi* | [**getTask**](doc//DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
 *DefaultApi* | [**getTaskGroup**](doc//DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
@@ -74,13 +75,16 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**listTaskGroups**](doc//DefaultApi.md#listtaskgroups) | **GET** /task-groups | List task groups
 *DefaultApi* | [**listTasks**](doc//DefaultApi.md#listtasks) | **GET** /tasks | List tasks
 *DefaultApi* | [**listWorkers**](doc//DefaultApi.md#listworkers) | **GET** /workers | List workers
+*DefaultApi* | [**updateActiveStrategy**](doc//DefaultApi.md#updateactivestrategy) | **PUT** /strategy | Update active strategy
 *DefaultApi* | [**updateTask**](doc//DefaultApi.md#updatetask) | **PUT** /tasks/{taskId} | Update task
 *DefaultApi* | [**updateTaskGroup**](doc//DefaultApi.md#updatetaskgroup) | **PUT** /task-groups/{taskGroupId} | Update task group
 
 
 ## Documentation For Models
 
+ - [ActiveStrategy](doc//ActiveStrategy.md)
  - [GetHealthz200Response](doc//GetHealthz200Response.md)
+ - [Strategy](doc//Strategy.md)
  - [Task](doc//Task.md)
  - [TaskCreateInput](doc//TaskCreateInput.md)
  - [TaskDependency](doc//TaskDependency.md)
