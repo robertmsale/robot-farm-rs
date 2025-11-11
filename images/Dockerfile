@@ -2,6 +2,8 @@
 
 FROM buildpack-deps:trixie
 
+ARG SCHEMA_DIR=/tmp
+
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     PNPM_HOME=/root/.local/share/pnpm \
@@ -33,7 +35,7 @@ RUN corepack enable && \
 WORKDIR /workspace
 
 RUN mkdir -p /opt/robot-farm
-COPY .robot-farm/cache/final_message.schema.json /opt/robot-farm/final_message.schema.json
+COPY schema.json /opt/robot-farm/schema.json
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["bash"]

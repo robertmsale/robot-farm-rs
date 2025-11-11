@@ -51,6 +51,7 @@ percent-encoding = "2.3.2"
 openapi = { path = "../openapi/rust" }
 oai_strict_schema = { path = "../oai_strict_schema" }
 path-clean = "1.0.1"
+tempfile = "3.23.0"
 
 
 [build-dependencies]
