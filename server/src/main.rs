@@ -7,6 +7,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use tokio::net::TcpListener;
 use tracing::info;
+use crate::docker::make_worker_image;
 
 #[path = "routes/lib.rs"]
 mod routes;
@@ -27,6 +28,8 @@ async fn main() -> Result<(), anyhow::Error> {
             .with_context(|| format!("failed to set workspace to {}", workspace.display()))?;
         info!("workspace set to {}", workspace.display());
     }
+
+    make_worker_image();
 
     // Load Config
     let config = models::load_config_from_path();
