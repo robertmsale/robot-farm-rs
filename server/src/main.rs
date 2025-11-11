@@ -11,6 +11,7 @@ use tracing::info;
 
 #[path = "ai/lib.rs"]
 mod ai;
+mod db;
 mod docker;
 mod globals;
 #[path = "routes/lib.rs"]
