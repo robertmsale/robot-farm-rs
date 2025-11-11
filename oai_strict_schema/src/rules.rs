@@ -23,6 +23,7 @@ pub struct Rules {
     pub warn_on_enum_type_mismatch: bool,
     pub max_nesting: Option<usize>,
     pub max_total_properties: Option<usize>,
+    pub forbid_keywords_alongside_refs: bool,
 }
 
 impl Default for Rules {
@@ -48,6 +49,7 @@ impl StrictProfile {
                 require_array_items: true,
                 warn_on_oneof_anyof_allof_not: true,
                 warn_on_enum_type_mismatch: true,
+                forbid_keywords_alongside_refs: true,
                 max_nesting: Some(5),              // conservative default
                 max_total_properties: Some(100),   // conservative default
             }
@@ -143,6 +145,22 @@ pub fn validate_schema(root: &Schema, rules: &Rules) -> Report {
                 FindingKind::Error,
                 "array must specify 'items' schema",
             );
+        }
+
+        // $ref must stand alone per OpenAI requirements
+        if rules.forbid_keywords_alongside_refs {
+            if let Some(Value::String(_)) = sobj.get("$ref") {
+                if sobj
+                    .keys()
+                    .any(|k| k != "$ref")
+                {
+                    rep.push(
+                        ctx.pointer.clone(),
+                        FindingKind::Error,
+                        "$ref schemas cannot include other keywords in OpenAI strict mode",
+                    );
+                }
+            }
         }
 
         // Combinators are fragile with strict decoding

@@ -15,6 +15,9 @@ fn harden_schema(schema: &mut Schema) {
     }
 
     let map = schema.ensure_object();
+    if map.contains_key("$ref") {
+        return;
+    }
     enforce_additional_properties(map);
 
     visit_child_maps(map, |child| {

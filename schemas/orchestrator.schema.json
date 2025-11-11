@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RobotFarmTurn",
+  "type": "object",
+  "properties": {
+    "target": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Orchestrator must set their worker_id (e.g., 'ws1') when messaging a worker; workers should provide null."
+    },
+    "intent": {
+      "type": "string",
+      "enum": [
+        "ASSIGN_TASKS",
+        "STATUS_UPDATE",
+        "ACK_PAUSE"
+      ],
+      "description": "Intent value describing the turn outcome."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line summary of the turn."
+    },
+    "details": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Expanded details supporting the summary."
+    },
+    "assignments": {
+      "description": "Assignments payload when intent=ASSIGN_TASKS.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "task_slug": {
+            "type": "string",
+            "description": "Slug of the assigned story/task."
+          },
+          "task_title": {
+            "type": "string",
+            "description": "Short title describing the assignment."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Concrete steps the worker should follow."
+          },
+          "acceptance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Acceptance criteria for the assignment."
+          }
+        },
+        "required": [
+          "task_slug",
+          "title",
+          "steps",
+          "acceptance"
+        ],
+        "additionalProperties": false,
+        "description": "Assignment payload detailing tasks for the worker."
+      }
+    },
+    "completed": {
+      "description": "Completed tasks payload when intent=COMPLETE_TASKS.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "task_slug": {
+            "type": "string",
+            "description": "Slug of the task that was completed."
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Completion notes or highlights."
+          },
+          "open_questions": {
+            "description": "Follow-up questions, if any.",
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Structured answer payload when answer_required was true."
+          },
+          "commit_summary": {
+            "description": "Short summary describing the changes for auto-commit messages. Aim for <= 72 characters.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 3,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "task_slug",
+          "notes",
+          "open_questions",
+          "answer",
+          "commit_summary"
+        ],
+        "additionalProperties": false,
+        "description": "Completion entry for a task."
+      }
+    },
+    "blocked": {
+      "description": "Blocked tasks payload when intent=BLOCKED.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "task_slug": {
+            "type": "string",
+            "description": "Slug of the blocked task."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Explanation of why work cannot proceed."
+          },
+          "requires_merge_resolution": {
+            "type": "boolean",
+            "description": "Whether a merge conflict must be resolved."
+          },
+          "proposed_unblock_steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Suggestions for unblocking the task."
+          }
+        },
+        "required": [
+          "task_slug",
+          "reason",
+          "requires_merge_resolution",
+          "proposed_unblock_steps"
+        ],
+        "additionalProperties": false,
+        "description": "Blocked entry describing impediments."
+      }
+    },
+    "queue": {
+      "description": "Optional hints the program may apply to the dispatcher.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "priority_bump": {
+          "description": "Relative priority bump to apply.",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "insert_before_message_id": {
+          "description": "Queue item ID to insert before.",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Queue target (e.g., 'ws3' or 'orchestrator')."
+        }
+      },
+      "required": [
+        "priority_bump",
+        "insert_before_message_id",
+        "target"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "target",
+    "intent",
+    "summary",
+    "details",
+    "assignments",
+    "completed",
+    "blocked",
+    "queue"
+  ],
+  "additionalProperties": false,
+  "description": "Structured agent turn payload."
+}

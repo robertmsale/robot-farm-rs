@@ -1,6 +1,10 @@
-use axum::Router;
+use anyhow::{anyhow, Context};
 use axum::serve;
+use axum::Router;
+use std::env;
+use std::fs;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -17,9 +21,17 @@ mod ai;
 async fn main() -> Result<(), anyhow::Error> {
     tracing_subscriber::fmt::init();
 
+    let cli = parse_cli_args()?;
+    if let Some(workspace) = cli.workspace.as_ref() {
+        env::set_current_dir(workspace)
+            .with_context(|| format!("failed to set workspace to {}", workspace.display()))?;
+        info!("workspace set to {}", workspace.display());
+    }
+
     // Load Config
     let config = models::load_config_from_path();
 
+    generate_response_schemas()?;
 
     let app: Router = routes::build_routes();
     let addr: SocketAddr = SocketAddr::from(([0, 0, 0, 0], 8080));
@@ -28,5 +40,52 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let listener = TcpListener::bind(addr).await?;
     serve(listener, app).await?;
+    Ok(())
+}
+
+#[derive(Default)]
+struct CliArgs {
+    workspace: Option<PathBuf>,
+}
+
+fn parse_cli_args() -> Result<CliArgs, anyhow::Error> {
+    let mut args = env::args().skip(1);
+    let mut cli = CliArgs::default();
+
+    while let Some(arg) = args.next() {
+        if arg == "--workspace" {
+            let value = args
+                .next()
+                .ok_or_else(|| anyhow!("--workspace requires a path argument"))?;
+            cli.workspace = Some(PathBuf::from(value));
+        } else if let Some(rest) = arg.strip_prefix("--workspace=") {
+            if rest.is_empty() {
+                return Err(anyhow!("--workspace=PATH requires a non-empty path"));
+            }
+            cli.workspace = Some(PathBuf::from(rest));
+        } else {
+            return Err(anyhow!("unknown argument: {arg}"));
+        }
+    }
+
+    Ok(cli)
+}
+
+fn generate_response_schemas() -> Result<(), anyhow::Error> {
+    use ai::schemas::{generated_schema_for, OrchestratorTurn, WorkerTurn};
+
+    write_schema_file("orchestrator", generated_schema_for::<OrchestratorTurn>())?;
+    write_schema_file("worker", generated_schema_for::<WorkerTurn>())?;
+    Ok(())
+}
+
+fn write_schema_file(stem: &str, schema: schemars::Schema) -> Result<(), anyhow::Error> {
+    let bytes = serde_json::to_vec_pretty(&schema)?;
+
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("../schemas");
+    fs::create_dir_all(&path)?;
+    path.push(format!("{stem}.generated.schema.json"));
+    fs::write(&path, bytes)?;
     Ok(())
 }
