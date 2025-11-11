@@ -1,6 +1,9 @@
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
+use schemars::JsonSchema;
 use tempfile::TempDir;
+use crate::ai::schemas::{generated_schema_for, OrchestratorTurn, WorkerTurn};
 use crate::globals::{PROJECT_DIR};
 use crate::models::config::CONFIG_DIR;
 
@@ -40,7 +43,7 @@ pub fn make_worker_image(schemas: &SchemaCollection) {
     let proj_name =  dir.file_name().unwrap().to_str().unwrap();
     let worker_img = combine_image_name(proj_name, &ImageType::Worker);
     let tmp = TempDir::new().unwrap_or_else(|_| panic!("failed to create temporary directory"));
-    // save generated schemas.orchestrator to {tmp}/schema.json
+    generate_response_schema::<OrchestratorTurn>(&tmp);
     /*
     $ docker build \
         --tag "{DOCKER_IMAGE_PREFIX}-orchestrator_{proj_name}" \
@@ -48,8 +51,8 @@ pub fn make_worker_image(schemas: &SchemaCollection) {
         --build-arg GID=1000 \
         -f - /{tmp}
      */ // << pipe {concatenated} to use as build script
-    
-    // save generated schemas.worker to {tmp}/schema.json
+
+    generate_response_schema::<WorkerTurn>(&tmp);
     /*
     $ docker build \
         --tag "{DOCKER_IMAGE_PREFIX}-worker_{proj_name}" \
@@ -66,6 +69,23 @@ pub fn make_worker_image(schemas: &SchemaCollection) {
         -f - /{tmp}
      */ // << pipe {DOCKER_IMAGE_WIZARD} to use as build script
 
+}
+fn write_schema_file(tmp: &TempDir, schema: schemars::Schema) -> Result<(), anyhow::Error> {
+    let bytes = serde_json::to_vec_pretty(&schema)?;
+
+    let path = tmp.path().join("schema.json");
+    match fs::exists(&path) {
+        Ok(false) => { fs::File::create(&path).unwrap_or_else(|_| panic!("failed to write schema file")); },
+        Err(e) => panic!("Failed to write schema into temp folder: {}", e),
+        _ => {}
+    }
+    fs::write(&path, bytes).unwrap_or_else(|_| panic!("failed to create schema file in temp dir"));
+    Ok(())
+}
+fn generate_response_schema<T: JsonSchema>(tmp: &TempDir) {
+    use crate::ai::schemas::{generated_schema_for, OrchestratorTurn, WorkerTurn};
+
+    write_schema_file(&tmp, generated_schema_for::<T>()).unwrap_or_else(|_| panic!("failed to write schema file"));
 }
 
 pub fn combine_dockerfiles(path: &str) -> String {

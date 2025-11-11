@@ -31,8 +31,6 @@ async fn main() -> Result<(), anyhow::Error> {
     // Load Config
     let config = models::load_config_from_path();
 
-    generate_response_schemas()?;
-
     let app: Router = routes::build_routes();
     let addr: SocketAddr = SocketAddr::from(([0, 0, 0, 0], 8080));
 
@@ -69,23 +67,4 @@ fn parse_cli_args() -> Result<CliArgs, anyhow::Error> {
     }
 
     Ok(cli)
-}
-
-fn generate_response_schemas() -> Result<(), anyhow::Error> {
-    use ai::schemas::{generated_schema_for, OrchestratorTurn, WorkerTurn};
-
-    write_schema_file("orchestrator", generated_schema_for::<OrchestratorTurn>())?;
-    write_schema_file("worker", generated_schema_for::<WorkerTurn>())?;
-    Ok(())
-}
-
-fn write_schema_file(stem: &str, schema: schemars::Schema) -> Result<(), anyhow::Error> {
-    let bytes = serde_json::to_vec_pretty(&schema)?;
-
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("../schemas");
-    fs::create_dir_all(&path)?;
-    path.push(format!("{stem}.generated.schema.json"));
-    fs::write(&path, bytes)?;
-    Ok(())
 }
