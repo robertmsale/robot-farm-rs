@@ -63,6 +63,9 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**createTaskDependency**](doc//DefaultApi.md#createtaskdependency) | **POST** /task-deps | Create task dependency
 *DefaultApi* | [**createTaskGroup**](doc//DefaultApi.md#createtaskgroup) | **POST** /task-groups | Create task group
 *DefaultApi* | [**createWorker**](doc//DefaultApi.md#createworker) | **POST** /workers | Create worker
+*DefaultApi* | [**deleteAllMessages**](doc//DefaultApi.md#deleteallmessages) | **DELETE** /message_queue | Clear all messages
+*DefaultApi* | [**deleteMessageById**](doc//DefaultApi.md#deletemessagebyid) | **DELETE** /message_queue/{messageId} | Delete message by id
+*DefaultApi* | [**deleteMessagesForRecipient**](doc//DefaultApi.md#deletemessagesforrecipient) | **DELETE** /message_queue/to/{sender} | Delete messages to a recipient
 *DefaultApi* | [**deleteTask**](doc//DefaultApi.md#deletetask) | **DELETE** /tasks/{taskId} | Delete task
 *DefaultApi* | [**deleteTaskDependency**](doc//DefaultApi.md#deletetaskdependency) | **DELETE** /task-deps/{taskId}/{dependsOnTaskId} | Delete task dependency
 *DefaultApi* | [**deleteTaskGroup**](doc//DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
@@ -70,7 +73,11 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**getActiveStrategy**](doc//DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check
 *DefaultApi* | [**getTask**](doc//DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
+*DefaultApi* | [**getTaskCommitDiff**](doc//DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
+*DefaultApi* | [**getTaskCommitInfo**](doc//DefaultApi.md#gettaskcommitinfo) | **GET** /tasks/{taskId}/commit | Get task commit info
 *DefaultApi* | [**getTaskGroup**](doc//DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
+*DefaultApi* | [**insertMessageRelative**](doc//DefaultApi.md#insertmessagerelative) | **PATCH** /message_queue/{messageId}/insert | Insert a message relative to another message
+*DefaultApi* | [**listMessages**](doc//DefaultApi.md#listmessages) | **GET** /message_queue | List messages in the queue
 *DefaultApi* | [**listTaskDependencies**](doc//DefaultApi.md#listtaskdependencies) | **GET** /task-deps | List dependencies for a task
 *DefaultApi* | [**listTaskGroups**](doc//DefaultApi.md#listtaskgroups) | **GET** /task-groups | List task groups
 *DefaultApi* | [**listTasks**](doc//DefaultApi.md#listtasks) | **GET** /tasks | List tasks
@@ -83,7 +90,12 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [ActiveStrategy](doc//ActiveStrategy.md)
+ - [CommitInfo](doc//CommitInfo.md)
  - [GetHealthz200Response](doc//GetHealthz200Response.md)
+ - [InsertMessage](doc//InsertMessage.md)
+ - [InsertMessageOneOf](doc//InsertMessageOneOf.md)
+ - [InsertMessageOneOf1](doc//InsertMessageOneOf1.md)
+ - [Message](doc//Message.md)
  - [Strategy](doc//Strategy.md)
  - [Task](doc//Task.md)
  - [TaskCreateInput](doc//TaskCreateInput.md)

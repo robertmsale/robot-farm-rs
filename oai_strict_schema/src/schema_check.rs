@@ -1,13 +1,10 @@
-use crate::{responses_text_format_for, StrictProfile};
 use crate::types::MathReasoning;
+use crate::{responses_text_format_for, StrictProfile};
 
 /// Build the exact value you pass in `text.format` for `/v1/responses`.
 pub fn build_text_format() -> serde_json::Value {
     let rules = StrictProfile::OpenAI2025.default_rules();
-    let (format_val, report) = responses_text_format_for::<MathReasoning>(
-        "math_reasoning",
-        &rules,
-    );
+    let (format_val, report) = responses_text_format_for::<MathReasoning>("math_reasoning", &rules);
 
     // Fail fast in dev: aggregate all problems at once
     if report.has_errors() {

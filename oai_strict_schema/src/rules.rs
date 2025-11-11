@@ -50,9 +50,9 @@ impl StrictProfile {
                 warn_on_oneof_anyof_allof_not: true,
                 warn_on_enum_type_mismatch: true,
                 forbid_keywords_alongside_refs: true,
-                max_nesting: Some(5),              // conservative default
-                max_total_properties: Some(100),   // conservative default
-            }
+                max_nesting: Some(5),            // conservative default
+                max_total_properties: Some(100), // conservative default
+            },
         }
     }
 }
@@ -68,7 +68,11 @@ pub fn validate_schema(root: &Schema, rules: &Rules) -> Report {
             _ => false,
         };
         if !is_obj {
-            rep.push("/".into(), FindingKind::Error, "Root schema must have type: object");
+            rep.push(
+                "/".into(),
+                FindingKind::Error,
+                "Root schema must have type: object",
+            );
         }
     }
 
@@ -150,10 +154,7 @@ pub fn validate_schema(root: &Schema, rules: &Rules) -> Report {
         // $ref must stand alone per OpenAI requirements
         if rules.forbid_keywords_alongside_refs {
             if let Some(Value::String(_)) = sobj.get("$ref") {
-                if sobj
-                    .keys()
-                    .any(|k| k != "$ref")
-                {
+                if sobj.keys().any(|k| k != "$ref") {
                     rep.push(
                         ctx.pointer.clone(),
                         FindingKind::Error,

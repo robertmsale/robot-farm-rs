@@ -184,8 +184,18 @@ class ApiClient {
           return value is DateTime ? value : DateTime.tryParse(value);
         case 'ActiveStrategy':
           return ActiveStrategy.fromJson(value);
+        case 'CommitInfo':
+          return CommitInfo.fromJson(value);
         case 'GetHealthz200Response':
           return GetHealthz200Response.fromJson(value);
+        case 'InsertMessage':
+          return InsertMessage.fromJson(value);
+        case 'InsertMessageOneOf':
+          return InsertMessageOneOf.fromJson(value);
+        case 'InsertMessageOneOf1':
+          return InsertMessageOneOf1.fromJson(value);
+        case 'Message':
+          return Message.fromJson(value);
         case 'Strategy':
           return StrategyTypeTransformer().decode(value);
         case 'Task':

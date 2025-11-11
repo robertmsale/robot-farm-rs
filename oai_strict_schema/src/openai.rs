@@ -9,10 +9,7 @@ use serde_json::Value;
 /// Build the `"text.format"` payload expected by the OpenAI Responses API.
 /// Returns the payload alongside the validation report so callers can decide
 /// whether to fail fast on warnings.
-pub fn responses_text_format_for<T: JsonSchema>(
-    name: &str,
-    rules: &Rules,
-) -> (Value, Report) {
+pub fn responses_text_format_for<T: JsonSchema>(name: &str, rules: &Rules) -> (Value, Report) {
     let mut schema = schema_for!(T);
     strip_keywords_alongside_refs(&mut schema);
     harden_root_schema(&mut schema);
@@ -31,10 +28,7 @@ pub fn responses_text_format_for<T: JsonSchema>(
 }
 
 /// Chat Completions legacy helper mirrors the Responses API format.
-pub fn chat_response_format_for<T: JsonSchema>(
-    name: &str,
-    rules: &Rules,
-) -> (Value, Report) {
+pub fn chat_response_format_for<T: JsonSchema>(name: &str, rules: &Rules) -> (Value, Report) {
     responses_text_format_for::<T>(name, rules)
 }
 

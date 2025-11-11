@@ -1,22 +1,22 @@
-use anyhow::{anyhow, Context};
-use axum::serve;
+use crate::docker::make_worker_image;
+use anyhow::{Context, anyhow};
 use axum::Router;
+use axum::serve;
 use std::env;
 use std::fs;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tokio::net::TcpListener;
 use tracing::info;
-use crate::docker::make_worker_image;
 
-#[path = "routes/lib.rs"]
-mod routes;
+#[path = "ai/lib.rs"]
+mod ai;
 mod docker;
 mod globals;
 #[path = "models/lib.rs"]
 mod models;
-#[path = "ai/lib.rs"]
-mod ai;
+#[path = "routes/lib.rs"]
+mod routes;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {

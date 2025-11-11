@@ -21,13 +21,21 @@ pub struct Report {
 
 impl Report {
     pub fn is_ok(&self) -> bool {
-        self.findings.iter().all(|f| matches!(f.kind, FindingKind::Warning))
+        self.findings
+            .iter()
+            .all(|f| matches!(f.kind, FindingKind::Warning))
     }
     pub fn has_errors(&self) -> bool {
-        self.findings.iter().any(|f| matches!(f.kind, FindingKind::Error))
+        self.findings
+            .iter()
+            .any(|f| matches!(f.kind, FindingKind::Error))
     }
     pub fn push(&mut self, pointer: String, kind: FindingKind, message: impl Into<String>) {
-        self.findings.push(Finding { pointer, kind, message: message.into() });
+        self.findings.push(Finding {
+            pointer,
+            kind,
+            message: message.into(),
+        });
     }
 }
 
@@ -37,9 +45,17 @@ impl fmt::Display for Report {
             return write!(f, "No issues found.");
         }
         for (i, finding) in self.findings.iter().enumerate() {
-            writeln!(f, "{:>3}. [{}] {} — {}", i + 1,
-                     match finding.kind { FindingKind::Error => "ERROR", FindingKind::Warning => "WARN" },
-                     finding.pointer, finding.message)?;
+            writeln!(
+                f,
+                "{:>3}. [{}] {} — {}",
+                i + 1,
+                match finding.kind {
+                    FindingKind::Error => "ERROR",
+                    FindingKind::Warning => "WARN",
+                },
+                finding.pointer,
+                finding.message
+            )?;
         }
         Ok(())
     }

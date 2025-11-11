@@ -216,6 +216,136 @@ class DefaultApi {
     return null;
   }
 
+  /// Clear all messages
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> deleteAllMessagesWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/message_queue';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Clear all messages
+  Future<void> deleteAllMessages() async {
+    final response = await deleteAllMessagesWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
+  /// Delete message by id
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] messageId (required):
+  ///   Identifier of the message to delete.
+  Future<Response> deleteMessageByIdWithHttpInfo(int messageId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/message_queue/{messageId}'
+      .replaceAll('{messageId}', messageId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Delete message by id
+  ///
+  /// Parameters:
+  ///
+  /// * [int] messageId (required):
+  ///   Identifier of the message to delete.
+  Future<void> deleteMessageById(int messageId,) async {
+    final response = await deleteMessageByIdWithHttpInfo(messageId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
+  /// Delete messages to a recipient
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] sender (required):
+  ///   Recipient display value (e.g., Orchestrator, Quality Assurance, ws7).
+  Future<Response> deleteMessagesForRecipientWithHttpInfo(String sender,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/message_queue/to/{sender}'
+      .replaceAll('{sender}', sender);
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Delete messages to a recipient
+  ///
+  /// Parameters:
+  ///
+  /// * [String] sender (required):
+  ///   Recipient display value (e.g., Orchestrator, Quality Assurance, ws7).
+  Future<void> deleteMessagesForRecipient(String sender,) async {
+    final response = await deleteMessagesForRecipientWithHttpInfo(sender,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
   /// Delete task
   ///
   /// Note: This method returns the HTTP [Response].
@@ -554,6 +684,124 @@ class DefaultApi {
     return null;
   }
 
+  /// Get diff for a file within the task commit
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] file (required):
+  ///   Relative path to the file for the diff.
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  Future<Response> getTaskCommitDiffWithHttpInfo(String file, int taskId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/tasks/{taskId}/commit/diff'
+      .replaceAll('{taskId}', taskId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+      queryParams.addAll(_queryParams('', 'file', file));
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Get diff for a file within the task commit
+  ///
+  /// Parameters:
+  ///
+  /// * [String] file (required):
+  ///   Relative path to the file for the diff.
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  Future<String?> getTaskCommitDiff(String file, int taskId,) async {
+    final response = await getTaskCommitDiffWithHttpInfo(file, taskId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'String',) as String;
+    
+    }
+    return null;
+  }
+
+  /// Get task commit info
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  Future<Response> getTaskCommitInfoWithHttpInfo(int taskId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/tasks/{taskId}/commit'
+      .replaceAll('{taskId}', taskId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Get task commit info
+  ///
+  /// Parameters:
+  ///
+  /// * [int] taskId (required):
+  ///   Unique identifier of the task.
+  Future<CommitInfo?> getTaskCommitInfo(int taskId,) async {
+    final response = await getTaskCommitInfoWithHttpInfo(taskId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'CommitInfo',) as CommitInfo;
+    
+    }
+    return null;
+  }
+
   /// Get task group
   ///
   /// Note: This method returns the HTTP [Response].
@@ -605,6 +853,138 @@ class DefaultApi {
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'TaskGroup',) as TaskGroup;
     
+    }
+    return null;
+  }
+
+  /// Insert a message relative to another message
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] messageId (required):
+  ///   Message identifier used as the relative insertion anchor.
+  ///
+  /// * [InsertMessage] insertMessage (required):
+  Future<Response> insertMessageRelativeWithHttpInfo(int messageId, InsertMessage insertMessage,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/message_queue/{messageId}/insert'
+      .replaceAll('{messageId}', messageId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody = insertMessage;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PATCH',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Insert a message relative to another message
+  ///
+  /// Parameters:
+  ///
+  /// * [int] messageId (required):
+  ///   Message identifier used as the relative insertion anchor.
+  ///
+  /// * [InsertMessage] insertMessage (required):
+  Future<List<Message>?> insertMessageRelative(int messageId, InsertMessage insertMessage,) async {
+    final response = await insertMessageRelativeWithHttpInfo(messageId, insertMessage,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      final responseBody = await _decodeBodyBytes(response);
+      return (await apiClient.deserializeAsync(responseBody, 'List<Message>') as List)
+        .cast<Message>()
+        .toList(growable: false);
+
+    }
+    return null;
+  }
+
+  /// List messages in the queue
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] from:
+  ///   Filter messages sent from the specified sender display value.
+  ///
+  /// * [String] to:
+  ///   Filter messages sent to the specified recipient display value.
+  Future<Response> listMessagesWithHttpInfo({ String? from, String? to, }) async {
+    // ignore: prefer_const_declarations
+    final path = r'/message_queue';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    if (from != null) {
+      queryParams.addAll(_queryParams('', 'from', from));
+    }
+    if (to != null) {
+      queryParams.addAll(_queryParams('', 'to', to));
+    }
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// List messages in the queue
+  ///
+  /// Parameters:
+  ///
+  /// * [String] from:
+  ///   Filter messages sent from the specified sender display value.
+  ///
+  /// * [String] to:
+  ///   Filter messages sent to the specified recipient display value.
+  Future<List<Message>?> listMessages({ String? from, String? to, }) async {
+    final response = await listMessagesWithHttpInfo( from: from, to: to, );
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      final responseBody = await _decodeBodyBytes(response);
+      return (await apiClient.deserializeAsync(responseBody, 'List<Message>') as List)
+        .cast<Message>()
+        .toList(growable: false);
+
     }
     return null;
   }

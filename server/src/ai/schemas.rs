@@ -1,4 +1,4 @@
-use schemars::{schema_for, JsonSchema, Schema};
+use schemars::{JsonSchema, Schema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::convert::TryFrom;
@@ -6,7 +6,10 @@ use std::convert::TryFrom;
 /// Structured payload produced by the orchestrator turn loop.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-#[schemars(title = "RobotFarmTurn", description = "Structured agent turn payload.")]
+#[schemars(
+    title = "RobotFarmTurn",
+    description = "Structured agent turn payload."
+)]
 pub struct OrchestratorTurn {
     /// Orchestrator must set their worker_id (e.g., 'ws1') when messaging a worker; workers should provide null.
     #[schemars(required)]
@@ -35,7 +38,10 @@ pub struct OrchestratorTurn {
 /// Structured payload produced by a worker turn.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-#[schemars(title = "RobotFarmTurn", description = "Structured agent turn payload.")]
+#[schemars(
+    title = "RobotFarmTurn",
+    description = "Structured agent turn payload."
+)]
 pub struct WorkerTurn {
     /// Intent value describing the turn outcome.
     pub intent: WorkerIntent,
@@ -190,7 +196,7 @@ fn scrub_ref_nodes(value: &mut Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oai_strict_schema::{harden_root_schema, validate_schema, StrictProfile};
+    use oai_strict_schema::{StrictProfile, harden_root_schema, validate_schema};
 
     #[test]
     fn orchestrator_schema_is_strict_valid() {

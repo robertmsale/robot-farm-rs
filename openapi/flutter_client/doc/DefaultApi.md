@@ -13,6 +13,9 @@ Method | HTTP request | Description
 [**createTaskDependency**](DefaultApi.md#createtaskdependency) | **POST** /task-deps | Create task dependency
 [**createTaskGroup**](DefaultApi.md#createtaskgroup) | **POST** /task-groups | Create task group
 [**createWorker**](DefaultApi.md#createworker) | **POST** /workers | Create worker
+[**deleteAllMessages**](DefaultApi.md#deleteallmessages) | **DELETE** /message_queue | Clear all messages
+[**deleteMessageById**](DefaultApi.md#deletemessagebyid) | **DELETE** /message_queue/{messageId} | Delete message by id
+[**deleteMessagesForRecipient**](DefaultApi.md#deletemessagesforrecipient) | **DELETE** /message_queue/to/{sender} | Delete messages to a recipient
 [**deleteTask**](DefaultApi.md#deletetask) | **DELETE** /tasks/{taskId} | Delete task
 [**deleteTaskDependency**](DefaultApi.md#deletetaskdependency) | **DELETE** /task-deps/{taskId}/{dependsOnTaskId} | Delete task dependency
 [**deleteTaskGroup**](DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
@@ -20,7 +23,11 @@ Method | HTTP request | Description
 [**getActiveStrategy**](DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 [**getHealthz**](DefaultApi.md#gethealthz) | **GET** /healthz | Health check
 [**getTask**](DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
+[**getTaskCommitDiff**](DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
+[**getTaskCommitInfo**](DefaultApi.md#gettaskcommitinfo) | **GET** /tasks/{taskId}/commit | Get task commit info
 [**getTaskGroup**](DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
+[**insertMessageRelative**](DefaultApi.md#insertmessagerelative) | **PATCH** /message_queue/{messageId}/insert | Insert a message relative to another message
+[**listMessages**](DefaultApi.md#listmessages) | **GET** /message_queue | List messages in the queue
 [**listTaskDependencies**](DefaultApi.md#listtaskdependencies) | **GET** /task-deps | List dependencies for a task
 [**listTaskGroups**](DefaultApi.md#listtaskgroups) | **GET** /task-groups | List task groups
 [**listTasks**](DefaultApi.md#listtasks) | **GET** /tasks | List tasks
@@ -187,6 +194,122 @@ No authorization required
 
  - **Content-Type**: Not defined
  - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteAllMessages**
+> deleteAllMessages()
+
+Clear all messages
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+
+try {
+    api_instance.deleteAllMessages();
+} catch (e) {
+    print('Exception when calling DefaultApi->deleteAllMessages: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteMessageById**
+> deleteMessageById(messageId)
+
+Delete message by id
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final messageId = 789; // int | Identifier of the message to delete.
+
+try {
+    api_instance.deleteMessageById(messageId);
+} catch (e) {
+    print('Exception when calling DefaultApi->deleteMessageById: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **messageId** | **int**| Identifier of the message to delete. | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteMessagesForRecipient**
+> deleteMessagesForRecipient(sender)
+
+Delete messages to a recipient
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final sender = sender_example; // String | Recipient display value (e.g., Orchestrator, Quality Assurance, ws7).
+
+try {
+    api_instance.deleteMessagesForRecipient(sender);
+} catch (e) {
+    print('Exception when calling DefaultApi->deleteMessagesForRecipient: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **sender** | **String**| Recipient display value (e.g., Orchestrator, Quality Assurance, ws7). | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -467,6 +590,90 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **getTaskCommitDiff**
+> String getTaskCommitDiff(file, taskId)
+
+Get diff for a file within the task commit
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final file = file_example; // String | Relative path to the file for the diff.
+final taskId = 789; // int | Unique identifier of the task.
+
+try {
+    final result = api_instance.getTaskCommitDiff(file, taskId);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getTaskCommitDiff: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **file** | **String**| Relative path to the file for the diff. | 
+ **taskId** | **int**| Unique identifier of the task. | 
+
+### Return type
+
+**String**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: text/plain
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getTaskCommitInfo**
+> CommitInfo getTaskCommitInfo(taskId)
+
+Get task commit info
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final taskId = 789; // int | Unique identifier of the task.
+
+try {
+    final result = api_instance.getTaskCommitInfo(taskId);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getTaskCommitInfo: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **taskId** | **int**| Unique identifier of the task. | 
+
+### Return type
+
+[**CommitInfo**](CommitInfo.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **getTaskGroup**
 > TaskGroup getTaskGroup(taskGroupId)
 
@@ -496,6 +703,92 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**TaskGroup**](TaskGroup.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **insertMessageRelative**
+> List<Message> insertMessageRelative(messageId, insertMessage)
+
+Insert a message relative to another message
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final messageId = 789; // int | Message identifier used as the relative insertion anchor.
+final insertMessage = InsertMessage(); // InsertMessage | 
+
+try {
+    final result = api_instance.insertMessageRelative(messageId, insertMessage);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->insertMessageRelative: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **messageId** | **int**| Message identifier used as the relative insertion anchor. | 
+ **insertMessage** | [**InsertMessage**](InsertMessage.md)|  | 
+
+### Return type
+
+[**List<Message>**](Message.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **listMessages**
+> List<Message> listMessages(from, to)
+
+List messages in the queue
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final from = from_example; // String | Filter messages sent from the specified sender display value.
+final to = to_example; // String | Filter messages sent to the specified recipient display value.
+
+try {
+    final result = api_instance.listMessages(from, to);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->listMessages: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **from** | **String**| Filter messages sent from the specified sender display value. | [optional] 
+ **to** | **String**| Filter messages sent to the specified recipient display value. | [optional] 
+
+### Return type
+
+[**List<Message>**](Message.md)
 
 ### Authorization
 

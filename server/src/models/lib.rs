@@ -1,3 +1,3 @@
 pub mod config;
 
-pub use config::{load_config_from_path, AppendFilesConfig, CommandConfig, Config};
+pub use config::{AppendFilesConfig, CommandConfig, Config, load_config_from_path};

@@ -1,15 +1,14 @@
-use schemars::{schema_for, JsonSchema};
+use num_traits::abs;
+use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as SerdeError;
 use std::fs;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 use validator::Validate;
-use std::path::PathBuf;
-use num_traits::abs;
 
-pub static CONFIG_DIR: LazyLock<String> = LazyLock::new(|| {
-    format!("{}/.robot-farm", crate::globals::PROJECT_DIR.as_str())
-});
+pub static CONFIG_DIR: LazyLock<String> =
+    LazyLock::new(|| format!("{}/.robot-farm", crate::globals::PROJECT_DIR.as_str()));
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, JsonSchema, Default)]
 pub struct Config {
@@ -68,14 +67,10 @@ pub fn load_config_from_path() -> Config {
 
     if let Err(err) = config.validate() {
         let schema = schema_for!(Config);
-        let schema_json =
-            serde_json::to_string_pretty(&schema).unwrap_or_else(|schema_err| {
-                format!("(failed to render schema: {schema_err})")
-            });
+        let schema_json = serde_json::to_string_pretty(&schema)
+            .unwrap_or_else(|schema_err| format!("(failed to render schema: {schema_err})"));
 
-        panic!(
-            "Config validation failed for '{path}': {err}\nExpected schema:\n{schema_json}"
-        );
+        panic!("Config validation failed for '{path}': {err}\nExpected schema:\n{schema_json}");
     }
 
     config

@@ -31,7 +31,12 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [ActiveStrategy](docs/ActiveStrategy.md)
+ - [CommitInfo](docs/CommitInfo.md)
  - [GetHealthz200Response](docs/GetHealthz200Response.md)
+ - [InsertMessage](docs/InsertMessage.md)
+ - [InsertMessageOneOf](docs/InsertMessageOneOf.md)
+ - [InsertMessageOneOf1](docs/InsertMessageOneOf1.md)
+ - [Message](docs/Message.md)
  - [Strategy](docs/Strategy.md)
  - [Task](docs/Task.md)
  - [TaskCreateInput](docs/TaskCreateInput.md)

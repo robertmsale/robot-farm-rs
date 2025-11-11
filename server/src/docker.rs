@@ -1,12 +1,12 @@
+use crate::ai::schemas::{OrchestratorTurn, WorkerTurn, generated_schema_for};
+use crate::globals::PROJECT_DIR;
+use crate::models::config::CONFIG_DIR;
+use schemars::JsonSchema;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use schemars::JsonSchema;
 use tempfile::TempDir;
 use tracing::info;
-use crate::ai::schemas::{generated_schema_for, OrchestratorTurn, WorkerTurn};
-use crate::globals::{PROJECT_DIR};
-use crate::models::config::CONFIG_DIR;
 
 pub const DOCKER_PREFIX: &str = include_str!("../../images/Dockerfile");
 pub const DOCKER_SUFFIX: &str = include_str!("../../images/Dockerfile.cleanup");
@@ -24,19 +24,18 @@ impl ImageType {
     pub fn as_str(&self) -> &'static str {
         match self {
             ImageType::Worker => "_worker",
-            ImageType::Wizard => "_wizard"
+            ImageType::Wizard => "_wizard",
         }
     }
 }
-
 
 /// Creates 3 docker images, one for each Codex executor
 pub fn make_worker_image() {
     let p = PathBuf::from(format!("{}/Dockerfile", CONFIG_DIR.as_str()));
     let concatenated = combine_dockerfiles(p.to_str().unwrap());
     let p = PathBuf::from(PROJECT_DIR.as_str());
-    let dir = fs::canonicalize(p).unwrap_or_else (|_| {panic!("project doesn't exist")});
-    let proj_name =  dir.file_name().unwrap().to_str().unwrap();
+    let dir = fs::canonicalize(p).unwrap_or_else(|_| panic!("project doesn't exist"));
+    let proj_name = dir.file_name().unwrap().to_str().unwrap();
     let worker_img = combine_image_name(proj_name, &ImageType::Worker);
     let tmp = TempDir::new().unwrap_or_else(|_| panic!("failed to create temporary directory"));
     info!("Creating Orchestrator image");
@@ -55,14 +54,15 @@ pub fn make_worker_image() {
     );
     info!("Creating Wizard image");
     run_docker_build(tmp.path(), DOCKER_WIZARD, DOCKER_IMAGE_WIZARD);
-
 }
 fn write_schema_file(tmp: &TempDir, schema: schemars::Schema) -> Result<(), anyhow::Error> {
     let bytes = serde_json::to_vec_pretty(&schema)?;
 
     let path = tmp.path().join("schema.json");
     match fs::exists(&path) {
-        Ok(false) => { fs::File::create(&path).unwrap_or_else(|_| panic!("failed to write schema file")); },
+        Ok(false) => {
+            fs::File::create(&path).unwrap_or_else(|_| panic!("failed to write schema file"));
+        }
         Err(e) => panic!("Failed to write schema into temp folder: {}", e),
         _ => {}
     }
@@ -70,9 +70,10 @@ fn write_schema_file(tmp: &TempDir, schema: schemars::Schema) -> Result<(), anyh
     Ok(())
 }
 fn generate_response_schema<T: JsonSchema>(tmp: &TempDir) {
-    use crate::ai::schemas::{generated_schema_for, OrchestratorTurn, WorkerTurn};
+    use crate::ai::schemas::{OrchestratorTurn, WorkerTurn, generated_schema_for};
 
-    write_schema_file(&tmp, generated_schema_for::<T>()).unwrap_or_else(|_| panic!("failed to write schema file"));
+    write_schema_file(&tmp, generated_schema_for::<T>())
+        .unwrap_or_else(|_| panic!("failed to write schema file"));
 }
 
 fn run_docker_build(tmp_dir: &std::path::Path, dockerfile: &str, tag: &str) {

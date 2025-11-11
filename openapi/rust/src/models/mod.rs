@@ -1,7 +1,17 @@
 pub mod active_strategy;
 pub use self::active_strategy::ActiveStrategy;
+pub mod commit_info;
+pub use self::commit_info::CommitInfo;
 pub mod get_healthz_200_response;
 pub use self::get_healthz_200_response::GetHealthz200Response;
+pub mod insert_message;
+pub use self::insert_message::InsertMessage;
+pub mod insert_message_one_of;
+pub use self::insert_message_one_of::InsertMessageOneOf;
+pub mod insert_message_one_of_1;
+pub use self::insert_message_one_of_1::InsertMessageOneOf1;
+pub mod message;
+pub use self::message::Message;
 pub mod strategy;
 pub use self::strategy::Strategy;
 pub mod task;
