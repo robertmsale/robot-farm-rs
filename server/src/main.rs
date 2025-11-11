@@ -13,8 +13,6 @@ use tracing::info;
 mod ai;
 mod docker;
 mod globals;
-#[path = "models/lib.rs"]
-mod models;
 #[path = "routes/lib.rs"]
 mod routes;
 
@@ -29,11 +27,10 @@ async fn main() -> Result<(), anyhow::Error> {
         info!("workspace set to {}", workspace.display());
     }
 
+    routes::config::ensure_config_exists()
+        .map_err(|err| anyhow!("failed to initialize config: {err}"))?;
+
     make_worker_image();
-
-    // Load Config
-    let config = models::load_config_from_path();
-
     let app: Router = routes::build_routes();
     let addr: SocketAddr = SocketAddr::from(([0, 0, 0, 0], 8080));
 

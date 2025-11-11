@@ -1,3 +1,5 @@
+pub mod config;
+mod feed;
 mod git;
 mod healthz;
 mod message_queue;
@@ -30,6 +32,13 @@ pub fn build_routes() -> Router {
     Router::new()
         .route("/healthz", get(healthz::healthz_handler))
         .route("/ws", get(ws::websocket_handler))
+        .route(
+            "/config",
+            get(config::get_config)
+                .post(config::create_config)
+                .put(config::update_config)
+                .delete(config::delete_config),
+        )
         .route("/tasks", get(task::list_tasks).post(task::create_task))
         .route(
             "/tasks/:taskId",
@@ -74,6 +83,7 @@ pub fn build_routes() -> Router {
             "/message_queue/to/:sender",
             delete(message_queue::delete_messages_for_recipient),
         )
+        .route("/feed", get(feed::list_feed).delete(feed::delete_feed))
         .route(
             "/workers",
             get(worker::list_workers).post(worker::create_worker),

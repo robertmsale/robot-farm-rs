@@ -31,7 +31,13 @@ part 'auth/http_bearer_auth.dart';
 part 'api/default_api.dart';
 
 part 'model/active_strategy.dart';
+part 'model/append_files_config.dart';
+part 'model/command_config.dart';
 part 'model/commit_info.dart';
+part 'model/config.dart';
+part 'model/feed.dart';
+part 'model/feed_level.dart';
+part 'model/feed_order_field.dart';
 part 'model/get_healthz200_response.dart';
 part 'model/insert_message.dart';
 part 'model/insert_message_one_of.dart';

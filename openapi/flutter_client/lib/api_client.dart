@@ -184,8 +184,20 @@ class ApiClient {
           return value is DateTime ? value : DateTime.tryParse(value);
         case 'ActiveStrategy':
           return ActiveStrategy.fromJson(value);
+        case 'AppendFilesConfig':
+          return AppendFilesConfig.fromJson(value);
+        case 'CommandConfig':
+          return CommandConfig.fromJson(value);
         case 'CommitInfo':
           return CommitInfo.fromJson(value);
+        case 'Config':
+          return Config.fromJson(value);
+        case 'Feed':
+          return Feed.fromJson(value);
+        case 'FeedLevel':
+          return FeedLevelTypeTransformer().decode(value);
+        case 'FeedOrderField':
+          return FeedOrderFieldTypeTransformer().decode(value);
         case 'GetHealthz200Response':
           return GetHealthz200Response.fromJson(value);
         case 'InsertMessage':

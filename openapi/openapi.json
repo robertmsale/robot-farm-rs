@@ -442,6 +442,158 @@
         }
       }
     },
+    "/feed": {
+      "get": {
+        "summary": "List feed events",
+        "operationId": "listFeed",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "description": "Filter by source (Orchestrator, Quality Assurance, System, ws#).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target",
+            "in": "query",
+            "description": "Filter by target (Orchestrator, Quality Assurance, System, ws#).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by level (info, warning, error).",
+            "schema": {
+              "$ref": "#/components/schemas/FeedLevel"
+            }
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "description": "Sort results by the specified Feed field.",
+            "schema": {
+              "$ref": "#/components/schemas/FeedOrderField"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feed entries.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Feed"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Clear feed",
+        "operationId": "deleteFeed",
+        "responses": {
+          "204": {
+            "description": "Feed cleared."
+          }
+        }
+      }
+    },
+    "/config": {
+      "get": {
+        "summary": "Get workspace config",
+        "operationId": "getConfig",
+        "responses": {
+          "200": {
+            "description": "Current workspace configuration.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Config"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Config file not found."
+          }
+        }
+      },
+      "post": {
+        "summary": "Create workspace config",
+        "operationId": "createConfig",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Config"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Config created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Config"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Config already exists."
+          }
+        }
+      },
+      "put": {
+        "summary": "Update workspace config",
+        "operationId": "updateConfig",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Config"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated config.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Config"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete workspace config",
+        "operationId": "deleteConfig",
+        "responses": {
+          "204": {
+            "description": "Config deleted."
+          },
+          "404": {
+            "description": "Config file not found."
+          }
+        }
+      }
+    },
     "/task-groups": {
       "get": {
         "summary": "List task groups",
@@ -778,6 +930,29 @@
           "Done"
         ]
       },
+      "FeedLevel": {
+        "type": "string",
+        "description": "Severity of the feed entry.",
+        "enum": [
+          "info",
+          "warning",
+          "error"
+        ]
+      },
+      "FeedOrderField": {
+        "type": "string",
+        "description": "Valid Feed fields that can be used for ordering.",
+        "enum": [
+          "id",
+          "source",
+          "target",
+          "ts",
+          "level",
+          "text",
+          "raw",
+          "category"
+        ]
+      },
       "Strategy": {
         "type": "string",
         "description": "System-wide execution strategy.",
@@ -950,6 +1125,145 @@
             "additionalProperties": false
           }
         ]
+      },
+      "Feed": {
+        "type": "object",
+        "description": "Feed entry emitted by system components.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string",
+            "description": "Emitter of the feed entry (Orchestrator, Quality Assurance, System, ws#)."
+          },
+          "target": {
+            "type": "string",
+            "description": "Recipient focus (Orchestrator, Quality Assurance, System, ws#)."
+          },
+          "ts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix timestamp in seconds."
+          },
+          "level": {
+            "$ref": "#/components/schemas/FeedLevel"
+          },
+          "text": {
+            "type": "string",
+            "description": "Human-friendly summary."
+          },
+          "raw": {
+            "type": "string",
+            "description": "Raw log payload."
+          },
+          "category": {
+            "type": "string",
+            "description": "Category tag for the entry."
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "target",
+          "ts",
+          "level",
+          "text",
+          "raw",
+          "category"
+        ],
+        "additionalProperties": false
+      },
+      "AppendFilesConfig": {
+        "type": "object",
+        "description": "Append-file settings for orchestrator and worker roles.",
+        "properties": {
+          "orchestrator": {
+            "type": "array",
+            "description": "List of file paths appended to orchestrator prompts.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "worker": {
+            "type": "array",
+            "description": "List of file paths appended to worker prompts.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "orchestrator",
+          "worker"
+        ],
+        "additionalProperties": false
+      },
+      "CommandConfig": {
+        "type": "object",
+        "description": "Declarative command configuration.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "exec": {
+            "type": "array",
+            "description": "Shell command and arguments to execute.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "stdout_success_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "hidden": {
+            "type": "boolean",
+            "default": false
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "exec"
+        ],
+        "additionalProperties": false
+      },
+      "Config": {
+        "type": "object",
+        "description": "Workspace configuration stored on disk.",
+        "properties": {
+          "append_agents_file": {
+            "$ref": "#/components/schemas/AppendFilesConfig"
+          },
+          "commands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommandConfig"
+            },
+            "default": []
+          },
+          "post_turn_checks": {
+            "type": "array",
+            "description": "Commands executed after each turn.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "append_agents_file",
+          "commands",
+          "post_turn_checks"
+        ],
+        "additionalProperties": false
       },
       "TaskDependency": {
         "type": "object",

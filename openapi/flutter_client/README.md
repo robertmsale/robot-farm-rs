@@ -42,13 +42,13 @@ import 'package:my_api_client/api.dart';
 
 
 final api_instance = DefaultApi();
-final taskCreateInput = TaskCreateInput(); // TaskCreateInput | 
+final config = Config(); // Config | 
 
 try {
-    final result = api_instance.createTask(taskCreateInput);
+    final result = api_instance.createConfig(config);
     print(result);
 } catch (e) {
-    print('Exception when calling DefaultApi->createTask: $e\n');
+    print('Exception when calling DefaultApi->createConfig: $e\n');
 }
 
 ```
@@ -59,11 +59,14 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*DefaultApi* | [**createConfig**](doc//DefaultApi.md#createconfig) | **POST** /config | Create workspace config
 *DefaultApi* | [**createTask**](doc//DefaultApi.md#createtask) | **POST** /tasks | Create task
 *DefaultApi* | [**createTaskDependency**](doc//DefaultApi.md#createtaskdependency) | **POST** /task-deps | Create task dependency
 *DefaultApi* | [**createTaskGroup**](doc//DefaultApi.md#createtaskgroup) | **POST** /task-groups | Create task group
 *DefaultApi* | [**createWorker**](doc//DefaultApi.md#createworker) | **POST** /workers | Create worker
 *DefaultApi* | [**deleteAllMessages**](doc//DefaultApi.md#deleteallmessages) | **DELETE** /message_queue | Clear all messages
+*DefaultApi* | [**deleteConfig**](doc//DefaultApi.md#deleteconfig) | **DELETE** /config | Delete workspace config
+*DefaultApi* | [**deleteFeed**](doc//DefaultApi.md#deletefeed) | **DELETE** /feed | Clear feed
 *DefaultApi* | [**deleteMessageById**](doc//DefaultApi.md#deletemessagebyid) | **DELETE** /message_queue/{messageId} | Delete message by id
 *DefaultApi* | [**deleteMessagesForRecipient**](doc//DefaultApi.md#deletemessagesforrecipient) | **DELETE** /message_queue/to/{sender} | Delete messages to a recipient
 *DefaultApi* | [**deleteTask**](doc//DefaultApi.md#deletetask) | **DELETE** /tasks/{taskId} | Delete task
@@ -71,18 +74,21 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**deleteTaskGroup**](doc//DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 *DefaultApi* | [**deleteWorker**](doc//DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
 *DefaultApi* | [**getActiveStrategy**](doc//DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
+*DefaultApi* | [**getConfig**](doc//DefaultApi.md#getconfig) | **GET** /config | Get workspace config
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check
 *DefaultApi* | [**getTask**](doc//DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
 *DefaultApi* | [**getTaskCommitDiff**](doc//DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
 *DefaultApi* | [**getTaskCommitInfo**](doc//DefaultApi.md#gettaskcommitinfo) | **GET** /tasks/{taskId}/commit | Get task commit info
 *DefaultApi* | [**getTaskGroup**](doc//DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
 *DefaultApi* | [**insertMessageRelative**](doc//DefaultApi.md#insertmessagerelative) | **PATCH** /message_queue/{messageId}/insert | Insert a message relative to another message
+*DefaultApi* | [**listFeed**](doc//DefaultApi.md#listfeed) | **GET** /feed | List feed events
 *DefaultApi* | [**listMessages**](doc//DefaultApi.md#listmessages) | **GET** /message_queue | List messages in the queue
 *DefaultApi* | [**listTaskDependencies**](doc//DefaultApi.md#listtaskdependencies) | **GET** /task-deps | List dependencies for a task
 *DefaultApi* | [**listTaskGroups**](doc//DefaultApi.md#listtaskgroups) | **GET** /task-groups | List task groups
 *DefaultApi* | [**listTasks**](doc//DefaultApi.md#listtasks) | **GET** /tasks | List tasks
 *DefaultApi* | [**listWorkers**](doc//DefaultApi.md#listworkers) | **GET** /workers | List workers
 *DefaultApi* | [**updateActiveStrategy**](doc//DefaultApi.md#updateactivestrategy) | **PUT** /strategy | Update active strategy
+*DefaultApi* | [**updateConfig**](doc//DefaultApi.md#updateconfig) | **PUT** /config | Update workspace config
 *DefaultApi* | [**updateTask**](doc//DefaultApi.md#updatetask) | **PUT** /tasks/{taskId} | Update task
 *DefaultApi* | [**updateTaskGroup**](doc//DefaultApi.md#updatetaskgroup) | **PUT** /task-groups/{taskGroupId} | Update task group
 
@@ -90,7 +96,13 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [ActiveStrategy](doc//ActiveStrategy.md)
+ - [AppendFilesConfig](doc//AppendFilesConfig.md)
+ - [CommandConfig](doc//CommandConfig.md)
  - [CommitInfo](doc//CommitInfo.md)
+ - [Config](doc//Config.md)
+ - [Feed](doc//Feed.md)
+ - [FeedLevel](doc//FeedLevel.md)
+ - [FeedOrderField](doc//FeedOrderField.md)
  - [GetHealthz200Response](doc//GetHealthz200Response.md)
  - [InsertMessage](doc//InsertMessage.md)
  - [InsertMessageOneOf](doc//InsertMessageOneOf.md)

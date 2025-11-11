@@ -9,11 +9,14 @@ All URIs are relative to *http://localhost*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**createConfig**](DefaultApi.md#createconfig) | **POST** /config | Create workspace config
 [**createTask**](DefaultApi.md#createtask) | **POST** /tasks | Create task
 [**createTaskDependency**](DefaultApi.md#createtaskdependency) | **POST** /task-deps | Create task dependency
 [**createTaskGroup**](DefaultApi.md#createtaskgroup) | **POST** /task-groups | Create task group
 [**createWorker**](DefaultApi.md#createworker) | **POST** /workers | Create worker
 [**deleteAllMessages**](DefaultApi.md#deleteallmessages) | **DELETE** /message_queue | Clear all messages
+[**deleteConfig**](DefaultApi.md#deleteconfig) | **DELETE** /config | Delete workspace config
+[**deleteFeed**](DefaultApi.md#deletefeed) | **DELETE** /feed | Clear feed
 [**deleteMessageById**](DefaultApi.md#deletemessagebyid) | **DELETE** /message_queue/{messageId} | Delete message by id
 [**deleteMessagesForRecipient**](DefaultApi.md#deletemessagesforrecipient) | **DELETE** /message_queue/to/{sender} | Delete messages to a recipient
 [**deleteTask**](DefaultApi.md#deletetask) | **DELETE** /tasks/{taskId} | Delete task
@@ -21,21 +24,65 @@ Method | HTTP request | Description
 [**deleteTaskGroup**](DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 [**deleteWorker**](DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
 [**getActiveStrategy**](DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
+[**getConfig**](DefaultApi.md#getconfig) | **GET** /config | Get workspace config
 [**getHealthz**](DefaultApi.md#gethealthz) | **GET** /healthz | Health check
 [**getTask**](DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
 [**getTaskCommitDiff**](DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
 [**getTaskCommitInfo**](DefaultApi.md#gettaskcommitinfo) | **GET** /tasks/{taskId}/commit | Get task commit info
 [**getTaskGroup**](DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
 [**insertMessageRelative**](DefaultApi.md#insertmessagerelative) | **PATCH** /message_queue/{messageId}/insert | Insert a message relative to another message
+[**listFeed**](DefaultApi.md#listfeed) | **GET** /feed | List feed events
 [**listMessages**](DefaultApi.md#listmessages) | **GET** /message_queue | List messages in the queue
 [**listTaskDependencies**](DefaultApi.md#listtaskdependencies) | **GET** /task-deps | List dependencies for a task
 [**listTaskGroups**](DefaultApi.md#listtaskgroups) | **GET** /task-groups | List task groups
 [**listTasks**](DefaultApi.md#listtasks) | **GET** /tasks | List tasks
 [**listWorkers**](DefaultApi.md#listworkers) | **GET** /workers | List workers
 [**updateActiveStrategy**](DefaultApi.md#updateactivestrategy) | **PUT** /strategy | Update active strategy
+[**updateConfig**](DefaultApi.md#updateconfig) | **PUT** /config | Update workspace config
 [**updateTask**](DefaultApi.md#updatetask) | **PUT** /tasks/{taskId} | Update task
 [**updateTaskGroup**](DefaultApi.md#updatetaskgroup) | **PUT** /task-groups/{taskGroupId} | Update task group
 
+
+# **createConfig**
+> Config createConfig(config)
+
+Create workspace config
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final config = Config(); // Config | 
+
+try {
+    final result = api_instance.createConfig(config);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->createConfig: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **config** | [**Config**](Config.md)|  | 
+
+### Return type
+
+[**Config**](Config.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **createTask**
 > Task createTask(taskCreateInput)
@@ -212,6 +259,78 @@ try {
     api_instance.deleteAllMessages();
 } catch (e) {
     print('Exception when calling DefaultApi->deleteAllMessages: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteConfig**
+> deleteConfig()
+
+Delete workspace config
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+
+try {
+    api_instance.deleteConfig();
+} catch (e) {
+    print('Exception when calling DefaultApi->deleteConfig: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteFeed**
+> deleteFeed()
+
+Clear feed
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+
+try {
+    api_instance.deleteFeed();
+} catch (e) {
+    print('Exception when calling DefaultApi->deleteFeed: $e\n');
 }
 ```
 
@@ -512,6 +631,43 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **getConfig**
+> Config getConfig()
+
+Get workspace config
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+
+try {
+    final result = api_instance.getConfig();
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getConfig: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+[**Config**](Config.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **getHealthz**
 > GetHealthz200Response getHealthz()
 
@@ -758,6 +914,53 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **listFeed**
+> List<Feed> listFeed(source_, target, status, orderBy)
+
+List feed events
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final source_ = source__example; // String | Filter by source (Orchestrator, Quality Assurance, System, ws#).
+final target = target_example; // String | Filter by target (Orchestrator, Quality Assurance, System, ws#).
+final status = ; // FeedLevel | Filter by level (info, warning, error).
+final orderBy = ; // FeedOrderField | Sort results by the specified Feed field.
+
+try {
+    final result = api_instance.listFeed(source_, target, status, orderBy);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->listFeed: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **source_** | **String**| Filter by source (Orchestrator, Quality Assurance, System, ws#). | [optional] 
+ **target** | **String**| Filter by target (Orchestrator, Quality Assurance, System, ws#). | [optional] 
+ **status** | [**FeedLevel**](.md)| Filter by level (info, warning, error). | [optional] 
+ **orderBy** | [**FeedOrderField**](.md)| Sort results by the specified Feed field. | [optional] 
+
+### Return type
+
+[**List<Feed>**](Feed.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **listMessages**
 > List<Message> listMessages(from, to)
 
@@ -996,6 +1199,47 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**ActiveStrategy**](ActiveStrategy.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateConfig**
+> Config updateConfig(config)
+
+Update workspace config
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final config = Config(); // Config | 
+
+try {
+    final result = api_instance.updateConfig(config);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->updateConfig: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **config** | [**Config**](Config.md)|  | 
+
+### Return type
+
+[**Config**](Config.md)
 
 ### Authorization
 

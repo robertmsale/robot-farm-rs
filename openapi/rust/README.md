@@ -31,7 +31,13 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [ActiveStrategy](docs/ActiveStrategy.md)
+ - [AppendFilesConfig](docs/AppendFilesConfig.md)
+ - [CommandConfig](docs/CommandConfig.md)
  - [CommitInfo](docs/CommitInfo.md)
+ - [Config](docs/Config.md)
+ - [Feed](docs/Feed.md)
+ - [FeedLevel](docs/FeedLevel.md)
+ - [FeedOrderField](docs/FeedOrderField.md)
  - [GetHealthz200Response](docs/GetHealthz200Response.md)
  - [InsertMessage](docs/InsertMessage.md)
  - [InsertMessageOneOf](docs/InsertMessageOneOf.md)

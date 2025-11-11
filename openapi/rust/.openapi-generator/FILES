@@ -7,7 +7,13 @@ src/apis/configuration.rs
 src/apis/mod.rs
 src/lib.rs
 src/models/active_strategy.rs
+src/models/append_files_config.rs
+src/models/command_config.rs
 src/models/commit_info.rs
+src/models/config.rs
+src/models/feed.rs
+src/models/feed_level.rs
+src/models/feed_order_field.rs
 src/models/get_healthz_200_response.rs
 src/models/insert_message.rs
 src/models/insert_message_one_of.rs

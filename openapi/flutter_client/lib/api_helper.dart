@@ -55,6 +55,12 @@ String parameterToString(dynamic value) {
   if (value is DateTime) {
     return value.toUtc().toIso8601String();
   }
+  if (value is FeedLevel) {
+    return FeedLevelTypeTransformer().encode(value).toString();
+  }
+  if (value is FeedOrderField) {
+    return FeedOrderFieldTypeTransformer().encode(value).toString();
+  }
   if (value is Strategy) {
     return StrategyTypeTransformer().encode(value).toString();
   }

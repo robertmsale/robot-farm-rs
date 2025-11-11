@@ -1,6 +1,6 @@
 use crate::ai::schemas::{OrchestratorTurn, WorkerTurn, generated_schema_for};
 use crate::globals::PROJECT_DIR;
-use crate::models::config::CONFIG_DIR;
+use crate::routes::config::CONFIG_DIR;
 use schemars::JsonSchema;
 use std::fs;
 use std::io::Write;

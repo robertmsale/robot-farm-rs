@@ -16,6 +16,58 @@ class DefaultApi {
 
   final ApiClient apiClient;
 
+  /// Create workspace config
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [Config] config (required):
+  Future<Response> createConfigWithHttpInfo(Config config,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/config';
+
+    // ignore: prefer_final_locals
+    Object? postBody = config;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Create workspace config
+  ///
+  /// Parameters:
+  ///
+  /// * [Config] config (required):
+  Future<Config?> createConfig(Config config,) async {
+    final response = await createConfigWithHttpInfo(config,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Config',) as Config;
+    
+    }
+    return null;
+  }
+
   /// Create task
   ///
   /// Note: This method returns the HTTP [Response].
@@ -247,6 +299,78 @@ class DefaultApi {
   /// Clear all messages
   Future<void> deleteAllMessages() async {
     final response = await deleteAllMessagesWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
+  /// Delete workspace config
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> deleteConfigWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/config';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Delete workspace config
+  Future<void> deleteConfig() async {
+    final response = await deleteConfigWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
+  /// Clear feed
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> deleteFeedWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/feed';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Clear feed
+  Future<void> deleteFeed() async {
+    final response = await deleteFeedWithHttpInfo();
     if (response.statusCode >= HttpStatus.badRequest) {
       throw ApiException(response.statusCode, await _decodeBodyBytes(response));
     }
@@ -585,6 +709,50 @@ class DefaultApi {
     return null;
   }
 
+  /// Get workspace config
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> getConfigWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/config';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Get workspace config
+  Future<Config?> getConfig() async {
+    final response = await getConfigWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Config',) as Config;
+    
+    }
+    return null;
+  }
+
   /// Health check
   ///
   /// Note: This method returns the HTTP [Response].
@@ -913,6 +1081,94 @@ class DefaultApi {
       final responseBody = await _decodeBodyBytes(response);
       return (await apiClient.deserializeAsync(responseBody, 'List<Message>') as List)
         .cast<Message>()
+        .toList(growable: false);
+
+    }
+    return null;
+  }
+
+  /// List feed events
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] source_:
+  ///   Filter by source (Orchestrator, Quality Assurance, System, ws#).
+  ///
+  /// * [String] target:
+  ///   Filter by target (Orchestrator, Quality Assurance, System, ws#).
+  ///
+  /// * [FeedLevel] status:
+  ///   Filter by level (info, warning, error).
+  ///
+  /// * [FeedOrderField] orderBy:
+  ///   Sort results by the specified Feed field.
+  Future<Response> listFeedWithHttpInfo({ String? source_, String? target, FeedLevel? status, FeedOrderField? orderBy, }) async {
+    // ignore: prefer_const_declarations
+    final path = r'/feed';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    if (source_ != null) {
+      queryParams.addAll(_queryParams('', 'source', source_));
+    }
+    if (target != null) {
+      queryParams.addAll(_queryParams('', 'target', target));
+    }
+    if (status != null) {
+      queryParams.addAll(_queryParams('', 'status', status));
+    }
+    if (orderBy != null) {
+      queryParams.addAll(_queryParams('', 'order_by', orderBy));
+    }
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// List feed events
+  ///
+  /// Parameters:
+  ///
+  /// * [String] source_:
+  ///   Filter by source (Orchestrator, Quality Assurance, System, ws#).
+  ///
+  /// * [String] target:
+  ///   Filter by target (Orchestrator, Quality Assurance, System, ws#).
+  ///
+  /// * [FeedLevel] status:
+  ///   Filter by level (info, warning, error).
+  ///
+  /// * [FeedOrderField] orderBy:
+  ///   Sort results by the specified Feed field.
+  Future<List<Feed>?> listFeed({ String? source_, String? target, FeedLevel? status, FeedOrderField? orderBy, }) async {
+    final response = await listFeedWithHttpInfo( source_: source_, target: target, status: status, orderBy: orderBy, );
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      final responseBody = await _decodeBodyBytes(response);
+      return (await apiClient.deserializeAsync(responseBody, 'List<Feed>') as List)
+        .cast<Feed>()
         .toList(growable: false);
 
     }
@@ -1295,6 +1551,58 @@ class DefaultApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'ActiveStrategy',) as ActiveStrategy;
+    
+    }
+    return null;
+  }
+
+  /// Update workspace config
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [Config] config (required):
+  Future<Response> updateConfigWithHttpInfo(Config config,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/config';
+
+    // ignore: prefer_final_locals
+    Object? postBody = config;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PUT',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Update workspace config
+  ///
+  /// Parameters:
+  ///
+  /// * [Config] config (required):
+  Future<Config?> updateConfig(Config config,) async {
+    final response = await updateConfigWithHttpInfo(config,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Config',) as Config;
     
     }
     return null;
