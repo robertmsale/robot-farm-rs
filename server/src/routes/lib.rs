@@ -14,7 +14,7 @@ mod ws;
 use axum::{
     Router,
     http::Method,
-    routing::{delete, get, patch},
+    routing::{delete, get, patch, post},
 };
 use tower_http::cors::{Any, CorsLayer};
 
@@ -42,19 +42,22 @@ pub fn build_routes() -> Router {
         )
         .route("/tasks", get(task::list_tasks).post(task::create_task))
         .route(
-            "/tasks/:taskId",
+            "/tasks/{taskId}",
             get(task::get_task)
                 .put(task::update_task)
                 .delete(task::delete_task),
         )
-        .route("/tasks/:taskId/commit", get(git::get_task_commit_info))
-        .route("/tasks/:taskId/commit/diff", get(git::get_task_commit_diff))
+        .route("/tasks/{taskId}/commit", get(git::get_task_commit_info))
+        .route(
+            "/tasks/{taskId}/commit/diff",
+            get(git::get_task_commit_diff),
+        )
         .route(
             "/task-groups",
             get(task_group::list_task_groups).post(task_group::create_task_group),
         )
         .route(
-            "/task-groups/:taskGroupId",
+            "/task-groups/{taskGroupId}",
             get(task_group::get_task_group)
                 .put(task_group::update_task_group)
                 .delete(task_group::delete_task_group),
@@ -65,7 +68,7 @@ pub fn build_routes() -> Router {
                 .post(task_dependency::create_task_dependency),
         )
         .route(
-            "/task-deps/:taskId/:dependsOnTaskId",
+            "/task-deps/{taskId}/{dependsOnTaskId}",
             delete(task_dependency::delete_task_dependency),
         )
         .route(
@@ -73,15 +76,15 @@ pub fn build_routes() -> Router {
             get(message_queue::list_messages).delete(message_queue::delete_all_messages),
         )
         .route(
-            "/message_queue/:messageId",
+            "/message_queue/{messageId}",
             delete(message_queue::delete_message_by_id),
         )
         .route(
-            "/message_queue/:messageId/insert",
+            "/message_queue/{messageId}/insert",
             patch(message_queue::insert_message_relative),
         )
         .route(
-            "/message_queue/to/:sender",
+            "/message_queue/to/{sender}",
             delete(message_queue::delete_messages_for_recipient),
         )
         .route("/feed", get(feed::list_feed).delete(feed::delete_feed))
@@ -89,10 +92,14 @@ pub fn build_routes() -> Router {
             "/workers",
             get(worker::list_workers).post(worker::create_worker),
         )
-        .route("/workers/:workerId", delete(worker::delete_worker))
+        .route("/workers/{workerId}", delete(worker::delete_worker))
         .route(
-            "/workers/:workerId/session",
+            "/workers/{workerId}/session",
             delete(worker::delete_worker_session),
+        )
+        .route(
+            "/workers/{workerId}/exec",
+            post(worker::exec_worker_command),
         )
         .route(
             "/strategy",
@@ -101,6 +108,10 @@ pub fn build_routes() -> Router {
         .route(
             "/orchestrator/session",
             delete(orchestrator::delete_orchestrator_session),
+        )
+        .route(
+            "/orchestrator/exec",
+            post(orchestrator::exec_orchestrator_command),
         )
         .layer(cors)
 }

@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::LazyLock;
 
 pub static PROJECT_DIR: LazyLock<String> =

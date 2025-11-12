@@ -103,6 +103,29 @@ pub fn collect_merge_conflicts(repo_root: &Path) -> Result<Vec<MergeConflict>, G
     Ok(conflicts)
 }
 
+pub fn list_worktrees(repo_root: &Path) -> Result<Vec<PathBuf>, GitError> {
+    let output = run_git_command(
+        repo_root,
+        vec![
+            OsString::from("worktree"),
+            OsString::from("list"),
+            OsString::from("--porcelain"),
+        ],
+    )?;
+
+    let mut paths = Vec::new();
+    for block in output.split("\n\n") {
+        for line in block.lines() {
+            if let Some(rest) = line.strip_prefix("worktree ") {
+                paths.push(PathBuf::from(rest.trim()));
+                break;
+            }
+        }
+    }
+
+    Ok(paths)
+}
+
 pub fn get_commit_info(repo_root: &Path, rev: &str) -> Result<CommitInfo, GitError> {
     let repo = ThreadSafeRepository::open(repo_root).map_err(|source| GitError::Open {
         path: repo_root.to_path_buf(),

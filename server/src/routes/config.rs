@@ -9,7 +9,7 @@ use std::sync::LazyLock;
 use thiserror::Error;
 
 pub static CONFIG_DIR: LazyLock<String> =
-    LazyLock::new(|| format!("{}/.robot-farm", PROJECT_DIR.as_str()));
+    LazyLock::new(|| format!("{}/.robot-farm-rs", PROJECT_DIR.as_str()));
 pub static DB_DIR: LazyLock<String> = LazyLock::new(|| format!("{}/db", CONFIG_DIR.as_str()));
 
 #[derive(Debug, Error)]

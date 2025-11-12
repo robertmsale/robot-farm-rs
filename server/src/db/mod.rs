@@ -1,6 +1,7 @@
 use crate::routes::config::DB_DIR;
 use sqlx::{SqlitePool, migrate::Migrator, sqlite::SqlitePoolOptions};
 use std::fs;
+use std::fs::OpenOptions;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -28,6 +29,18 @@ pub async fn ensure_db() -> Result<SqlitePool, sqlx::Error> {
     let database_url = format!("sqlite://{}", db_path.display());
 
     info!("Connecting to database at {}", database_url);
+
+    if !db_path.exists() {
+        if let Some(parent) = db_path.parent() {
+            fs::create_dir_all(parent).map_err(|err| sqlx::Error::Io(err))?;
+        }
+
+        OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&db_path)
+            .map_err(sqlx::Error::Io)?;
+    }
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)

@@ -37,7 +37,8 @@ dependencies:
   my_api_client:
     path: ../openapi/flutter_client
   get: ^4.6.6
-  web_socket_channel: ^2.4.0
+  web_socket: ^1.0.1
+  web: ^1.1.1
   shared_preferences: ^2.3.3
 
 dev_dependencies:

@@ -3,20 +3,22 @@ use anyhow::{Context, anyhow};
 use axum::Router;
 use axum::serve;
 use std::env;
-use std::fs;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use tokio::net::TcpListener;
-use tracing::info;
+use tracing::{info, warn};
 
 #[path = "ai/lib.rs"]
 mod ai;
 mod db;
 mod docker;
 mod globals;
+mod models;
 #[path = "routes/lib.rs"]
 mod routes;
 mod shared;
+#[path = "threads/lib.rs"]
+mod threads;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -41,12 +43,27 @@ async fn main() -> Result<(), anyhow::Error> {
         .expect("failed to initialize database");
 
     make_worker_image();
+    threads::init_background_threads();
     let app: Router = routes::build_routes();
-    let addr: SocketAddr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let port = 8080;
+    let ipv6_addr = SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port);
+    let ipv4_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
 
-    info!("Robot Farm API listening on {}", addr);
-
-    let listener = TcpListener::bind(addr).await?;
+    let listener = match TcpListener::bind(ipv6_addr).await {
+        Ok(listener) => {
+            info!("Robot Farm API listening on [::]:{port}");
+            listener
+        }
+        Err(err) => {
+            warn!(
+                error = %err,
+                "IPv6 bind failed, falling back to IPv4 interface",
+            );
+            let listener = TcpListener::bind(ipv4_addr).await?;
+            info!("Robot Farm API listening on 0.0.0.0:{port}");
+            listener
+        }
+    };
     serve(listener, app).await?;
     Ok(())
 }

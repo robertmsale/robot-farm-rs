@@ -1,12 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:my_api_client/api.dart' as robot_farm_api;
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:web_socket/web_socket.dart' as ws;
 
-import 'utils/ws_channel.dart';
+import 'sheets/command_sheet.dart';
 
 const int kDefaultApiPort = 8080;
 const String kWebsocketPath = '/ws';
@@ -31,14 +32,8 @@ class RobotFarmApp extends StatelessWidget {
       ),
       initialRoute: '/',
       getPages: [
-        GetPage(
-          name: '/',
-          page: () => const ConnectionScreen(),
-        ),
-        GetPage(
-          name: '/home',
-          page: () => const HomeScreen(),
-        ),
+        GetPage(name: '/', page: () => const ConnectionScreen()),
+        GetPage(name: '/home', page: () => const HomeScreen()),
       ],
     );
   }
@@ -55,9 +50,11 @@ class ConnectionController extends GetxController {
   final RxnString errorMessage = RxnString();
   final RxnString websocketError = RxnString();
   final RxList<String> pastLogins = <String>[].obs;
-  WebSocketChannel? _webSocketChannel;
-  StreamSubscription? _webSocketSubscription;
+  final RxList<robot_farm_api.Worker> workers = <robot_farm_api.Worker>[].obs;
+  ws.WebSocket? _webSocket;
+  StreamSubscription<ws.WebSocketEvent>? _webSocketSubscription;
   SharedPreferences? _prefs;
+  String? _currentBaseUrl;
 
   @override
   void onInit() {
@@ -69,6 +66,7 @@ class ConnectionController extends GetxController {
     final rawUrl = urlController.text.trim();
     websocketStatus.value = WebsocketStatus.idle;
     websocketError.value = null;
+    _currentBaseUrl = null;
 
     if (rawUrl.isEmpty) {
       errorMessage.value = 'Please enter a server host.';
@@ -103,6 +101,7 @@ class ConnectionController extends GetxController {
     final hostPort = _hostPortFromBase(baseUrl);
     await _recordLogin(hostPort);
 
+    _currentBaseUrl = baseUrl;
     Get.offAllNamed('/home');
   }
 
@@ -142,24 +141,22 @@ class ConnectionController extends GetxController {
 
     try {
       _closeWebSocket();
-      _webSocketChannel = createWebSocketChannel(wsUri);
-      _webSocketSubscription = _webSocketChannel!.stream.listen(
-        (_) {
-          websocketStatus.value = WebsocketStatus.good;
-          websocketError.value = null;
-        },
-        onError: (error) {
-          websocketStatus.value = WebsocketStatus.failed;
-          websocketError.value = 'WebSocket error: $error';
-        },
-        onDone: () {
-          if (websocketStatus.value == WebsocketStatus.good) {
-            websocketError.value = 'WebSocket closed.';
-          }
-          websocketStatus.value = WebsocketStatus.failed;
-        },
-        cancelOnError: true,
-      );
+      _webSocket = await ws.WebSocket.connect(wsUri);
+      websocketStatus.value = WebsocketStatus.good;
+      websocketError.value = null;
+      _webSocketSubscription = _webSocket!.events.listen((event) {
+        switch (event) {
+          case ws.TextDataReceived(text: final text):
+            _handleWebsocketText(text);
+          case ws.CloseReceived(code: final code, reason: final reason):
+            websocketStatus.value = WebsocketStatus.failed;
+            final statusCode = code ?? 1005;
+            final suffix = reason.isNotEmpty ? ' ($reason)' : '';
+            websocketError.value = 'WebSocket closed: $statusCode$suffix';
+          default:
+            break;
+        }
+      });
       return true;
     } catch (error) {
       websocketStatus.value = WebsocketStatus.failed;
@@ -167,6 +164,40 @@ class ConnectionController extends GetxController {
       return false;
     }
   }
+
+  void _handleWebsocketText(String text) {
+    if (text.trim().isEmpty || text == 'ready') {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is! Map<String, dynamic>) {
+        return;
+      }
+
+      final type = decoded['type'];
+      if (type == 'workers_snapshot') {
+        _updateWorkers(decoded['workers']);
+      }
+    } catch (error) {
+      debugPrint('Failed to parse WebSocket message: $error');
+    }
+  }
+
+  void _updateWorkers(dynamic payload) {
+    if (payload is! List) {
+      return;
+    }
+
+    final parsed = payload
+        .map((item) => robot_farm_api.Worker.fromJson(item))
+        .whereType<robot_farm_api.Worker>()
+        .toList();
+    workers.assignAll(parsed);
+  }
+
+  String? get currentBaseUrl => _currentBaseUrl;
 
   String get healthStatusLabel {
     switch (healthStatus.value) {
@@ -260,16 +291,16 @@ class ConnectionController extends GetxController {
   String _hostPortFromBase(String baseUrl) {
     final uri = Uri.parse(baseUrl);
     final port = uri.hasPort ? uri.port : kDefaultApiPort;
-    return '${
-      uri.host
-    }:$port';
+    return '${uri.host}:$port';
   }
 
   void _closeWebSocket() {
     _webSocketSubscription?.cancel();
     _webSocketSubscription = null;
-    _webSocketChannel?.sink.close();
-    _webSocketChannel = null;
+    _webSocket?.close();
+    _webSocket = null;
+    _currentBaseUrl = null;
+    workers.clear();
   }
 
   bool get isConnecting =>
@@ -284,7 +315,10 @@ class ConnectionController extends GetxController {
 
   Future<void> _recordLogin(String hostPort) async {
     _prefs ??= await SharedPreferences.getInstance();
-    final updated = <String>[hostPort, ...pastLogins.where((v) => v != hostPort)];
+    final updated = <String>[
+      hostPort,
+      ...pastLogins.where((v) => v != hostPort),
+    ];
     if (updated.length > 5) {
       updated.removeRange(5, updated.length);
     }
@@ -311,9 +345,7 @@ class ConnectionScreen extends GetView<ConnectionController> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Robot Farm'),
-      ),
+      appBar: AppBar(title: const Text('Robot Farm')),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -368,36 +400,34 @@ class ConnectionScreen extends GetView<ConnectionController> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Obx(
-                    () {
-                      if (controller.pastLogins.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'Recent connections',
-                            style: theme.textTheme.labelLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: controller.pastLogins
-                                .map(
-                                  (host) => ActionChip(
-                                    label: Text(host),
-                                    onPressed: () =>
-                                        controller.usePastLogin(host),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                  Obx(() {
+                    if (controller.pastLogins.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Recent connections',
+                          style: theme.textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: controller.pastLogins
+                              .map(
+                                (host) => ActionChip(
+                                  label: Text(host),
+                                  onPressed: () =>
+                                      controller.usePastLogin(host),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
+                    );
+                  }),
                   const SizedBox(height: 24),
                   Obx(
                     () => Column(
@@ -456,11 +486,54 @@ class ConnectionScreen extends GetView<ConnectionController> {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends GetView<ConnectionController> {
   const HomeScreen({super.key});
+
+  void _openCommandSheet(BuildContext context, {int? workerId}) {
+    final baseUrl = controller.currentBaseUrl;
+    if (baseUrl == null) {
+      Get.snackbar(
+        'Not connected',
+        'Connect to a server before running commands.',
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => CommandSheet(baseUrl: baseUrl, workerId: workerId),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isPhone = context.isPhone;
+
+    final orchestratorPane = OrchestratorPane(
+      onRunCommand: () => _openCommandSheet(context),
+    );
+    final workerPane = WorkerFeedPane(
+      onRunCommand: (workerId) =>
+          _openCommandSheet(context, workerId: workerId),
+    );
+
+    final child = isPhone
+        ? Column(
+            children: [
+              Expanded(child: orchestratorPane),
+              const SizedBox(height: 16),
+              Expanded(child: workerPane),
+            ],
+          )
+        : Row(
+            children: [
+              Expanded(child: orchestratorPane),
+              const SizedBox(width: 16),
+              Expanded(child: workerPane),
+            ],
+          );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Robot Farm'),
@@ -469,12 +542,149 @@ class HomeScreen extends StatelessWidget {
           onPressed: () => Get.offAllNamed('/'),
         ),
       ),
-      body: const Center(
-        child: Text(
-          'Coming soon',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+      body: Padding(padding: const EdgeInsets.all(24), child: child),
+    );
+  }
+}
+
+class OrchestratorPane extends StatelessWidget {
+  const OrchestratorPane({required this.onRunCommand, super.key});
+
+  final VoidCallback onRunCommand;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Orchestrator Feed', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 12),
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Turn-by-turn orchestrator output will appear here.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.terminal),
+              label: const Text('Run staging command'),
+              onPressed: onRunCommand,
+            ),
+          ],
         ),
       ),
     );
+  }
+}
+
+class WorkerFeedPane extends StatefulWidget {
+  const WorkerFeedPane({required this.onRunCommand, super.key});
+
+  final void Function(int workerId) onRunCommand;
+
+  @override
+  State<WorkerFeedPane> createState() => _WorkerFeedPaneState();
+}
+
+class _WorkerFeedPaneState extends State<WorkerFeedPane>
+    with SingleTickerProviderStateMixin {
+  TabController? _controller;
+  late final ConnectionController _connectionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectionController = Get.find<ConnectionController>();
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _ensureController(int length) {
+    if (_controller == null || _controller!.length != length) {
+      _controller?.dispose();
+      _controller = TabController(length: length, vsync: this);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Obx(() {
+      final workers = _connectionController.workers.toList();
+      final tabCount = workers.isEmpty ? 1 : workers.length;
+      _ensureController(tabCount);
+      final tabs = workers.isEmpty
+          ? const [Tab(text: 'Workers')]
+          : workers.map((w) => Tab(text: 'Worker ${w.id}')).toList();
+
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: DefaultTabController(
+            length: tabCount,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TabBar(controller: _controller, isScrollable: true, tabs: tabs),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: TabBarView(
+                    controller: _controller,
+                    children: workers.isEmpty
+                        ? const [
+                            Center(
+                              child: Text(
+                                'No workers detected. Add a git worktree to see it here.',
+                              ),
+                            ),
+                          ]
+                        : workers
+                              .map(
+                                (worker) => Center(
+                                  child: Text(
+                                    'Feed for worker ${worker.id} (stub).',
+                                    style: theme.textTheme.bodyLarge,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  icon: const Icon(Icons.terminal),
+                  label: const Text('Run workspace command'),
+                  onPressed: workers.isEmpty
+                      ? null
+                      : () {
+                          final index = _controller?.index ?? 0;
+                          final worker = workers[index];
+                          widget.onRunCommand(worker.id);
+                        },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
   }
 }
