@@ -25,6 +25,8 @@ Method | HTTP request | Description
 [**deleteTaskGroup**](DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 [**deleteWorker**](DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
 [**deleteWorkerSession**](DefaultApi.md#deleteworkersession) | **DELETE** /workers/{workerId}/session | Clear worker session state
+[**execOrchestratorCommand**](DefaultApi.md#execorchestratorcommand) | **POST** /orchestrator/exec | Execute a shell command for the orchestrator
+[**execWorkerCommand**](DefaultApi.md#execworkercommand) | **POST** /workers/{workerId}/exec | Execute a shell command within a worker workspace
 [**getActiveStrategy**](DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 [**getConfig**](DefaultApi.md#getconfig) | **GET** /config | Get workspace config
 [**getHealthz**](DefaultApi.md#gethealthz) | **GET** /healthz | Health check
@@ -669,6 +671,90 @@ No authorization required
 
  - **Content-Type**: Not defined
  - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **execOrchestratorCommand**
+> ExecResult execOrchestratorCommand(body)
+
+Execute a shell command for the orchestrator
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final body = String(); // String | 
+
+try {
+    final result = api_instance.execOrchestratorCommand(body);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->execOrchestratorCommand: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **body** | **String**|  | 
+
+### Return type
+
+[**ExecResult**](ExecResult.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: text/plain
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **execWorkerCommand**
+> ExecResult execWorkerCommand(workerId, body)
+
+Execute a shell command within a worker workspace
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final workerId = 789; // int | Identifier of the worker whose workspace should be used for execution.
+final body = String(); // String | 
+
+try {
+    final result = api_instance.execWorkerCommand(workerId, body);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->execWorkerCommand: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **workerId** | **int**| Identifier of the worker whose workspace should be used for execution. | 
+ **body** | **String**|  | 
+
+### Return type
+
+[**ExecResult**](ExecResult.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: text/plain
+ - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

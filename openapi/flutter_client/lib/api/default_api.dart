@@ -748,6 +748,117 @@ class DefaultApi {
     }
   }
 
+  /// Execute a shell command for the orchestrator
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] body (required):
+  Future<Response> execOrchestratorCommandWithHttpInfo(String body,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/orchestrator/exec';
+
+    // ignore: prefer_final_locals
+    Object? postBody = body;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['text/plain'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Execute a shell command for the orchestrator
+  ///
+  /// Parameters:
+  ///
+  /// * [String] body (required):
+  Future<ExecResult?> execOrchestratorCommand(String body,) async {
+    final response = await execOrchestratorCommandWithHttpInfo(body,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'ExecResult',) as ExecResult;
+    
+    }
+    return null;
+  }
+
+  /// Execute a shell command within a worker workspace
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] workerId (required):
+  ///   Identifier of the worker whose workspace should be used for execution.
+  ///
+  /// * [String] body (required):
+  Future<Response> execWorkerCommandWithHttpInfo(int workerId, String body,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/workers/{workerId}/exec'
+      .replaceAll('{workerId}', workerId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody = body;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['text/plain'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Execute a shell command within a worker workspace
+  ///
+  /// Parameters:
+  ///
+  /// * [int] workerId (required):
+  ///   Identifier of the worker whose workspace should be used for execution.
+  ///
+  /// * [String] body (required):
+  Future<ExecResult?> execWorkerCommand(int workerId, String body,) async {
+    final response = await execWorkerCommandWithHttpInfo(workerId, body,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'ExecResult',) as ExecResult;
+    
+    }
+    return null;
+  }
+
   /// Get active strategy
   ///
   /// Note: This method returns the HTTP [Response].

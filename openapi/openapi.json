@@ -929,6 +929,35 @@
         }
       }
     },
+    "/orchestrator/exec": {
+      "post": {
+        "summary": "Execute a shell command for the orchestrator",
+        "operationId": "execOrchestratorCommand",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "description": "Command to run using bash -lc within the staging directory."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command execution result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/workers/{workerId}/session": {
       "parameters": [
         {
@@ -951,6 +980,50 @@
           },
           "404": {
             "description": "Worker not found."
+          }
+        }
+      }
+    },
+    "/workers/{workerId}/exec": {
+      "parameters": [
+        {
+          "name": "workerId",
+          "in": "path",
+          "required": true,
+          "description": "Identifier of the worker whose workspace should be used for execution.",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "post": {
+        "summary": "Execute a shell command within a worker workspace",
+        "operationId": "execWorkerCommand",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "description": "Command to run using bash -lc within the worker's workspace."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command execution result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Worker workspace not found."
           }
         }
       }
@@ -1511,6 +1584,30 @@
           "hash",
           "message",
           "diff"
+        ],
+        "additionalProperties": false
+      },
+      "ExecResult": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "stdout": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "command",
+          "exit_code",
+          "stdout",
+          "stderr"
         ],
         "additionalProperties": false
       }

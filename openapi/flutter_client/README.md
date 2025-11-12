@@ -75,6 +75,8 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**deleteTaskGroup**](doc//DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 *DefaultApi* | [**deleteWorker**](doc//DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
 *DefaultApi* | [**deleteWorkerSession**](doc//DefaultApi.md#deleteworkersession) | **DELETE** /workers/{workerId}/session | Clear worker session state
+*DefaultApi* | [**execOrchestratorCommand**](doc//DefaultApi.md#execorchestratorcommand) | **POST** /orchestrator/exec | Execute a shell command for the orchestrator
+*DefaultApi* | [**execWorkerCommand**](doc//DefaultApi.md#execworkercommand) | **POST** /workers/{workerId}/exec | Execute a shell command within a worker workspace
 *DefaultApi* | [**getActiveStrategy**](doc//DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 *DefaultApi* | [**getConfig**](doc//DefaultApi.md#getconfig) | **GET** /config | Get workspace config
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check
@@ -102,6 +104,7 @@ Class | Method | HTTP request | Description
  - [CommandConfig](doc//CommandConfig.md)
  - [CommitInfo](doc//CommitInfo.md)
  - [Config](doc//Config.md)
+ - [ExecResult](doc//ExecResult.md)
  - [Feed](doc//Feed.md)
  - [FeedLevel](doc//FeedLevel.md)
  - [FeedOrderField](doc//FeedOrderField.md)
