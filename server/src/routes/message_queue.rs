@@ -1,3 +1,4 @@
+use crate::db;
 use axum::{
     Json,
     extract::{Path, Query},
@@ -13,41 +14,30 @@ pub struct MessageQueueQuery {
     pub to: Option<String>,
 }
 
-fn sample_message(id: i64) -> Message {
-    Message {
-        id,
-        from: "Orchestrator".to_string(),
-        to: "Quality Assurance".to_string(),
-        message: "Placeholder message".to_string(),
-        inserted_at: 0,
-    }
-}
-
 pub async fn list_messages(Query(_query): Query<MessageQueueQuery>) -> Json<Vec<Message>> {
-    // TODO: fetch messages based on filters.
-    Json(vec![sample_message(1)])
+    let messages = db::message_queue::list_messages().await;
+    Json(messages)
 }
 
 pub async fn delete_all_messages() -> StatusCode {
-    // TODO: clear message queue.
+    db::message_queue::delete_all_messages().await;
     StatusCode::NO_CONTENT
 }
 
 pub async fn insert_message_relative(
     Path(message_id): Path<i64>,
-    Json(_payload): Json<InsertMessage>,
+    Json(payload): Json<InsertMessage>,
 ) -> Json<Vec<Message>> {
-    // TODO: insert message before/after the reference message.
-    let _ = message_id;
-    Json(vec![sample_message(1)])
+    let queue = db::message_queue::insert_message_relative(message_id, payload).await;
+    Json(queue)
 }
 
 pub async fn delete_message_by_id(Path(_message_id): Path<i64>) -> StatusCode {
-    // TODO: delete a single message.
+    db::message_queue::delete_message_by_id(_message_id).await;
     StatusCode::NO_CONTENT
 }
 
 pub async fn delete_messages_for_recipient(Path(_recipient): Path<String>) -> StatusCode {
-    // TODO: delete all messages targeting the recipient.
+    db::message_queue::delete_messages_for_recipient(&_recipient).await;
     StatusCode::NO_CONTENT
 }

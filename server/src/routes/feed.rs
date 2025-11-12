@@ -1,3 +1,4 @@
+use crate::db;
 use axum::{Json, extract::Query, http::StatusCode};
 use openapi::models::{Feed, FeedLevel, FeedOrderField};
 use serde::Deserialize;
@@ -11,25 +12,12 @@ pub struct FeedQueryParams {
     pub order_by: Option<FeedOrderField>,
 }
 
-fn sample_feed(id: i64) -> Feed {
-    Feed {
-        id,
-        source: "System".to_string(),
-        target: "Orchestrator".to_string(),
-        ts: 0,
-        level: FeedLevel::Info,
-        text: format!("Sample feed event #{id}"),
-        raw: "{}".to_string(),
-        category: "general".to_string(),
-    }
-}
-
 pub async fn list_feed(Query(_query): Query<FeedQueryParams>) -> Json<Vec<Feed>> {
-    // TODO: load feed entries from persistence layer.
-    Json(vec![sample_feed(1)])
+    let feed = db::feed::list_feed().await;
+    Json(feed)
 }
 
 pub async fn delete_feed() -> StatusCode {
-    // TODO: delete feed entries from persistence layer.
+    db::feed::delete_feed().await;
     StatusCode::NO_CONTENT
 }

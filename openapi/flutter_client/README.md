@@ -69,10 +69,12 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**deleteFeed**](doc//DefaultApi.md#deletefeed) | **DELETE** /feed | Clear feed
 *DefaultApi* | [**deleteMessageById**](doc//DefaultApi.md#deletemessagebyid) | **DELETE** /message_queue/{messageId} | Delete message by id
 *DefaultApi* | [**deleteMessagesForRecipient**](doc//DefaultApi.md#deletemessagesforrecipient) | **DELETE** /message_queue/to/{sender} | Delete messages to a recipient
+*DefaultApi* | [**deleteOrchestratorSession**](doc//DefaultApi.md#deleteorchestratorsession) | **DELETE** /orchestrator/session | Clear orchestrator session state
 *DefaultApi* | [**deleteTask**](doc//DefaultApi.md#deletetask) | **DELETE** /tasks/{taskId} | Delete task
 *DefaultApi* | [**deleteTaskDependency**](doc//DefaultApi.md#deletetaskdependency) | **DELETE** /task-deps/{taskId}/{dependsOnTaskId} | Delete task dependency
 *DefaultApi* | [**deleteTaskGroup**](doc//DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 *DefaultApi* | [**deleteWorker**](doc//DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
+*DefaultApi* | [**deleteWorkerSession**](doc//DefaultApi.md#deleteworkersession) | **DELETE** /workers/{workerId}/session | Clear worker session state
 *DefaultApi* | [**getActiveStrategy**](doc//DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 *DefaultApi* | [**getConfig**](doc//DefaultApi.md#getconfig) | **GET** /config | Get workspace config
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check

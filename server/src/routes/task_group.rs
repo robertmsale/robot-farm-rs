@@ -1,50 +1,49 @@
+use crate::db;
 use axum::{Json, extract::Path, http::StatusCode};
 use openapi::models::{TaskGroup, TaskGroupCreateInput, TaskGroupStatus, TaskGroupUpdateInput};
 
-fn sample_task_group(id: i64) -> TaskGroup {
-    TaskGroup {
-        id,
-        slug: format!("group-{id}"),
-        title: format!("Task Group {id}"),
-        description: "Sample task group".to_string(),
-        status: TaskGroupStatus::Ready,
-    }
-}
-
 pub async fn list_task_groups() -> Json<Vec<TaskGroup>> {
-    // TODO: load task groups from storage.
-    Json(vec![sample_task_group(1)])
+    let groups = db::task_group::list_task_groups().await;
+    Json(groups)
 }
 
 pub async fn create_task_group(
     Json(payload): Json<TaskGroupCreateInput>,
 ) -> (StatusCode, Json<TaskGroup>) {
-    // TODO: persist task group and return created record.
-    let task_group = TaskGroup {
-        id: 0,
-        slug: payload.slug,
-        title: payload.title,
-        description: payload.description,
-        status: TaskGroupStatus::Ready,
-    };
-
+    let task_group = db::task_group::create_task_group(payload).await;
     (StatusCode::CREATED, Json(task_group))
 }
 
 pub async fn get_task_group(Path(task_group_id): Path<i64>) -> Json<TaskGroup> {
-    // TODO: fetch task group from storage.
-    Json(sample_task_group(task_group_id))
+    let group = db::task_group::get_task_group(task_group_id)
+        .await
+        .unwrap_or_else(|| TaskGroup {
+            id: task_group_id,
+            slug: "".to_string(),
+            title: "".to_string(),
+            description: "".to_string(),
+            status: TaskGroupStatus::Ready,
+        });
+    Json(group)
 }
 
 pub async fn update_task_group(
     Path(task_group_id): Path<i64>,
-    Json(_payload): Json<TaskGroupUpdateInput>,
+    Json(payload): Json<TaskGroupUpdateInput>,
 ) -> Json<TaskGroup> {
-    // TODO: apply updates to the task group.
-    Json(sample_task_group(task_group_id))
+    let group = db::task_group::update_task_group(task_group_id, payload)
+        .await
+        .unwrap_or_else(|| TaskGroup {
+            id: task_group_id,
+            slug: "".to_string(),
+            title: "".to_string(),
+            description: "".to_string(),
+            status: TaskGroupStatus::Ready,
+        });
+    Json(group)
 }
 
 pub async fn delete_task_group(Path(_task_group_id): Path<i64>) -> StatusCode {
-    // TODO: delete task group from storage.
+    db::task_group::delete_task_group(_task_group_id).await;
     StatusCode::NO_CONTENT
 }

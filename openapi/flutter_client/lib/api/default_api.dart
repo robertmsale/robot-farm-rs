@@ -470,6 +470,42 @@ class DefaultApi {
     }
   }
 
+  /// Clear orchestrator session state
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> deleteOrchestratorSessionWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/orchestrator/session';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Clear orchestrator session state
+  Future<void> deleteOrchestratorSession() async {
+    final response = await deleteOrchestratorSessionWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
   /// Delete task
   ///
   /// Note: This method returns the HTTP [Response].
@@ -660,6 +696,53 @@ class DefaultApi {
   ///   Identifier of the worker.
   Future<void> deleteWorker(int workerId,) async {
     final response = await deleteWorkerWithHttpInfo(workerId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
+  /// Clear worker session state
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] workerId (required):
+  ///   Identifier of the worker whose session should be cleared.
+  Future<Response> deleteWorkerSessionWithHttpInfo(int workerId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/workers/{workerId}/session'
+      .replaceAll('{workerId}', workerId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Clear worker session state
+  ///
+  /// Parameters:
+  ///
+  /// * [int] workerId (required):
+  ///   Identifier of the worker whose session should be cleared.
+  Future<void> deleteWorkerSession(int workerId,) async {
+    final response = await deleteWorkerSessionWithHttpInfo(workerId,);
     if (response.statusCode >= HttpStatus.badRequest) {
       throw ApiException(response.statusCode, await _decodeBodyBytes(response));
     }

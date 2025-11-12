@@ -19,10 +19,12 @@ Method | HTTP request | Description
 [**deleteFeed**](DefaultApi.md#deletefeed) | **DELETE** /feed | Clear feed
 [**deleteMessageById**](DefaultApi.md#deletemessagebyid) | **DELETE** /message_queue/{messageId} | Delete message by id
 [**deleteMessagesForRecipient**](DefaultApi.md#deletemessagesforrecipient) | **DELETE** /message_queue/to/{sender} | Delete messages to a recipient
+[**deleteOrchestratorSession**](DefaultApi.md#deleteorchestratorsession) | **DELETE** /orchestrator/session | Clear orchestrator session state
 [**deleteTask**](DefaultApi.md#deletetask) | **DELETE** /tasks/{taskId} | Delete task
 [**deleteTaskDependency**](DefaultApi.md#deletetaskdependency) | **DELETE** /task-deps/{taskId}/{dependsOnTaskId} | Delete task dependency
 [**deleteTaskGroup**](DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 [**deleteWorker**](DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
+[**deleteWorkerSession**](DefaultApi.md#deleteworkersession) | **DELETE** /workers/{workerId}/session | Clear worker session state
 [**getActiveStrategy**](DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 [**getConfig**](DefaultApi.md#getconfig) | **GET** /config | Get workspace config
 [**getHealthz**](DefaultApi.md#gethealthz) | **GET** /healthz | Health check
@@ -432,6 +434,42 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **deleteOrchestratorSession**
+> deleteOrchestratorSession()
+
+Clear orchestrator session state
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+
+try {
+    api_instance.deleteOrchestratorSession();
+} catch (e) {
+    print('Exception when calling DefaultApi->deleteOrchestratorSession: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **deleteTask**
 > deleteTask(taskId)
 
@@ -578,6 +616,46 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **workerId** | **int**| Identifier of the worker. | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **deleteWorkerSession**
+> deleteWorkerSession(workerId)
+
+Clear worker session state
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final workerId = 789; // int | Identifier of the worker whose session should be cleared.
+
+try {
+    api_instance.deleteWorkerSession(workerId);
+} catch (e) {
+    print('Exception when calling DefaultApi->deleteWorkerSession: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **workerId** | **int**| Identifier of the worker whose session should be cleared. | 
 
 ### Return type
 

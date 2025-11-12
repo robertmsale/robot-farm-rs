@@ -917,6 +917,43 @@
           }
         }
       }
+    },
+    "/orchestrator/session": {
+      "delete": {
+        "summary": "Clear orchestrator session state",
+        "operationId": "deleteOrchestratorSession",
+        "responses": {
+          "204": {
+            "description": "Orchestrator session cleared."
+          }
+        }
+      }
+    },
+    "/workers/{workerId}/session": {
+      "parameters": [
+        {
+          "name": "workerId",
+          "in": "path",
+          "required": true,
+          "description": "Identifier of the worker whose session should be cleared.",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      ],
+      "delete": {
+        "summary": "Clear worker session state",
+        "operationId": "deleteWorkerSession",
+        "responses": {
+          "204": {
+            "description": "Worker session cleared."
+          },
+          "404": {
+            "description": "Worker not found."
+          }
+        }
+      }
     }
   },
   "components": {

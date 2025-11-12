@@ -24,7 +24,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 tracing-error = "0.2.1"
 tower-http = { version = "0.6.6", features = ["trace", "request-id", "util", "cors", "fs", "compression-gzip", "set-header"] }
 # Environment
-sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "json", "ipnetwork", "bigdecimal"] }
+sqlx = { version = "0.8.6", features = ["postgres", "sqlite", "runtime-tokio-rustls", "uuid", "chrono", "json", "ipnetwork", "bigdecimal"] }
 validator = { workspace = true }
 bigdecimal = "0.4.9"
 num-traits = "0.2.19"
@@ -52,6 +52,7 @@ openapi = { path = "../openapi/rust" }
 oai_strict_schema = { path = "../oai_strict_schema" }
 path-clean = "1.0.1"
 tempfile = "3.23.0"
+gix = { version = "0.60.0", features = ["blob-diff", "revparse-regex"] }
 
 
 [build-dependencies]

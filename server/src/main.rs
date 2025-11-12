@@ -1,11 +1,11 @@
-use crate::docker::make_worker_image;
+use crate::{docker::make_worker_image, globals::PROJECT_DIR, shared::git as shared_git};
 use anyhow::{Context, anyhow};
 use axum::Router;
 use axum::serve;
 use std::env;
 use std::fs;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -16,6 +16,7 @@ mod docker;
 mod globals;
 #[path = "routes/lib.rs"]
 mod routes;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -30,6 +31,14 @@ async fn main() -> Result<(), anyhow::Error> {
 
     routes::config::ensure_config_exists()
         .map_err(|err| anyhow!("failed to initialize config: {err}"))?;
+
+    let staging = Path::new(PROJECT_DIR.as_str()).join("staging");
+    shared_git::ensure_non_bare_repo(&staging)
+        .unwrap_or_else(|err| panic!("staging repository check failed: {err}"));
+
+    let _db_pool = db::ensure_db()
+        .await
+        .expect("failed to initialize database");
 
     make_worker_image();
     let app: Router = routes::build_routes();

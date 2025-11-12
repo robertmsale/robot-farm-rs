@@ -3,6 +3,7 @@ mod feed;
 mod git;
 mod healthz;
 mod message_queue;
+mod orchestrator;
 mod strategy;
 mod task;
 mod task_dependency;
@@ -90,8 +91,16 @@ pub fn build_routes() -> Router {
         )
         .route("/workers/:workerId", delete(worker::delete_worker))
         .route(
+            "/workers/:workerId/session",
+            delete(worker::delete_worker_session),
+        )
+        .route(
             "/strategy",
             get(strategy::get_active_strategy).put(strategy::update_active_strategy),
+        )
+        .route(
+            "/orchestrator/session",
+            delete(orchestrator::delete_orchestrator_session),
         )
         .layer(cors)
 }
