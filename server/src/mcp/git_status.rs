@@ -1,1 +1,79 @@
-// git add -A && git status -sb
+use std::path::Path;
+
+use async_trait::async_trait;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde_json::Value;
+use tokio::process::Command;
+
+use crate::globals::PROJECT_DIR;
+
+use super::{
+    parse_params,
+    roles_all,
+    schema_for_type,
+    AgentRole,
+    McpTool,
+    ToolContext,
+    ToolInvocationError,
+    ToolInvocationResponse,
+};
+
+#[derive(Default)]
+pub struct GitStatusTool;
+
+#[async_trait]
+impl McpTool for GitStatusTool {
+    fn name(&self) -> &'static str {
+        "git_status"
+    }
+
+    fn title(&self) -> Option<&'static str> {
+        Some("Git Status")
+    }
+
+    fn description(&self) -> &'static str {
+        "Show the concise git status for the staging repository."
+    }
+
+    fn input_schema(&self) -> schemars::schema::Schema {
+        schema_for_type::<GitStatusInput>()
+    }
+
+    fn allowed_roles(&self) -> &'static [AgentRole] {
+        roles_all()
+    }
+
+    async fn call(
+        &self,
+        _ctx: &ToolContext,
+        args: Value,
+    ) -> Result<ToolInvocationResponse, ToolInvocationError> {
+        let _: GitStatusInput = parse_params(args)?;
+        run_git_command(["status", "-sb"]).await
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct GitStatusInput {}
+
+async fn run_git_command<const N: usize>(args: [&str; N]) -> Result<ToolInvocationResponse, ToolInvocationError> {
+    let repo = Path::new(PROJECT_DIR.as_str()).join("staging");
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(&repo)
+        .output()
+        .await
+        .map_err(|err| ToolInvocationError::Internal(format!("failed to run git: {err}")))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !output.status.success() {
+        return Ok(ToolInvocationResponse::text_error(format!(
+            "git command failed (exit {}):\n{}\n{}",
+            output.status.code().unwrap_or(-1),
+            stdout,
+            stderr.trim()
+        )));
+    }
+    Ok(ToolInvocationResponse::text(stdout))
+}

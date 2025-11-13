@@ -14,6 +14,7 @@ mod compliance;
 mod db;
 mod docker;
 mod globals;
+mod mcp;
 mod models;
 #[path = "routes/lib.rs"]
 mod routes;

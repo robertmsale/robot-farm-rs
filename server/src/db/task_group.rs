@@ -160,3 +160,18 @@ pub async fn ensure_builtin_groups(pool: &SqlitePool) -> DbResult<()> {
 
     Ok(())
 }
+
+pub async fn get_task_group_by_slug(slug: &str) -> DbResult<Option<TaskGroup>> {
+    let row = sqlx::query(
+        r#"
+        SELECT id, slug, title, description, status
+        FROM task_group
+        WHERE slug = ?1
+        "#,
+    )
+    .bind(slug)
+    .fetch_optional(db::pool())
+    .await?;
+
+    Ok(row.map(row_to_task_group))
+}

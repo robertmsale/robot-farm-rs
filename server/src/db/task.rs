@@ -147,3 +147,18 @@ pub async fn delete_task(task_id: i64) -> DbResult<bool> {
 
     Ok(result.rows_affected() > 0)
 }
+
+pub async fn get_task_by_slug(slug: &str) -> DbResult<Option<Task>> {
+    let row = sqlx::query(
+        r#"
+        SELECT id, group_id, slug, title, commit_hash, status, owner
+        FROM task
+        WHERE slug = ?1
+        "#,
+    )
+    .bind(slug)
+    .fetch_optional(db::pool())
+    .await?;
+
+    Ok(row.map(row_to_task))
+}

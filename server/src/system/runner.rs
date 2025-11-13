@@ -41,7 +41,7 @@ pub fn plan_codex_run(
         .config_override("mcp_servers.robot_farm.enabled=true")
         .config_override("mcp_servers.robot_farm.tool_timeout_sec=900")
         .config_override(format!(
-            "mcp_servers.robot_farm.url=\"http://127.0.0.1:{}/stream\"",
+            "mcp_servers.robot_farm.url=\"http://127.0.0.1:{}/mcp\"",
             config.api_port.unwrap_or(8080)
         ));
 

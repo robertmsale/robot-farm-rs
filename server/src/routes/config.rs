@@ -30,7 +30,7 @@ pub fn config_exists() -> bool {
     config_file_path().exists()
 }
 
-fn load_config_from_disk() -> Result<WorkspaceConfig, ConfigError> {
+pub fn load_config_from_disk() -> Result<WorkspaceConfig, ConfigError> {
     let path = config_file_path();
     let raw = fs::read_to_string(&path).map_err(|err| match err.kind() {
         ErrorKind::NotFound => ConfigError::NotFound(path.display().to_string()),
