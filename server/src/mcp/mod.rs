@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use http::StatusCode;
 use once_cell::sync::Lazy;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::{Value, json};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::{json, Value};
 use thiserror::Error;
 
 use crate::{
@@ -13,6 +13,8 @@ use crate::{
     system::strategy::StrategyState,
 };
 use openapi::models::{ActiveStrategy, Strategy, Task, TaskGroup, TaskGroupStatus, TaskStatus};
+
+pub(crate) mod session;
 
 mod git_diff;
 mod git_status;
@@ -31,6 +33,8 @@ mod tasks_groups_update;
 mod tasks_list;
 mod tasks_set_status;
 mod tasks_update;
+
+use session::SessionManager;
 
 const JSONRPC_VERSION: &str = "2.0";
 const PROTOCOL_VERSION: &str = "2025-06-18";
@@ -174,20 +178,20 @@ pub struct TaskWithGroupPayload {
 #[derive(Debug)]
 pub enum DispatchOutcome {
     Json(Value),
+    JsonWithSession { body: Value, session_id: String },
     NoContent,
 }
 
 pub struct DispatchResponse {
     pub status: StatusCode,
     pub body: Option<Value>,
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Error)]
 pub enum DispatchError {
-    #[error("{0}")]
-    InvalidRequest(String),
-    #[error(transparent)]
-    Agent(#[from] AgentHeaderError),
+    #[error("response error")]
+    Response { status: StatusCode, body: Value },
 }
 
 #[derive(Debug, Serialize)]

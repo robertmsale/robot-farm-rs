@@ -29,6 +29,8 @@ Method | HTTP request | Description
 [**execWorkerCommand**](DefaultApi.md#execworkercommand) | **POST** /workers/{workerId}/exec | Execute a shell command within a worker workspace
 [**getActiveStrategy**](DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 [**getConfig**](DefaultApi.md#getconfig) | **GET** /config | Get workspace config
+[**getGitStatusForWorktree**](DefaultApi.md#getgitstatusforworktree) | **GET** /git/status/{worktreeId} | Get full git status for a specific worktree, including diff hunks.
+[**getGitStatusSummary**](DefaultApi.md#getgitstatussummary) | **GET** /git/status | List git status information for all worktrees.
 [**getHealthz**](DefaultApi.md#gethealthz) | **GET** /healthz | Health check
 [**getTask**](DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
 [**getTaskCommitDiff**](DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
@@ -820,6 +822,84 @@ This endpoint does not need any parameter.
 ### Return type
 
 [**Config**](Config.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getGitStatusForWorktree**
+> GitWorktreeStatus getGitStatusForWorktree(worktreeId)
+
+Get full git status for a specific worktree, including diff hunks.
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final worktreeId = worktreeId_example; // String | Identifier of the worktree (`staging` or `ws{n}`).
+
+try {
+    final result = api_instance.getGitStatusForWorktree(worktreeId);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getGitStatusForWorktree: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **worktreeId** | **String**| Identifier of the worktree (`staging` or `ws{n}`). | 
+
+### Return type
+
+[**GitWorktreeStatus**](GitWorktreeStatus.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getGitStatusSummary**
+> GitStatusSummary getGitStatusSummary()
+
+List git status information for all worktrees.
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+
+try {
+    final result = api_instance.getGitStatusSummary();
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getGitStatusSummary: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+[**GitStatusSummary**](GitStatusSummary.md)
 
 ### Authorization
 

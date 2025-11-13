@@ -300,6 +300,57 @@
         }
       }
     },
+    "/git/status": {
+      "get": {
+        "summary": "List git status information for all worktrees.",
+        "operationId": "getGitStatusSummary",
+        "responses": {
+          "200": {
+            "description": "Aggregated git status for staging and every worker worktree.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitStatusSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/git/status/{worktreeId}": {
+      "parameters": [
+        {
+          "name": "worktreeId",
+          "in": "path",
+          "required": true,
+          "description": "Identifier of the worktree (`staging` or `ws{n}`).",
+          "schema": {
+            "type": "string",
+            "pattern": "^(staging|ws[0-9]+)$"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Get full git status for a specific worktree, including diff hunks.",
+        "operationId": "getGitStatusForWorktree",
+        "responses": {
+          "200": {
+            "description": "Git status details for the requested worktree.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitWorktreeStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Worktree not found."
+          }
+        }
+      }
+    },
     "/message_queue": {
       "get": {
         "summary": "List messages in the queue",
@@ -1587,6 +1638,142 @@
           "hash",
           "message",
           "diff"
+        ],
+        "additionalProperties": false
+      },
+      "GitStatusSummary": {
+        "type": "object",
+        "description": "Aggregated git status for every discovered worktree.",
+        "properties": {
+          "worktrees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitWorktreeStatus"
+            }
+          }
+        },
+        "required": [
+          "worktrees"
+        ],
+        "additionalProperties": false
+      },
+      "GitWorktreeStatus": {
+        "type": "object",
+        "description": "Git status data for a single worktree.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Logical identifier (staging or ws{n})."
+          },
+          "path": {
+            "type": "string",
+            "description": "Absolute filesystem path to the worktree."
+          },
+          "branch": {
+            "type": "string",
+            "description": "Currently checked out branch."
+          },
+          "upstream": {
+            "type": "string",
+            "description": "Configured upstream tracking branch, if any.",
+            "nullable": true
+          },
+          "ahead": {
+            "type": "integer",
+            "description": "Number of commits ahead of upstream.",
+            "minimum": 0
+          },
+          "behind": {
+            "type": "integer",
+            "description": "Number of commits behind upstream.",
+            "minimum": 0
+          },
+          "is_dirty": {
+            "type": "boolean",
+            "description": "True when there are local modifications."
+          },
+          "files": {
+            "type": "array",
+            "description": "Per-file change metadata.",
+            "items": {
+              "$ref": "#/components/schemas/GitStatusFileChange"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "branch",
+          "ahead",
+          "behind",
+          "is_dirty",
+          "files"
+        ],
+        "additionalProperties": false
+      },
+      "GitStatusFileChange": {
+        "type": "object",
+        "description": "Represents a single file appearing in git status output.",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Current file path relative to the worktree root."
+          },
+          "old_path": {
+            "type": "string",
+            "description": "Previous path when the file was renamed or moved.",
+            "nullable": true
+          },
+          "status_code": {
+            "type": "string",
+            "description": "Two-character porcelain status code (e.g., M?, R?)."
+          },
+          "additions": {
+            "type": "integer",
+            "description": "Number of added lines reported by git.",
+            "minimum": 0
+          },
+          "deletions": {
+            "type": "integer",
+            "description": "Number of removed lines reported by git.",
+            "minimum": 0
+          },
+          "hunks": {
+            "type": "array",
+            "description": "Diff hunks for this file when requested.",
+            "items": {
+              "$ref": "#/components/schemas/GitStatusHunk"
+            },
+            "nullable": true
+          }
+        },
+        "required": [
+          "path",
+          "status_code",
+          "additions",
+          "deletions"
+        ],
+        "additionalProperties": false
+      },
+      "GitStatusHunk": {
+        "type": "object",
+        "description": "Single diff hunk extracted from git output.",
+        "properties": {
+          "header": {
+            "type": "string",
+            "description": "The @@ header line describing the hunk range."
+          },
+          "lines": {
+            "type": "array",
+            "description": "All lines within the hunk including +/- context.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "header",
+          "lines"
         ],
         "additionalProperties": false
       },

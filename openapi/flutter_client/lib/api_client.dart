@@ -204,6 +204,14 @@ class ApiClient {
           return FeedOrderFieldTypeTransformer().decode(value);
         case 'GetHealthz200Response':
           return GetHealthz200Response.fromJson(value);
+        case 'GitStatusFileChange':
+          return GitStatusFileChange.fromJson(value);
+        case 'GitStatusHunk':
+          return GitStatusHunk.fromJson(value);
+        case 'GitStatusSummary':
+          return GitStatusSummary.fromJson(value);
+        case 'GitWorktreeStatus':
+          return GitWorktreeStatus.fromJson(value);
         case 'InsertMessage':
           return InsertMessage.fromJson(value);
         case 'InsertMessageOneOf':

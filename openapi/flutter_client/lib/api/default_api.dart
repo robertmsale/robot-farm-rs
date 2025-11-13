@@ -947,6 +947,105 @@ class DefaultApi {
     return null;
   }
 
+  /// Get full git status for a specific worktree, including diff hunks.
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] worktreeId (required):
+  ///   Identifier of the worktree (`staging` or `ws{n}`).
+  Future<Response> getGitStatusForWorktreeWithHttpInfo(String worktreeId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/git/status/{worktreeId}'
+      .replaceAll('{worktreeId}', worktreeId);
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Get full git status for a specific worktree, including diff hunks.
+  ///
+  /// Parameters:
+  ///
+  /// * [String] worktreeId (required):
+  ///   Identifier of the worktree (`staging` or `ws{n}`).
+  Future<GitWorktreeStatus?> getGitStatusForWorktree(String worktreeId,) async {
+    final response = await getGitStatusForWorktreeWithHttpInfo(worktreeId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'GitWorktreeStatus',) as GitWorktreeStatus;
+    
+    }
+    return null;
+  }
+
+  /// List git status information for all worktrees.
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> getGitStatusSummaryWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/git/status';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// List git status information for all worktrees.
+  Future<GitStatusSummary?> getGitStatusSummary() async {
+    final response = await getGitStatusSummaryWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'GitStatusSummary',) as GitStatusSummary;
+    
+    }
+    return null;
+  }
+
   /// Health check
   ///
   /// Note: This method returns the HTTP [Response].

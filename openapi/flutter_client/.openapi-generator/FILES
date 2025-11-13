@@ -14,6 +14,10 @@ doc/Feed.md
 doc/FeedLevel.md
 doc/FeedOrderField.md
 doc/GetHealthz200Response.md
+doc/GitStatusFileChange.md
+doc/GitStatusHunk.md
+doc/GitStatusSummary.md
+doc/GitWorktreeStatus.md
 doc/InsertMessage.md
 doc/InsertMessageOneOf.md
 doc/InsertMessageOneOf1.md
@@ -53,6 +57,10 @@ lib/model/feed.dart
 lib/model/feed_level.dart
 lib/model/feed_order_field.dart
 lib/model/get_healthz200_response.dart
+lib/model/git_status_file_change.dart
+lib/model/git_status_hunk.dart
+lib/model/git_status_summary.dart
+lib/model/git_worktree_status.dart
 lib/model/insert_message.dart
 lib/model/insert_message_one_of.dart
 lib/model/insert_message_one_of1.dart
@@ -71,4 +79,7 @@ lib/model/task_update_input.dart
 lib/model/worker.dart
 lib/model/worker_state.dart
 pubspec.yaml
-test/exec_command_input_test.dart
+test/git_status_file_change_test.dart
+test/git_status_hunk_test.dart
+test/git_status_summary_test.dart
+test/git_worktree_status_test.dart

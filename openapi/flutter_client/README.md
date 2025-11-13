@@ -79,6 +79,8 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**execWorkerCommand**](doc//DefaultApi.md#execworkercommand) | **POST** /workers/{workerId}/exec | Execute a shell command within a worker workspace
 *DefaultApi* | [**getActiveStrategy**](doc//DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 *DefaultApi* | [**getConfig**](doc//DefaultApi.md#getconfig) | **GET** /config | Get workspace config
+*DefaultApi* | [**getGitStatusForWorktree**](doc//DefaultApi.md#getgitstatusforworktree) | **GET** /git/status/{worktreeId} | Get full git status for a specific worktree, including diff hunks.
+*DefaultApi* | [**getGitStatusSummary**](doc//DefaultApi.md#getgitstatussummary) | **GET** /git/status | List git status information for all worktrees.
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check
 *DefaultApi* | [**getTask**](doc//DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
 *DefaultApi* | [**getTaskCommitDiff**](doc//DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
@@ -110,6 +112,10 @@ Class | Method | HTTP request | Description
  - [FeedLevel](doc//FeedLevel.md)
  - [FeedOrderField](doc//FeedOrderField.md)
  - [GetHealthz200Response](doc//GetHealthz200Response.md)
+ - [GitStatusFileChange](doc//GitStatusFileChange.md)
+ - [GitStatusHunk](doc//GitStatusHunk.md)
+ - [GitStatusSummary](doc//GitStatusSummary.md)
+ - [GitWorktreeStatus](doc//GitWorktreeStatus.md)
  - [InsertMessage](doc//InsertMessage.md)
  - [InsertMessageOneOf](doc//InsertMessageOneOf.md)
  - [InsertMessageOneOf1](doc//InsertMessageOneOf1.md)
