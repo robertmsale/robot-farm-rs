@@ -1,12 +1,16 @@
-use crate::{globals::PROJECT_DIR, shared::shell};
+use crate::{db, globals::PROJECT_DIR, shared::shell};
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use openapi::models::{ExecCommandInput, ExecResult};
 use std::path::PathBuf;
 use tracing::error;
 
 pub async fn delete_orchestrator_session() -> StatusCode {
-    // TODO: clear orchestrator session state.
-    StatusCode::NO_CONTENT
+    if let Err(err) = db::session::delete_session("orchestrator").await {
+        error!(?err, "failed to clear orchestrator session");
+        StatusCode::INTERNAL_SERVER_ERROR
+    } else {
+        StatusCode::NO_CONTENT
+    }
 }
 
 pub async fn exec_orchestrator_command(

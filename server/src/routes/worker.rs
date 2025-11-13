@@ -2,7 +2,7 @@ use crate::{db, globals::PROJECT_DIR, shared::shell};
 use axum::{Json, extract::Path, http::StatusCode};
 use openapi::models::{ExecCommandInput, ExecResult, Worker};
 use std::path::PathBuf;
-use tracing::error;
+use tracing::{error, warn};
 
 pub async fn list_workers() -> Json<Vec<Worker>> {
     let workers = db::worker::list_workers().await;
@@ -19,10 +19,14 @@ pub async fn delete_worker(Path(_worker_id): Path<i64>) -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
-pub async fn delete_worker_session(Path(_worker_id): Path<i64>) -> StatusCode {
-    let _ = _worker_id;
-    // TODO: clear worker session state.
-    StatusCode::NO_CONTENT
+pub async fn delete_worker_session(Path(worker_id): Path<i64>) -> StatusCode {
+    let owner = format!("ws{worker_id}");
+    if let Err(err) = db::session::delete_session(&owner).await {
+        warn!(?err, worker_id, "failed to clear worker session");
+        StatusCode::INTERNAL_SERVER_ERROR
+    } else {
+        StatusCode::NO_CONTENT
+    }
 }
 
 pub async fn exec_worker_command(

@@ -583,12 +583,6 @@ class ConnectionScreen extends GetView<ConnectionController> {
 class HomeScreen extends GetView<ConnectionController> {
   const HomeScreen({super.key});
 
-  void _disposeWorkerFeedController() {
-    if (Get.isRegistered<WorkerFeedController>()) {
-      Get.delete<WorkerFeedController>(force: true);
-    }
-  }
-
   void _openCommandSheet(BuildContext context, {int? workerId}) {
     final baseUrl = controller.currentBaseUrl;
     if (baseUrl == null) {
@@ -626,10 +620,6 @@ class HomeScreen extends GetView<ConnectionController> {
   @override
   Widget build(BuildContext context) {
     final isPhone = context.isPhone;
-    if (!Get.isRegistered<WorkerFeedController>()) {
-      Get.put(WorkerFeedController(connection: controller));
-    }
-
     final orchestratorPane = OrchestratorPane(
       onRunCommand: () => _openCommandSheet(context),
       onEnqueueMessage: () => _openMessageSheet(context),
@@ -637,6 +627,7 @@ class HomeScreen extends GetView<ConnectionController> {
       systemEvents: mockSystemEvents,
     );
     final workerPane = WorkerFeedPane(
+      connection: controller,
       onRunCommand: (workerId) =>
           _openCommandSheet(context, workerId: workerId),
       onEnqueueMessage: (workerId) =>
@@ -665,10 +656,7 @@ class HomeScreen extends GetView<ConnectionController> {
         title: const Text('Robot Farm'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            _disposeWorkerFeedController();
-            Get.offAllNamed('/');
-          },
+          onPressed: () => Get.offAllNamed('/'),
         ),
         actions: [
           Obx(
@@ -1016,12 +1004,14 @@ class _OutputBubble extends StatelessWidget {
 
 class WorkerFeedPane extends StatelessWidget {
   const WorkerFeedPane({
+    required this.connection,
     required this.onRunCommand,
     required this.onEnqueueMessage,
     required this.onEditQueue,
     super.key,
   });
 
+  final ConnectionController connection;
   final void Function(int workerId) onRunCommand;
   final void Function(int workerId) onEnqueueMessage;
   final void Function(int workerId) onEditQueue;
@@ -1030,6 +1020,8 @@ class WorkerFeedPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return GetBuilder<WorkerFeedController>(
+      init: WorkerFeedController(connection: connection),
+      global: false,
       builder: (controller) {
         final workers = controller.connection.workers.toList();
         final tabs = workers.isEmpty

@@ -8,6 +8,7 @@ use tracing::info;
 
 pub mod feed;
 pub mod message_queue;
+pub mod session;
 pub mod task;
 pub mod task_dependency;
 pub mod task_group;
