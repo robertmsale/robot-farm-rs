@@ -14,6 +14,7 @@ import 'sheets/command_sheet.dart';
 import 'sheets/message/message_sheet.dart';
 import 'sheets/queue/models.dart';
 import 'sheets/queue/queue_sheet.dart';
+import 'sheets/strategy/strategy_sheet.dart';
 import 'task_wizard/task_wizard_controller.dart';
 import 'task_wizard/task_wizard_screen.dart';
 import 'tasks/tasks_controller.dart';
@@ -600,6 +601,35 @@ class HomeScreen extends GetView<ConnectionController> {
     );
   }
 
+  void _openStrategySheet(BuildContext context) {
+    final taskGroups = <robot_farm_api.TaskGroup>[
+      robot_farm_api.TaskGroup(
+        id: 1,
+        slug: 'bootstrap',
+        title: 'Bootstrap Robot Farm',
+        description: '',
+        status: robot_farm_api.TaskGroupStatus.ready,
+      ),
+      robot_farm_api.TaskGroup(
+        id: 2,
+        slug: 'chores',
+        title: 'Chores',
+        description: '',
+        status: robot_farm_api.TaskGroupStatus.ready,
+      ),
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StrategySheet(
+        availableStrategies: robot_farm_api.Strategy.values,
+        currentStrategy: robot_farm_api.Strategy.PLANNING,
+        taskGroups: taskGroups,
+      ),
+    );
+  }
+
   void _openQueueSheet(BuildContext context, {int? workerId}) {
     showModalBottomSheet(
       context: context,
@@ -680,6 +710,9 @@ class HomeScreen extends GetView<ConnectionController> {
                 case _HomeMenuAction.taskWizard:
                   Get.toNamed('/task-wizard');
                   break;
+                case _HomeMenuAction.changeStrategy:
+                  _openStrategySheet(context);
+                  break;
                 case _HomeMenuAction.clearFeeds:
                   controller.clearFeeds();
                   break;
@@ -698,6 +731,13 @@ class HomeScreen extends GetView<ConnectionController> {
                 child: ListTile(
                   leading: Icon(Icons.auto_fix_high),
                   title: Text('Task Wizard View'),
+                ),
+              ),
+              PopupMenuItem(
+                value: _HomeMenuAction.changeStrategy,
+                child: ListTile(
+                  leading: Icon(Icons.tune),
+                  title: Text('Change Strategy'),
                 ),
               ),
               PopupMenuItem(
@@ -721,7 +761,7 @@ class HomeScreen extends GetView<ConnectionController> {
   }
 }
 
-enum _HomeMenuAction { tasksView, taskWizard, clearFeeds }
+enum _HomeMenuAction { tasksView, taskWizard, changeStrategy, clearFeeds }
 
 class OrchestratorPane extends StatelessWidget {
   const OrchestratorPane({

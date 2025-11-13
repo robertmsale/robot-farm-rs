@@ -28,7 +28,24 @@ impl StrategyState {
         self.inner.read().clone()
     }
 
-    pub fn update(&self, strategy: ActiveStrategy) {
-        *self.inner.write() = strategy;
+    pub fn update(&self, mut strategy: ActiveStrategy) -> ActiveStrategy {
+        match strategy.id {
+            Strategy::Planning | Strategy::WindDown => {
+                strategy.focus = Some(vec![]);
+            }
+            Strategy::Aggressive | Strategy::HotfixSwarm | Strategy::BugSmash => {
+                if strategy.focus.is_none() {
+                    strategy.focus = Some(vec![]);
+                }
+            }
+            Strategy::Moderate | Strategy::Economical => {
+                if strategy.focus.is_none() {
+                    strategy.focus = Some(vec![]);
+                }
+            }
+        }
+
+        *self.inner.write() = strategy.clone();
+        strategy
     }
 }

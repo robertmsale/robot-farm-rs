@@ -263,19 +263,12 @@ impl CodexExecBuilder {
 
 pub fn build_default_codex_exec_command(
     port: Option<u16>,
-    prompt: Option<&str>,
     resume_session: Option<&str>,
 ) -> Vec<String> {
     let port = port.unwrap_or(8080);
     let builder = match resume_session {
         Some(id) => CodexExecBuilder::resume().session_id(id.to_string()),
         None => CodexExecBuilder::new(),
-    };
-
-    let builder = if let Some(prompt) = prompt {
-        builder.prompt(prompt)
-    } else {
-        builder
     };
 
     builder
@@ -296,7 +289,7 @@ mod tests {
 
     #[test]
     fn builds_default_exec_start_command() {
-        let args = build_default_codex_exec_command(Some(9000), Some("hello"), None);
+        let args = build_default_codex_exec_command(Some(9000), None);
         assert_eq!(args[0], "codex");
         assert_eq!(args[1], "exec");
         assert!(args.contains(&"-C".to_string()));
@@ -312,16 +305,14 @@ mod tests {
                 &"mcp_servers.robot_farm.url=\"http://127.0.0.1:9000/stream\"".to_string()
             )
         );
-        assert_eq!(args.last(), Some(&"hello".to_string()));
     }
 
     #[test]
     fn builds_resume_command_with_session() {
-        let args = build_default_codex_exec_command(None, Some("follow up"), Some("session-123"));
+        let args = build_default_codex_exec_command(None, Some("session-123"));
         assert_eq!(args[0], "codex");
         assert_eq!(args[1], "exec");
         assert_eq!(args[2], "resume");
-        assert_eq!(args[args.len() - 2], "session-123");
-        assert_eq!(args.last(), Some(&"follow up".to_string()));
+        assert!(args.contains(&"session-123".to_string()));
     }
 }

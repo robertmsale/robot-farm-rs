@@ -15,11 +15,22 @@ pub struct AssignedTask {
     pub slug: Option<String>,
 }
 
-#[derive(Default)]
 struct QueueState {
     assignments: HashMap<i64, AssignedTask>,
     known_workers: HashSet<i64>,
     events: Vec<SystemEvent>,
+    paused: bool,
+}
+
+impl Default for QueueState {
+    fn default() -> Self {
+        Self {
+            assignments: HashMap::new(),
+            known_workers: HashSet::new(),
+            events: Vec::new(),
+            paused: true,
+        }
+    }
 }
 
 pub struct QueueCoordinator {
@@ -85,8 +96,23 @@ impl QueueCoordinator {
         std::mem::take(&mut guard.events)
     }
 
+    pub fn pause(&self) {
+        self.inner.write().paused = true;
+    }
+
+    pub fn resume(&self) {
+        self.inner.write().paused = false;
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.inner.read().paused
+    }
+
     pub fn orchestrator_hints(&self, strategy: &ActiveStrategy) -> Vec<OrchestratorHint> {
         let guard = self.inner.read();
+        if guard.paused {
+            return Vec::new();
+        }
         let idle_workers: Vec<i64> = guard
             .known_workers
             .iter()

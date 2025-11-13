@@ -24,15 +24,6 @@ pub struct OrchestratorTurn {
     /// Assignments payload when intent=ASSIGN_TASKS.
     #[schemars(required)]
     pub assignments: Option<Vec<Assignment>>,
-    /// Completed tasks payload when intent=COMPLETE_TASKS.
-    #[schemars(required)]
-    pub completed: Option<Vec<OrchestratorCompletion>>,
-    /// Blocked tasks payload when intent=BLOCKED.
-    #[schemars(required)]
-    pub blocked: Option<Vec<BlockedEntry>>,
-    /// Optional hints the program may apply to the dispatcher.
-    #[schemars(required)]
-    pub queue: Option<QueueHints>,
 }
 
 /// Structured payload produced by a worker turn.
@@ -52,10 +43,10 @@ pub struct WorkerTurn {
     pub details: Option<String>,
     /// Completed tasks payload when intent=COMPLETE_TASKS.
     #[schemars(required)]
-    pub completed: Option<Vec<WorkerCompletion>>,
+    pub completed: Option<WorkerCompletion>,
     /// Blocked tasks payload when intent=BLOCKED.
     #[schemars(required)]
-    pub blocked: Option<Vec<BlockedEntry>>,
+    pub blocked: Option<BlockedEntry>,
 }
 
 /// Intent values for the orchestrator agent.
@@ -93,26 +84,6 @@ pub struct Assignment {
     pub acceptance: Option<String>,
 }
 
-/// Completion entry for a task (orchestrator variant, includes optional answer).
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct OrchestratorCompletion {
-    /// Slug of the task that was completed.
-    pub task_slug: String,
-    /// Completion notes or highlights.
-    #[schemars(required)]
-    pub notes: Option<String>,
-    /// Follow-up questions, if any.
-    #[schemars(required)]
-    pub open_questions: Option<Vec<String>>,
-    /// Structured answer payload when answer_required was true.
-    #[schemars(required)]
-    pub answer: Option<String>,
-    /// Short summary describing the changes for auto-commit messages. Aim for <= 72 characters.
-    #[schemars(required, length(min = 3, max = 120))]
-    pub commit_summary: Option<String>,
-}
-
 /// Completion entry for a worker turn (no answer payload).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -142,21 +113,6 @@ pub struct BlockedEntry {
     pub requires_merge_resolution: bool,
     /// Suggestions for unblocking the task.
     pub proposed_unblock_steps: Vec<String>,
-}
-
-/// Optional hints the program may apply to the dispatcher queue.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct QueueHints {
-    /// Relative priority bump to apply.
-    #[schemars(required)]
-    pub priority_bump: Option<i64>,
-    /// Queue item ID to insert before.
-    #[schemars(required)]
-    pub insert_before_message_id: Option<i64>,
-    /// Queue target (e.g., 'ws3' or 'orchestrator').
-    #[schemars(required)]
-    pub target: Option<String>,
 }
 
 /// Generate a JSON Schema for `T` with OpenAI-specific cleanup applied.
