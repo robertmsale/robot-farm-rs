@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use http::StatusCode;
 use once_cell::sync::Lazy;
 use schemars::JsonSchema;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::{Value, json};
 use thiserror::Error;
 
 use crate::{
@@ -182,6 +182,12 @@ pub enum DispatchOutcome {
     NoContent,
 }
 
+enum ProcessResult {
+    Json(Value),
+    JsonWithSession { body: Value, session_id: String },
+    NoContent,
+}
+
 pub struct DispatchResponse {
     pub status: StatusCode,
     pub body: Option<Value>,
@@ -286,11 +292,16 @@ const ROLES_ALL: &[AgentRole] = &[
 const ROLES_COORDINATION: &[AgentRole] =
     &[AgentRole::Orchestrator, AgentRole::Qa, AgentRole::Wizard];
 
-pub async fn handle_http_request(agent: Agent, body: &[u8]) -> DispatchResponse {
+pub async fn handle_http_request(
+    agent: Agent,
+    session_id: Option<String>,
+    body: &[u8],
+) -> DispatchResponse {
     if body.is_empty() {
         return DispatchResponse {
             status: StatusCode::OK,
             body: Some(make_error_response(None, -32600, "empty body", None)),
+            session_id: None,
         };
     }
 
@@ -305,6 +316,7 @@ pub async fn handle_http_request(agent: Agent, body: &[u8]) -> DispatchResponse 
                     format!("failed to parse body: {err}"),
                     None,
                 )),
+                session_id: None,
             };
         }
     };
@@ -312,12 +324,13 @@ pub async fn handle_http_request(agent: Agent, body: &[u8]) -> DispatchResponse 
     let strategy = StrategyState::global().snapshot();
     let ctx = ToolContext { agent, strategy };
 
-    let outcome = match dispatch_value(&ctx, payload).await {
+    let outcome = match dispatch_value(&ctx, payload, session_id.as_deref()).await {
         Ok(outcome) => outcome,
-        Err(err) => {
+        Err(DispatchError::Response { status, body }) => {
             return DispatchResponse {
-                status: StatusCode::OK,
-                body: Some(make_error_response(None, -32600, err.to_string(), None)),
+                status,
+                body: Some(body),
+                session_id: None,
             };
         }
     };
@@ -326,10 +339,17 @@ pub async fn handle_http_request(agent: Agent, body: &[u8]) -> DispatchResponse 
         DispatchOutcome::Json(value) => DispatchResponse {
             status: StatusCode::OK,
             body: Some(value),
+            session_id: None,
+        },
+        DispatchOutcome::JsonWithSession { body, session_id } => DispatchResponse {
+            status: StatusCode::OK,
+            body: Some(body),
+            session_id: Some(session_id),
         },
         DispatchOutcome::NoContent => DispatchResponse {
             status: StatusCode::NO_CONTENT,
             body: None,
+            session_id: None,
         },
     }
 }
@@ -337,17 +357,19 @@ pub async fn handle_http_request(agent: Agent, body: &[u8]) -> DispatchResponse 
 async fn dispatch_value(
     ctx: &ToolContext,
     payload: Value,
+    session_id: Option<&str>,
 ) -> Result<DispatchOutcome, DispatchError> {
     match payload {
-        Value::Object(_) => {
-            let response = process_request(ctx, payload).await;
-            Ok(match response {
-                Some(value) => DispatchOutcome::Json(value),
-                None => DispatchOutcome::NoContent,
-            })
-        }
+        Value::Object(_) => match process_request(ctx, payload, session_id).await? {
+            ProcessResult::Json(value) => Ok(DispatchOutcome::Json(value)),
+            ProcessResult::JsonWithSession { body, session_id } => {
+                Ok(DispatchOutcome::JsonWithSession { body, session_id })
+            }
+            ProcessResult::NoContent => Ok(DispatchOutcome::NoContent),
+        },
         Value::Array(items) => {
             let mut responses = Vec::new();
+            let mut new_session: Option<String> = None;
             for item in items {
                 if !item.is_object() {
                     responses.push(make_error_response(
@@ -358,55 +380,92 @@ async fn dispatch_value(
                     ));
                     continue;
                 }
-                if let Some(response) = process_request(ctx, item).await {
-                    responses.push(response);
+                match process_request(ctx, item, session_id).await? {
+                    ProcessResult::Json(value) => responses.push(value),
+                    ProcessResult::JsonWithSession { body, session_id } => {
+                        if new_session.is_none() {
+                            new_session = Some(session_id.clone());
+                        }
+                        responses.push(body);
+                    }
+                    ProcessResult::NoContent => {}
                 }
             }
+
             if responses.is_empty() {
                 Ok(DispatchOutcome::NoContent)
+            } else if let Some(session_id) = new_session {
+                Ok(DispatchOutcome::JsonWithSession {
+                    body: Value::Array(responses),
+                    session_id,
+                })
             } else {
                 Ok(DispatchOutcome::Json(Value::Array(responses)))
             }
         }
-        _ => Err(DispatchError::InvalidRequest(
-            "expected JSON object or array".to_string(),
+        _ => Err(dispatch_error(
+            StatusCode::BAD_REQUEST,
+            None,
+            -32600,
+            "expected JSON object or array",
         )),
     }
 }
 
-async fn process_request(ctx: &ToolContext, value: Value) -> Option<Value> {
+async fn process_request(
+    ctx: &ToolContext,
+    value: Value,
+    session_id: Option<&str>,
+) -> Result<ProcessResult, DispatchError> {
     let req: JsonRpcRequest = match serde_json::from_value(value) {
         Ok(req) => req,
         Err(err) => {
-            return Some(make_error_response(
+            return Ok(ProcessResult::Json(make_error_response(
                 None,
                 -32600,
                 format!("invalid request: {err}"),
                 None,
-            ));
+            )));
         }
     };
 
     if req.jsonrpc != JSONRPC_VERSION {
-        return Some(make_error_response(
+        return Ok(ProcessResult::Json(make_error_response(
             req.id,
             -32600,
             format!("unsupported jsonrpc version: {}", req.jsonrpc),
             None,
-        ));
+        )));
     }
 
     match req.method.as_str() {
-        "initialize" => Some(handle_initialize(req.id)),
-        "notifications/initialized" => None,
-        "tools/list" => Some(handle_tools_list(ctx, req.id)),
-        "tools/call" => Some(handle_tools_call(ctx, req.id, req.params).await),
-        _ => Some(make_error_response(
+        "initialize" => {
+            let session_id_value = SessionManager::global().create_session().await;
+            Ok(ProcessResult::JsonWithSession {
+                body: handle_initialize(req.id),
+                session_id: session_id_value,
+            })
+        }
+        "notifications/initialized" => {
+            require_session(session_id, req.id.clone()).await?;
+            Ok(ProcessResult::NoContent)
+        }
+        "tools/list" => {
+            require_session(session_id, req.id.clone()).await?;
+            Ok(ProcessResult::Json(handle_tools_list(ctx, req.id)))
+        }
+        "tools/call" => {
+            require_session(session_id, req.id.clone()).await?;
+            Ok(ProcessResult::Json(
+                handle_tools_call(ctx, req.id, req.params).await,
+            ))
+        }
+        _ => Ok(ProcessResult::Json(make_error_response(
             req.id,
             -32601,
             format!("unknown method: {}", req.method),
             None,
-        )),
+        ))),
     }
 }
 
@@ -520,6 +579,43 @@ fn make_error_response(
         "id": id.unwrap_or(Value::Null),
         "error": error,
     })
+}
+
+async fn require_session(
+    session_id: Option<&str>,
+    request_id: Option<Value>,
+) -> Result<(), DispatchError> {
+    let Some(id) = session_id else {
+        return Err(dispatch_error(
+            StatusCode::BAD_REQUEST,
+            request_id,
+            -32002,
+            "missing Mcp-Session-Id header",
+        ));
+    };
+
+    if SessionManager::global().has_session(id).await {
+        Ok(())
+    } else {
+        Err(dispatch_error(
+            StatusCode::NOT_FOUND,
+            request_id,
+            -32004,
+            "unknown session id",
+        ))
+    }
+}
+
+fn dispatch_error(
+    status: StatusCode,
+    id: Option<Value>,
+    code: i32,
+    message: impl Into<String>,
+) -> DispatchError {
+    DispatchError::Response {
+        status,
+        body: make_error_response(id, code, message, None),
+    }
 }
 
 #[derive(Debug, Deserialize)]

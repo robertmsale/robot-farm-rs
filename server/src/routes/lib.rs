@@ -114,6 +114,6 @@ pub fn build_routes() -> Router {
             "/orchestrator/exec",
             post(orchestrator::exec_orchestrator_command),
         )
-        .route("/mcp", post(mcp::handle_mcp_request))
+        .route("/mcp", get(mcp::stream_mcp).post(mcp::handle_mcp_request))
         .layer(cors)
 }
