@@ -22,6 +22,7 @@ pub struct CodexExecBuilder {
     skip_git_repo_check: bool,
     oss: bool,
     resume_last: bool,
+    change_dir: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -83,6 +84,11 @@ impl CodexExecBuilder {
 
     pub fn working_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.working_dir = Some(dir.into());
+        self
+    }
+
+    pub fn change_dir(mut self, dir: impl Into<String>) -> Self {
+        self.change_dir = Some(dir.into());
         self
     }
 
@@ -151,6 +157,11 @@ impl CodexExecBuilder {
         match self.mode {
             ExecMode::Start => {}
             ExecMode::Resume => args.push("resume".to_string()),
+        }
+
+        if let Some(change_dir) = self.change_dir {
+            args.push("-C".to_string());
+            args.push(change_dir);
         }
 
         for kv in self.config_overrides {
@@ -247,5 +258,70 @@ impl CodexExecBuilder {
         }
 
         args
+    }
+}
+
+pub fn build_default_codex_exec_command(
+    port: Option<u16>,
+    prompt: Option<&str>,
+    resume_session: Option<&str>,
+) -> Vec<String> {
+    let port = port.unwrap_or(8080);
+    let builder = match resume_session {
+        Some(id) => CodexExecBuilder::resume().session_id(id.to_string()),
+        None => CodexExecBuilder::new(),
+    };
+
+    let builder = if let Some(prompt) = prompt {
+        builder.prompt(prompt)
+    } else {
+        builder
+    };
+
+    builder
+        .change_dir("/workspace")
+        .json(true)
+        .output_schema("/opt/robot-farm/schema.json")
+        .config_override("mcp_servers.robot_farm.enabled=true")
+        .config_override("mcp_servers.robot_farm.tool_timeout_sec=900")
+        .config_override(format!(
+            "mcp_servers.robot_farm.url=\"http://127.0.0.1:{port}/stream\""
+        ))
+        .build()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builds_default_exec_start_command() {
+        let args = build_default_codex_exec_command(Some(9000), Some("hello"), None);
+        assert_eq!(args[0], "codex");
+        assert_eq!(args[1], "exec");
+        assert!(args.contains(&"-C".to_string()));
+        assert!(args.contains(&"/workspace".to_string()));
+        assert!(args.contains(&"--json".to_string()));
+        assert!(args.contains(&"--output-schema".to_string()));
+        assert!(args.contains(&"/opt/robot-farm/schema.json".to_string()));
+        assert!(args.contains(&"-c".to_string()));
+        assert!(args.contains(&"mcp_servers.robot_farm.enabled=true".to_string()));
+        assert!(args.contains(&"mcp_servers.robot_farm.tool_timeout_sec=900".to_string()));
+        assert!(
+            args.contains(
+                &"mcp_servers.robot_farm.url=\"http://127.0.0.1:9000/stream\"".to_string()
+            )
+        );
+        assert_eq!(args.last(), Some(&"hello".to_string()));
+    }
+
+    #[test]
+    fn builds_resume_command_with_session() {
+        let args = build_default_codex_exec_command(None, Some("follow up"), Some("session-123"));
+        assert_eq!(args[0], "codex");
+        assert_eq!(args[1], "exec");
+        assert_eq!(args[2], "resume");
+        assert_eq!(args[args.len() - 2], "session-123");
+        assert_eq!(args.last(), Some(&"follow up".to_string()));
     }
 }

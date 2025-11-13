@@ -35,6 +35,7 @@ part 'model/append_files_config.dart';
 part 'model/command_config.dart';
 part 'model/commit_info.dart';
 part 'model/config.dart';
+part 'model/exec_command_input.dart';
 part 'model/exec_result.dart';
 part 'model/feed.dart';
 part 'model/feed_level.dart';

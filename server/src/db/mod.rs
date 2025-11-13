@@ -1,4 +1,5 @@
 use crate::routes::config::DB_DIR;
+use once_cell::sync::OnceCell;
 use sqlx::{SqlitePool, migrate::Migrator, sqlite::SqlitePoolOptions};
 use std::fs;
 use std::fs::OpenOptions;
@@ -17,7 +18,21 @@ pub mod worker;
 #[allow(dead_code)]
 pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
+static DB_POOL: OnceCell<SqlitePool> = OnceCell::new();
+
+pub type DbResult<T> = Result<T, sqlx::Error>;
+
+pub fn pool() -> &'static SqlitePool {
+    DB_POOL
+        .get()
+        .expect("database pool not initialized. Call ensure_db() first.")
+}
+
 pub async fn ensure_db() -> Result<SqlitePool, sqlx::Error> {
+    if let Some(existing) = DB_POOL.get() {
+        return Ok(existing.clone());
+    }
+
     if let Err(err) = fs::create_dir_all(DB_DIR.as_str()) {
         panic!(
             "Failed to create database directory {}: {err}",
@@ -51,6 +66,12 @@ pub async fn ensure_db() -> Result<SqlitePool, sqlx::Error> {
         .run(&pool)
         .await
         .unwrap_or_else(|err| panic!("Failed to run migrations: {err}"));
+
+    task_group::ensure_builtin_groups(&pool)
+        .await
+        .unwrap_or_else(|err| panic!("Failed to seed builtin task groups: {err}"));
+
+    let _ = DB_POOL.set(pool.clone());
 
     Ok(pool)
 }

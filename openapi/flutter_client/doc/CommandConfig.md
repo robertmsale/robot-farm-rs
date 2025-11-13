@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **stdoutSuccessMessage** | **String** |  | [optional] 
 **hidden** | **bool** |  | [optional] [default to false]
 **timeoutSeconds** | **int** |  | [optional] 
+**cwd** | **String** | Override working directory for this command. Paths may be absolute or relative to the workspace root. | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

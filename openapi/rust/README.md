@@ -35,6 +35,7 @@ Class | Method | HTTP request | Description
  - [CommandConfig](docs/CommandConfig.md)
  - [CommitInfo](docs/CommitInfo.md)
  - [Config](docs/Config.md)
+ - [ExecCommandInput](docs/ExecCommandInput.md)
  - [ExecResult](docs/ExecResult.md)
  - [Feed](docs/Feed.md)
  - [FeedLevel](docs/FeedLevel.md)

@@ -28,6 +28,9 @@ pub struct CommandConfig {
     pub hidden: Option<bool>,
     #[serde(rename = "timeout_seconds", skip_serializing_if = "Option::is_none")]
     pub timeout_seconds: Option<i64>,
+    /// Override working directory for this command. Paths may be absolute or relative to the workspace root.
+    #[serde(rename = "cwd", skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
 }
 
 impl CommandConfig {
@@ -39,6 +42,7 @@ impl CommandConfig {
             stdout_success_message: None,
             hidden: None,
             timeout_seconds: None,
+            cwd: None,
         }
     }
 }

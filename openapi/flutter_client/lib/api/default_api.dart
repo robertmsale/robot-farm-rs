@@ -754,19 +754,19 @@ class DefaultApi {
   ///
   /// Parameters:
   ///
-  /// * [String] body (required):
-  Future<Response> execOrchestratorCommandWithHttpInfo(String body,) async {
+  /// * [ExecCommandInput] execCommandInput (required):
+  Future<Response> execOrchestratorCommandWithHttpInfo(ExecCommandInput execCommandInput,) async {
     // ignore: prefer_const_declarations
     final path = r'/orchestrator/exec';
 
     // ignore: prefer_final_locals
-    Object? postBody = body;
+    Object? postBody = execCommandInput;
 
     final queryParams = <QueryParam>[];
     final headerParams = <String, String>{};
     final formParams = <String, String>{};
 
-    const contentTypes = <String>['text/plain'];
+    const contentTypes = <String>['application/json'];
 
 
     return apiClient.invokeAPI(
@@ -784,9 +784,9 @@ class DefaultApi {
   ///
   /// Parameters:
   ///
-  /// * [String] body (required):
-  Future<ExecResult?> execOrchestratorCommand(String body,) async {
-    final response = await execOrchestratorCommandWithHttpInfo(body,);
+  /// * [ExecCommandInput] execCommandInput (required):
+  Future<ExecResult?> execOrchestratorCommand(ExecCommandInput execCommandInput,) async {
+    final response = await execOrchestratorCommandWithHttpInfo(execCommandInput,);
     if (response.statusCode >= HttpStatus.badRequest) {
       throw ApiException(response.statusCode, await _decodeBodyBytes(response));
     }
@@ -809,20 +809,20 @@ class DefaultApi {
   /// * [int] workerId (required):
   ///   Identifier of the worker whose workspace should be used for execution.
   ///
-  /// * [String] body (required):
-  Future<Response> execWorkerCommandWithHttpInfo(int workerId, String body,) async {
+  /// * [ExecCommandInput] execCommandInput (required):
+  Future<Response> execWorkerCommandWithHttpInfo(int workerId, ExecCommandInput execCommandInput,) async {
     // ignore: prefer_const_declarations
     final path = r'/workers/{workerId}/exec'
       .replaceAll('{workerId}', workerId.toString());
 
     // ignore: prefer_final_locals
-    Object? postBody = body;
+    Object? postBody = execCommandInput;
 
     final queryParams = <QueryParam>[];
     final headerParams = <String, String>{};
     final formParams = <String, String>{};
 
-    const contentTypes = <String>['text/plain'];
+    const contentTypes = <String>['application/json'];
 
 
     return apiClient.invokeAPI(
@@ -843,9 +843,9 @@ class DefaultApi {
   /// * [int] workerId (required):
   ///   Identifier of the worker whose workspace should be used for execution.
   ///
-  /// * [String] body (required):
-  Future<ExecResult?> execWorkerCommand(int workerId, String body,) async {
-    final response = await execWorkerCommandWithHttpInfo(workerId, body,);
+  /// * [ExecCommandInput] execCommandInput (required):
+  Future<ExecResult?> execWorkerCommand(int workerId, ExecCommandInput execCommandInput,) async {
+    final response = await execWorkerCommandWithHttpInfo(workerId, execCommandInput,);
     if (response.statusCode >= HttpStatus.badRequest) {
       throw ApiException(response.statusCode, await _decodeBodyBytes(response));
     }

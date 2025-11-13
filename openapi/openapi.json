@@ -217,13 +217,13 @@
       "parameters": [
         {
           "name": "taskId",
-            "in": "path",
-            "required": true,
-            "description": "Unique identifier of the task.",
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
+          "in": "path",
+          "required": true,
+          "description": "Unique identifier of the task.",
+          "schema": {
+            "type": "integer",
+            "format": "int64"
+          }
         }
       ],
       "get": {
@@ -936,10 +936,9 @@
         "requestBody": {
           "required": true,
           "content": {
-            "text/plain": {
+            "application/json": {
               "schema": {
-                "type": "string",
-                "description": "Command to run using bash -lc within the staging directory."
+                "$ref": "#/components/schemas/ExecCommandInput"
               }
             }
           }
@@ -1003,10 +1002,9 @@
         "requestBody": {
           "required": true,
           "content": {
-            "text/plain": {
+            "application/json": {
               "schema": {
-                "type": "string",
-                "description": "Command to run using bash -lc within the worker's workspace."
+                "$ref": "#/components/schemas/ExecCommandInput"
               }
             }
           }
@@ -1338,6 +1336,11 @@
             "type": "integer",
             "format": "int64",
             "nullable": true
+          },
+          "cwd": {
+            "type": "string",
+            "nullable": true,
+            "description": "Override working directory for this command. Paths may be absolute or relative to the workspace root."
           }
         },
         "required": [
@@ -1608,6 +1611,25 @@
           "exit_code",
           "stdout",
           "stderr"
+        ],
+        "additionalProperties": false
+      },
+      "ExecCommandInput": {
+        "type": "object",
+        "description": "Request payload for executing a shell command.",
+        "properties": {
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "cwd": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional working directory override relative to the workspace root."
+          }
+        },
+        "required": [
+          "command"
         ],
         "additionalProperties": false
       }

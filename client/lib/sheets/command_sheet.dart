@@ -13,6 +13,7 @@ class CommandSheet extends StatefulWidget {
 
 class _CommandSheetState extends State<CommandSheet> {
   final TextEditingController _commandController = TextEditingController();
+  final TextEditingController _cwdController = TextEditingController();
   bool _isRunning = false;
   String? _stdout;
   String? _stderr;
@@ -22,6 +23,7 @@ class _CommandSheetState extends State<CommandSheet> {
   @override
   void dispose() {
     _commandController.dispose();
+    _cwdController.dispose();
     super.dispose();
   }
 
@@ -45,12 +47,15 @@ class _CommandSheetState extends State<CommandSheet> {
     try {
       final client = robot_farm_api.ApiClient(basePath: widget.baseUrl);
       final api = robot_farm_api.DefaultApi(client);
-      robot_farm_api.ExecResult? result;
-      if (widget.workerId == null) {
-        result = await api.execOrchestratorCommand(command);
-      } else {
-        result = await api.execWorkerCommand(widget.workerId!, command);
-      }
+      final payload = robot_farm_api.ExecCommandInput(
+        command: command,
+        cwd: _cwdController.text.trim().isEmpty
+            ? null
+            : _cwdController.text.trim(),
+      );
+      robot_farm_api.ExecResult? result = widget.workerId == null
+          ? await api.execOrchestratorCommand(payload)
+          : await api.execWorkerCommand(widget.workerId!, payload);
 
       if (!mounted) return;
 
@@ -146,6 +151,15 @@ class _CommandSheetState extends State<CommandSheet> {
                 onSubmitted: (_) => _runCommand(),
               ),
               const SizedBox(height: 12),
+              TextField(
+                controller: _cwdController,
+                decoration: const InputDecoration(
+                  labelText: 'Working directory (optional)',
+                  hintText: './relative/path or absolute path',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton.icon(
@@ -175,7 +189,7 @@ class _CommandSheetState extends State<CommandSheet> {
                   decoration: BoxDecoration(
                     border: Border.all(color: theme.colorScheme.outlineVariant),
                     borderRadius: BorderRadius.circular(8),
-                    color: theme.colorScheme.surfaceVariant,
+                    color: theme.colorScheme.surfaceContainerHighest,
                   ),
                   child: Scrollbar(
                     child: SingleChildScrollView(

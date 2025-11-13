@@ -11,6 +11,14 @@ This project is a rust-based AI development system that aims to enable multiple 
 - `server/migrations/`: SQLx migration files. They are bundled via `sqlx::migrate!` so the server binary can apply them automatically at startup.
 - `openapi/`: Source of truth for API schemas. `openapi/openapi.json` defines the API, and running `scripts/generate_openapi_clients.sh` regenerates both the Rust (`openapi/rust`) and Flutter (`openapi/flutter_client`) clients.
 - Workspace layout: the server may receive `--workspace <path>`; it changes CWD to that path. Configuration files live under `<workspace>/.robot-farm/config.json`. The active Git repository/worktrees are expected under `<workspace>/staging/` (non-bare repo) with additional worktrees as needed.
+- `server/src/system/` owns in-memory coordination state. `strategy.rs` keeps the active strategy (`Planning` by default) in a global `RwLock`, and routes read/write through it. `queue.rs` exposes the `QueueCoordinator`, which tracks worker assignments, registered workers, pending system events, and can synthesize `OrchestratorHint`s plus validation/merge results. `events.rs` defines the serialized payload for system-generated feed entries so Codex JSONL and system events can share the same feed table.
+
+## Runtime Coordination
+
+- `system::init_system_state()` runs at startup (after DB init) to seed the strategy state and queue coordinator. The server always boots in `Planning` mode until another strategy is persisted via the `/strategy` endpoints.
+- System events are stored as `SystemEvent` structs (level/source/target/category/payload). The queue coordinator can record events for strategy nudges, user-submitted messages, validation failures, etc. Future feed writers can convert these events directly into feed rows without changing the Codex JSONL schema.
+- Worker-task assignments live in the queue coordinator. Helpers ensure a worker only has one active task, keep track of idle workers, and compute orchestrator hints based on the current strategy focus. Middleware/process-manager hooks (COMPLETE_TASK interception, merge validation) should call into this coordinator to add events and release assignments.
+- User-directed system messages can be funneled through the same coordinator, which records them as `SystemEventCategory::User` entries destined for the requested feed target.
 
 ## Git Helpers
 

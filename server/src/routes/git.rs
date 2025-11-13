@@ -17,7 +17,12 @@ pub struct TaskCommitDiffQuery {
 pub async fn get_task_commit_info(
     Path(task_id): Path<i64>,
 ) -> Result<Json<Option<CommitInfo>>, StatusCode> {
-    let Some(task) = db::task::get_task(task_id).await else {
+    let task = db::task::get_task(task_id).await.map_err(|err| {
+        error!(?err, task_id, "failed to load task for commit info");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let Some(task) = task else {
         return Ok(Json(None));
     };
 
@@ -39,7 +44,12 @@ pub async fn get_task_commit_diff(
     Path(task_id): Path<i64>,
     Query(query): Query<TaskCommitDiffQuery>,
 ) -> Result<(StatusCode, String), StatusCode> {
-    let Some(task) = db::task::get_task(task_id).await else {
+    let task = db::task::get_task(task_id).await.map_err(|err| {
+        error!(?err, task_id, "failed to load task for commit diff");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let Some(task) = task else {
         return Err(StatusCode::NOT_FOUND);
     };
 

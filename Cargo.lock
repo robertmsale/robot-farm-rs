@@ -3065,6 +3065,7 @@ dependencies = [
  "oai_strict_schema",
  "once_cell",
  "openapi",
+ "parking_lot",
  "path-clean",
  "percent-encoding",
  "reqwest",

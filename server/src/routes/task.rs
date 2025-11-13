@@ -6,6 +6,7 @@ use axum::{
 };
 use openapi::models::{Task, TaskCreateInput, TaskStatus, TaskUpdateInput};
 use serde::Deserialize;
+use tracing::error;
 
 #[allow(dead_code)]
 #[derive(Debug, Default, Deserialize)]
@@ -18,49 +19,63 @@ pub struct TaskListQuery {
     pub owner: Option<String>,
 }
 
-pub async fn list_tasks(Query(_query): Query<TaskListQuery>) -> Json<Vec<Task>> {
+pub async fn list_tasks(
+    Query(_query): Query<TaskListQuery>,
+) -> Result<Json<Vec<Task>>, StatusCode> {
     // TODO: pass filters into db layer.
-    let tasks = db::task::list_tasks().await;
-    Json(tasks)
+    let tasks = db::task::list_tasks().await.map_err(|err| {
+        error!(?err, "failed to list tasks");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(Json(tasks))
 }
 
-pub async fn create_task(Json(payload): Json<TaskCreateInput>) -> (StatusCode, Json<Task>) {
-    let task = db::task::create_task(payload).await;
-    (StatusCode::CREATED, Json(task))
+pub async fn create_task(
+    Json(payload): Json<TaskCreateInput>,
+) -> Result<(StatusCode, Json<Task>), StatusCode> {
+    let task = db::task::create_task(payload).await.map_err(|err| {
+        error!(?err, "failed to create task");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok((StatusCode::CREATED, Json(task)))
 }
 
-pub async fn get_task(Path(task_id): Path<i64>) -> Json<Task> {
-    let task = db::task::get_task(task_id).await.unwrap_or_else(|| Task {
-        id: task_id,
-        group_id: 0,
-        slug: "".to_string(),
-        title: "".to_string(),
-        commit_hash: None,
-        status: TaskStatus::Ready,
-        owner: "".to_string(),
-    });
-    Json(task)
+pub async fn get_task(Path(task_id): Path<i64>) -> Result<Json<Task>, StatusCode> {
+    let task = db::task::get_task(task_id)
+        .await
+        .map_err(|err| {
+            error!(?err, task_id, "failed to load task");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    Ok(Json(task))
 }
 
 pub async fn update_task(
     Path(task_id): Path<i64>,
     Json(payload): Json<TaskUpdateInput>,
-) -> Json<Task> {
+) -> Result<Json<Task>, StatusCode> {
     let task = db::task::update_task(task_id, payload)
         .await
-        .unwrap_or_else(|| Task {
-            id: task_id,
-            group_id: 0,
-            slug: "".to_string(),
-            title: "".to_string(),
-            commit_hash: None,
-            status: TaskStatus::Ready,
-            owner: "".to_string(),
-        });
-    Json(task)
+        .map_err(|err| {
+            error!(?err, task_id, "failed to update task");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    Ok(Json(task))
 }
 
-pub async fn delete_task(Path(_task_id): Path<i64>) -> StatusCode {
-    db::task::delete_task(_task_id).await;
-    StatusCode::NO_CONTENT
+pub async fn delete_task(Path(task_id): Path<i64>) -> Result<StatusCode, StatusCode> {
+    let deleted = db::task::delete_task(task_id).await.map_err(|err| {
+        error!(?err, task_id, "failed to delete task");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if deleted {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
 }

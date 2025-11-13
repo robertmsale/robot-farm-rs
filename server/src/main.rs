@@ -17,6 +17,7 @@ mod models;
 #[path = "routes/lib.rs"]
 mod routes;
 mod shared;
+mod system;
 #[path = "threads/lib.rs"]
 mod threads;
 
@@ -41,6 +42,8 @@ async fn main() -> Result<(), anyhow::Error> {
     let _db_pool = db::ensure_db()
         .await
         .expect("failed to initialize database");
+
+    system::init_system_state();
 
     make_worker_image();
     threads::init_background_threads();

@@ -104,6 +104,7 @@ Class | Method | HTTP request | Description
  - [CommandConfig](doc//CommandConfig.md)
  - [CommitInfo](doc//CommitInfo.md)
  - [Config](doc//Config.md)
+ - [ExecCommandInput](doc//ExecCommandInput.md)
  - [ExecResult](doc//ExecResult.md)
  - [Feed](doc//Feed.md)
  - [FeedLevel](doc//FeedLevel.md)

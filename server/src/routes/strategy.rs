@@ -1,15 +1,12 @@
+use crate::system::strategy::StrategyState;
 use axum::Json;
-use openapi::models::{ActiveStrategy, Strategy};
+use openapi::models::ActiveStrategy;
 
 pub async fn get_active_strategy() -> Json<ActiveStrategy> {
-    // TODO: read current strategy from persistent storage.
-    Json(ActiveStrategy {
-        id: Strategy::Planning,
-        focus: Some(vec![1, 2]),
-    })
+    Json(StrategyState::global().snapshot())
 }
 
 pub async fn update_active_strategy(Json(payload): Json<ActiveStrategy>) -> Json<ActiveStrategy> {
-    // TODO: persist active strategy update.
+    StrategyState::global().update(payload.clone());
     Json(payload)
 }

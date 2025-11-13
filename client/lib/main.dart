@@ -1,13 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:my_api_client/api.dart' as robot_farm_api;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket/web_socket.dart' as ws;
 
+import 'components/models/codex_event.dart';
 import 'sheets/command_sheet.dart';
+import 'task_wizard/task_wizard_controller.dart';
+import 'task_wizard/task_wizard_screen.dart';
+import 'tasks/tasks_controller.dart';
+import 'tasks/tasks_screen.dart';
 
 const int kDefaultApiPort = 8080;
 const String kWebsocketPath = '/ws';
@@ -34,6 +41,29 @@ class RobotFarmApp extends StatelessWidget {
       getPages: [
         GetPage(name: '/', page: () => const ConnectionScreen()),
         GetPage(name: '/home', page: () => const HomeScreen()),
+        GetPage(name: '/settings', page: () => const SettingsScreen()),
+        GetPage(
+          name: '/tasks',
+          page: () => const TasksScreen(),
+          binding: BindingsBuilder(
+            () {
+              Get.put(
+                TasksController(
+                  () => Get.find<ConnectionController>().currentBaseUrl,
+                ),
+              );
+            },
+          ),
+        ),
+        GetPage(
+          name: '/task-wizard',
+          page: () => const TaskWizardScreen(),
+          binding: BindingsBuilder(
+            () {
+              Get.put(TaskWizardController());
+            },
+          ),
+        ),
       ],
     );
   }
@@ -51,6 +81,7 @@ class ConnectionController extends GetxController {
   final RxnString websocketError = RxnString();
   final RxList<String> pastLogins = <String>[].obs;
   final RxList<robot_farm_api.Worker> workers = <robot_farm_api.Worker>[].obs;
+  final RxBool isPlaying = true.obs;
   ws.WebSocket? _webSocket;
   StreamSubscription<ws.WebSocketEvent>? _webSocketSubscription;
   SharedPreferences? _prefs;
@@ -195,6 +226,39 @@ class ConnectionController extends GetxController {
         .whereType<robot_farm_api.Worker>()
         .toList();
     workers.assignAll(parsed);
+  }
+
+  void togglePlayPause() {
+    isPlaying.toggle();
+    Get.snackbar(
+      isPlaying.value ? 'Resumed' : 'Paused',
+      isPlaying.value
+          ? 'Automation continues running.'
+          : 'Automation paused.',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  Future<void> clearFeeds() async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      Get.snackbar('Not connected', 'Connect to a server first.');
+      return;
+    }
+
+    try {
+      final client = robot_farm_api.ApiClient(basePath: baseUrl);
+      final api = robot_farm_api.DefaultApi(client);
+      await api.deleteFeed();
+      Get.snackbar('Feeds cleared', 'All feed entries removed.');
+    } on robot_farm_api.ApiException catch (err) {
+      Get.snackbar(
+        'Failed to clear feeds',
+        err.message ?? 'Status ${err.code}',
+      );
+    } catch (err) {
+      Get.snackbar('Failed to clear feeds', '$err');
+    }
   }
 
   String? get currentBaseUrl => _currentBaseUrl;
@@ -509,9 +573,13 @@ class HomeScreen extends GetView<ConnectionController> {
   @override
   Widget build(BuildContext context) {
     final isPhone = context.isPhone;
+    if (!Get.isRegistered<WorkerFeedController>()) {
+      Get.put(WorkerFeedController(connection: controller));
+    }
 
     final orchestratorPane = OrchestratorPane(
       onRunCommand: () => _openCommandSheet(context),
+      events: mockCodexEvents,
     );
     final workerPane = WorkerFeedPane(
       onRunCommand: (workerId) =>
@@ -541,16 +609,80 @@ class HomeScreen extends GetView<ConnectionController> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Get.offAllNamed('/'),
         ),
+        actions: [
+          Obx(
+            () => IconButton(
+              tooltip: controller.isPlaying.value ? 'Pause' : 'Resume',
+              icon: Icon(
+                controller.isPlaying.value
+                    ? Icons.pause_circle
+                    : Icons.play_circle,
+              ),
+              onPressed: controller.togglePlayPause,
+            ),
+          ),
+          PopupMenuButton<_HomeMenuAction>(
+            tooltip: 'More actions',
+            onSelected: (action) {
+              switch (action) {
+                case _HomeMenuAction.tasksView:
+                  Get.toNamed('/tasks');
+                  break;
+                case _HomeMenuAction.taskWizard:
+                  Get.toNamed('/task-wizard');
+                  break;
+                case _HomeMenuAction.clearFeeds:
+                  controller.clearFeeds();
+                  break;
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: _HomeMenuAction.tasksView,
+                child: ListTile(
+                  leading: Icon(Icons.list_alt),
+                  title: Text('Tasks View'),
+                ),
+              ),
+              PopupMenuItem(
+                value: _HomeMenuAction.taskWizard,
+                child: ListTile(
+                  leading: Icon(Icons.auto_fix_high),
+                  title: Text('Task Wizard View'),
+                ),
+              ),
+              PopupMenuItem(
+                value: _HomeMenuAction.clearFeeds,
+                child: ListTile(
+                  leading: Icon(Icons.delete_sweep),
+                  title: Text('Clear Feeds'),
+                ),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: () => Get.toNamed('/settings'),
+          ),
+        ],
       ),
       body: Padding(padding: const EdgeInsets.all(24), child: child),
     );
   }
 }
 
+enum _HomeMenuAction { tasksView, taskWizard, clearFeeds }
+
 class OrchestratorPane extends StatelessWidget {
-  const OrchestratorPane({required this.onRunCommand, super.key});
+  const OrchestratorPane({
+    required this.onRunCommand,
+    required this.events,
+    super.key,
+  });
 
   final VoidCallback onRunCommand;
+  final List<CodexEvent> events;
 
   @override
   Widget build(BuildContext context) {
@@ -567,13 +699,15 @@ class OrchestratorPane extends StatelessWidget {
           children: [
             Text('Orchestrator Feed', style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
-            const Expanded(
-              child: Center(
-                child: Text(
-                  'Turn-by-turn orchestrator output will appear here.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            Expanded(
+              child: events.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Turn-by-turn orchestrator output will appear here.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : _OrchestratorFeed(events: events),
             ),
             FilledButton.icon(
               icon: const Icon(Icons.terminal),
@@ -587,104 +721,1075 @@ class OrchestratorPane extends StatelessWidget {
   }
 }
 
-class WorkerFeedPane extends StatefulWidget {
+class _OrchestratorFeed extends StatelessWidget {
+  const _OrchestratorFeed({required this.events});
+
+  final List<CodexEvent> events;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(12);
+    return ListView.separated(
+      itemCount: events.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final event = events[index];
+        final viewModel =
+            _EventViewModel.fromEvent(context, event, fullDetail: false);
+
+        return InkWell(
+          borderRadius: radius,
+          onTap: () => _showEventDetails(context, event),
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor:
+                            viewModel.color.withValues(alpha: 0.15),
+                        child: Icon(
+                          viewModel.icon,
+                          color: viewModel.color,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              viewModel.title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            if (viewModel.subtitle != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                viewModel.subtitle!,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (viewModel.body != null) ...[
+                    const SizedBox(height: 8),
+                    viewModel.body!,
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEventDetails(BuildContext context, CodexEvent event) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final viewModel =
+            _EventViewModel.fromEvent(ctx, event, fullDetail: true);
+        return FractionallySizedBox(
+          heightFactor: 0.85,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor:
+                            viewModel.color.withValues(alpha: 0.15),
+                        child: Icon(
+                          viewModel.icon,
+                          color: viewModel.color,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              viewModel.title,
+                              style: Theme.of(ctx)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            if (viewModel.subtitle != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                viewModel.subtitle!,
+                                style: Theme.of(ctx).textTheme.bodyMedium,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(ctx).maybePop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: viewModel.body != null
+                        ? SingleChildScrollView(child: viewModel.body!)
+                        : const Center(
+                            child: Text(
+                              'No additional details for this event.',
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _EventViewModel {
+  _EventViewModel({
+    required this.title,
+    this.subtitle,
+    this.body,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget? body;
+  final IconData icon;
+  final Color color;
+
+  factory _EventViewModel.fromEvent(
+    BuildContext context,
+    CodexEvent event, {
+    required bool fullDetail,
+  }) {
+    final color = colorForEvent(context, event) ?? Theme.of(context).primaryColor;
+    final icon = iconForEvent(event);
+    String title;
+    String? subtitle;
+    Widget? body;
+
+    switch (event.type) {
+      case CodexEventType.threadStarted:
+        title = 'Thread started';
+        subtitle = 'Session ${event.threadId}';
+        break;
+      case CodexEventType.turnStarted:
+        title = 'Turn started';
+        subtitle = 'Codex is planning the next actions.';
+        break;
+      case CodexEventType.turnCompleted:
+        title = 'Turn completed';
+        final usage = event.usage!;
+        subtitle =
+            'Input ${usage.inputTokens} (+${usage.cachedInputTokens} cached) · Output ${usage.outputTokens} tokens';
+        break;
+      case CodexEventType.turnFailed:
+        title = 'Turn failed';
+        subtitle = event.error;
+        break;
+      case CodexEventType.error:
+        title = 'Stream error';
+        subtitle = event.error;
+        break;
+      case CodexEventType.itemStarted:
+      case CodexEventType.itemUpdated:
+      case CodexEventType.itemCompleted:
+        final item = event.item!;
+        final phase = switch (event.type) {
+          CodexEventType.itemStarted => 'started',
+          CodexEventType.itemUpdated => 'updated',
+          CodexEventType.itemCompleted => 'completed',
+          _ => '',
+        };
+        title = '${_describeItemType(item.type)} $phase';
+        final details = _itemDetails(item, fullDetail);
+        subtitle = details.subtitle;
+        body = details.body;
+        break;
+    }
+
+    return _EventViewModel(
+      title: title,
+      subtitle: subtitle,
+      body: body,
+      icon: icon,
+      color: color,
+    );
+  }
+
+  static String _describeItemType(CodexItemType type) {
+    switch (type) {
+      case CodexItemType.agentMessage:
+        return 'Agent message';
+      case CodexItemType.reasoning:
+        return 'Reasoning note';
+      case CodexItemType.commandExecution:
+        return 'Command execution';
+      case CodexItemType.fileChange:
+        return 'File changes';
+      case CodexItemType.mcpToolCall:
+        return 'Tool call';
+      case CodexItemType.webSearch:
+        return 'Web search';
+      case CodexItemType.todoList:
+        return 'Todo list';
+      case CodexItemType.error:
+        return 'Item error';
+    }
+  }
+
+  static _ItemDetails _itemDetails(CodexItem item, bool fullDetail) {
+    switch (item.type) {
+      case CodexItemType.agentMessage:
+      case CodexItemType.reasoning:
+      case CodexItemType.error:
+        return _ItemDetails(
+          subtitle: fullDetail ? null : item.message,
+          body: fullDetail && item.message != null
+              ? _OutputBubble(text: item.message!)
+              : null,
+        );
+      case CodexItemType.commandExecution:
+        return _ItemDetails(
+          subtitle: item.command,
+          body: item.output == null || item.output!.isEmpty
+              ? null
+              : _OutputBubble(
+                  text: item.output!,
+                  maxLines: fullDetail ? null : 8,
+                ),
+        );
+      case CodexItemType.fileChange:
+        final statusText =
+            item.status == null ? null : 'Status: ${item.status}';
+        return _ItemDetails(
+          subtitle: statusText,
+          body: item.fileChanges == null
+              ? null
+              : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: item.fileChanges!
+                .map(
+                  (change) => Text(
+                    '${change.kind.name.toUpperCase()}: ${change.path}',
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
+                      )
+                      .toList(),
+                ),
+        );
+      case CodexItemType.mcpToolCall:
+        final call = item.toolCall;
+        return _ItemDetails(
+          subtitle: call == null
+              ? null
+              : '${call.server} · ${call.tool} (${call.status})',
+        );
+      case CodexItemType.webSearch:
+        return _ItemDetails(subtitle: item.query);
+      case CodexItemType.todoList:
+        final todos = item.todos ?? [];
+        if (todos.isEmpty) return const _ItemDetails(subtitle: 'No steps yet.');
+        return _ItemDetails(
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: todos
+                .map(
+                  (todo) => Row(
+                    children: [
+                      Icon(
+                        todo.completed ? Icons.check_circle : Icons.circle_outlined,
+                        size: 16,
+                        color: todo.completed ? Colors.green : Colors.grey,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(todo.text)),
+                    ],
+                  ),
+                )
+                .toList(),
+          ),
+        );
+    }
+  }
+}
+
+class _ItemDetails {
+  const _ItemDetails({this.subtitle, this.body});
+
+  final String? subtitle;
+  final Widget? body;
+}
+
+class _OutputBubble extends StatelessWidget {
+  const _OutputBubble({required this.text, this.maxLines});
+
+  final String text;
+  final int? maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Text(
+        text,
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(fontFamily: 'monospace'),
+        maxLines: maxLines,
+        overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+class WorkerFeedPane extends StatelessWidget {
   const WorkerFeedPane({required this.onRunCommand, super.key});
 
   final void Function(int workerId) onRunCommand;
 
   @override
-  State<WorkerFeedPane> createState() => _WorkerFeedPaneState();
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GetBuilder<WorkerFeedController>(
+      builder: (controller) {
+        final workers = controller.connection.workers.toList();
+        final tabs = workers.isEmpty
+            ? const [Tab(text: 'Workers')]
+            : workers.map((w) => Tab(text: 'Worker ${w.id}')).toList();
+
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!controller.isReady)
+                  const Expanded(
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else ...[
+                  TabBar(
+                    controller: controller.tabController,
+                    isScrollable: true,
+                    tabs: tabs,
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: TabBarView(
+                      controller: controller.tabController,
+                      children: workers.isEmpty
+                          ? const [
+                              Center(
+                                child: Text(
+                                  'No workers detected. Add a git worktree to see it here.',
+                                ),
+                              ),
+                            ]
+                          : workers
+                                .map(
+                                  (worker) => Center(
+                                    child: Text(
+                                      'Feed for worker ${worker.id} (stub).',
+                                      style: theme.textTheme.bodyLarge,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.terminal),
+                    label: const Text('Run workspace command'),
+                    onPressed: controller.activeWorkerId == null
+                        ? null
+                        : () => onRunCommand(controller.activeWorkerId!),
+                  ),
+                ],
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
-class _WorkerFeedPaneState extends State<WorkerFeedPane>
-    with SingleTickerProviderStateMixin {
-  TabController? _controller;
-  late final ConnectionController _connectionController;
+class WorkerFeedController extends GetxController
+    with GetTickerProviderStateMixin {
+  WorkerFeedController({required this.connection});
+
+  final ConnectionController connection;
+  late TabController tabController;
+  bool isReady = false;
+
+  @override
+  void onInit() {
+    super.onInit();
+    tabController = TabController(length: _length, vsync: this);
+    ever(connection.workers, (_) => _syncTabs());
+    ever(connection.workers, (_) {
+      if (!isReady) {
+        isReady = true;
+        update();
+      }
+    });
+  }
+
+  int get _length => connection.workers.isEmpty ? 1 : connection.workers.length;
+
+  int? get activeWorkerId {
+    if (connection.workers.isEmpty) {
+      return null;
+    }
+    final index = tabController.index.clamp(0, connection.workers.length - 1);
+    return connection.workers[index].id;
+  }
+
+  void _syncTabs() {
+    final newLength = _length;
+    if (tabController.length == newLength) {
+      update();
+      return;
+    }
+    final previousIndex = tabController.index;
+    tabController.dispose();
+    tabController = TabController(length: newLength, vsync: this);
+    if (newLength > 0) {
+      tabController.index = previousIndex.clamp(0, newLength - 1);
+    }
+    update();
+  }
+
+  @override
+  void onClose() {
+    tabController.dispose();
+    super.onClose();
+  }
+}
+
+class SettingsController extends GetxController {
+  SettingsController(this._connection);
+
+  final ConnectionController _connection;
+  final Rx<robot_farm_api.Config?> config = Rx<robot_farm_api.Config?>(null);
+  final RxBool isLoading = false.obs;
+  final RxnString error = RxnString();
+  final TextEditingController orchestratorController = TextEditingController();
+  final TextEditingController workerController = TextEditingController();
+
+  List<robot_farm_api.CommandConfig> get commands =>
+      List<robot_farm_api.CommandConfig>.unmodifiable(
+        config.value?.commands ?? const <robot_farm_api.CommandConfig>[],
+      );
+
+  List<String> get postTurnChecks => List<String>.unmodifiable(
+        config.value?.postTurnChecks ?? const <String>[],
+      );
+
+  @override
+  void onReady() {
+    super.onReady();
+    loadConfig();
+  }
+
+  Future<void> loadConfig() async {
+    final baseUrl = _connection.currentBaseUrl;
+    if (baseUrl == null) {
+      error.value = 'Not connected to a server.';
+      return;
+    }
+
+    isLoading.value = true;
+    error.value = null;
+    try {
+      final client = robot_farm_api.ApiClient(basePath: baseUrl);
+      final api = robot_farm_api.DefaultApi(client);
+      final result = await api.getConfig();
+      config.value = result;
+      if (result != null) {
+        orchestratorController.text =
+            result.appendAgentsFile.orchestrator.join(', ');
+        workerController.text = result.appendAgentsFile.worker.join(', ');
+      }
+    } on robot_farm_api.ApiException catch (err) {
+      error.value = err.message ?? 'Failed to load config: ${err.code}';
+    } catch (err) {
+      error.value = 'Failed to load config: $err';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> saveConfig() async {
+    final current = config.value;
+    if (current == null) return;
+    final baseUrl = _connection.currentBaseUrl;
+    if (baseUrl == null) {
+      error.value = 'Not connected to a server.';
+      return;
+    }
+
+    isLoading.value = true;
+    error.value = null;
+    try {
+      final client = robot_farm_api.ApiClient(basePath: baseUrl);
+      final api = robot_farm_api.DefaultApi(client);
+      await api.updateConfig(current);
+    } on robot_farm_api.ApiException catch (err) {
+      error.value = err.message ?? 'Failed to save config: ${err.code}';
+    } catch (err) {
+      error.value = 'Failed to save config: $err';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void updateOrchestratorPaths(String value) {
+    final current = config.value;
+    if (current == null) return;
+    final updated = robot_farm_api.AppendFilesConfig(
+      orchestrator: _splitPaths(value),
+      worker: List<String>.from(current.appendAgentsFile.worker),
+    );
+    _assignConfig(appendAgentsFile: updated);
+  }
+
+  void updateWorkerPaths(String value) {
+    final current = config.value;
+    if (current == null) return;
+    final updated = robot_farm_api.AppendFilesConfig(
+      orchestrator: List<String>.from(current.appendAgentsFile.orchestrator),
+      worker: _splitPaths(value),
+    );
+    _assignConfig(appendAgentsFile: updated);
+  }
+
+  bool isCommandSelected(String id) => postTurnChecks.contains(id);
+
+  void toggleCommandSelection(String id, bool selected) {
+    final current = config.value;
+    if (current == null) return;
+    final updated = List<String>.from(current.postTurnChecks);
+    if (selected) {
+      if (!updated.contains(id)) {
+        updated.add(id);
+      }
+    } else {
+      updated.removeWhere((entry) => entry == id);
+    }
+    _assignConfig(postTurnChecks: updated);
+  }
+
+  void reorderPostChecks(int oldIndex, int newIndex) {
+    final current = config.value;
+    if (current == null) return;
+    final updated = List<String>.from(current.postTurnChecks);
+    if (newIndex > oldIndex) newIndex -= 1;
+    final item = updated.removeAt(oldIndex);
+    updated.insert(newIndex, item);
+    _assignConfig(postTurnChecks: updated);
+  }
+
+  String? addCommand(robot_farm_api.CommandConfig command) {
+    final current = config.value;
+    if (current == null) return 'Configuration not loaded.';
+    if (current.commands.any((c) => c.id == command.id)) {
+      error.value = 'Command "${command.id}" already exists.';
+      return error.value;
+    }
+    final updatedCommands = List<robot_farm_api.CommandConfig>.from(
+      current.commands,
+    )..add(command);
+    _assignConfig(commands: updatedCommands);
+    error.value = null;
+    return null;
+  }
+
+  String? updateCommand(
+    String originalId,
+    robot_farm_api.CommandConfig updated,
+  ) {
+    final current = config.value;
+    if (current == null) return 'Configuration not loaded.';
+    final updatedCommands = List<robot_farm_api.CommandConfig>.from(
+      current.commands,
+    );
+    final index =
+        updatedCommands.indexWhere((command) => command.id == originalId);
+    if (index == -1) {
+      error.value = 'Command "$originalId" not found.';
+      return error.value;
+    }
+    if (originalId != updated.id &&
+        updatedCommands.any((command) => command.id == updated.id)) {
+      error.value = 'Command "${updated.id}" already exists.';
+      return error.value;
+    }
+    updatedCommands[index] = updated;
+
+    final updatedChecks = List<String>.from(current.postTurnChecks);
+    if (originalId != updated.id) {
+      for (var i = 0; i < updatedChecks.length; i++) {
+        if (updatedChecks[i] == originalId) {
+          updatedChecks[i] = updated.id;
+        }
+      }
+    }
+
+    _assignConfig(
+      commands: updatedCommands,
+      postTurnChecks: updatedChecks,
+    );
+    error.value = null;
+    return null;
+  }
+
+  void removeCommand(String id) {
+    final current = config.value;
+    if (current == null) return;
+    final updatedCommands = List<robot_farm_api.CommandConfig>.from(
+      current.commands,
+    )..removeWhere((command) => command.id == id);
+    final updatedChecks = List<String>.from(current.postTurnChecks)
+      ..removeWhere((entry) => entry == id);
+    _assignConfig(
+      commands: updatedCommands,
+      postTurnChecks: updatedChecks,
+    );
+  }
+
+  robot_farm_api.CommandConfig? commandById(String id) {
+    return config.value?.commands
+        .firstWhereOrNull((command) => command.id == id);
+  }
+
+  List<String> _splitPaths(String value) => value
+      .split(',')
+      .map((path) => path.trim())
+      .where((path) => path.isNotEmpty)
+      .toList();
+
+  void _assignConfig({
+    robot_farm_api.AppendFilesConfig? appendAgentsFile,
+    List<robot_farm_api.CommandConfig>? commands,
+    List<String>? postTurnChecks,
+  }) {
+    final current = config.value;
+    if (current == null) return;
+    final append = appendAgentsFile ??
+        robot_farm_api.AppendFilesConfig(
+          orchestrator:
+              List<String>.from(current.appendAgentsFile.orchestrator),
+          worker: List<String>.from(current.appendAgentsFile.worker),
+        );
+    final cmds = commands ??
+        List<robot_farm_api.CommandConfig>.from(current.commands);
+    final checks =
+        postTurnChecks ?? List<String>.from(current.postTurnChecks);
+    config.value = robot_farm_api.Config(
+      appendAgentsFile: append,
+      commands: cmds,
+      postTurnChecks: checks,
+    );
+    config.refresh();
+  }
+
+  @override
+  void onClose() {
+    orchestratorController.dispose();
+    workerController.dispose();
+    super.onClose();
+  }
+}
+
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final connection = Get.find<ConnectionController>();
+    final controller = Get.isRegistered<SettingsController>()
+        ? Get.find<SettingsController>()
+        : Get.put(SettingsController(connection));
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (controller.error.value != null) {
+          return Center(
+            child: Text(
+              controller.error.value!,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+          );
+        }
+
+        final config = controller.config.value;
+        if (config == null) {
+          return const Center(child: Text('No configuration loaded.'));
+        }
+
+        final theme = Theme.of(context);
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: ListView(
+            children: [
+              Text('Append Agent Files', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller.orchestratorController,
+                decoration: const InputDecoration(
+                  labelText: 'Orchestrator files (comma separated)',
+                ),
+                onChanged: controller.updateOrchestratorPaths,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller.workerController,
+                decoration: const InputDecoration(
+                  labelText: 'Worker files (comma separated)',
+                ),
+                onChanged: controller.updateWorkerPaths,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Commands', style: theme.textTheme.titleLarge),
+                  FilledButton.icon(
+                    onPressed: () => _openCommandEditor(context, controller),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (controller.commands.isEmpty)
+                const Text('No commands defined yet.')
+              else
+                ...controller.commands.map(
+                  (command) => Card(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value:
+                                controller.isCommandSelected(command.id),
+                            onChanged: (checked) =>
+                                controller.toggleCommandSelection(
+                              command.id,
+                              checked ?? false,
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(command.id,
+                                    style: theme.textTheme.titleMedium),
+                                const SizedBox(height: 4),
+                                Text(
+                                  command.exec.join(' '),
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Edit command',
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _openCommandEditor(
+                              context,
+                              controller,
+                              command: command,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Remove command',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () =>
+                                controller.removeCommand(command.id),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              Text('Post-turn checks order',
+                  style: theme.textTheme.titleLarge),
+              const SizedBox(height: 8),
+              if (controller.postTurnChecks.isEmpty)
+                const Text(
+                  'Select commands above to include them in post-turn checks.',
+                )
+              else
+                SizedBox(
+                  height: math.min(
+                      360,
+                      controller.postTurnChecks.length * 70.0 +
+                          24),
+                  child: ReorderableListView.builder(
+                    itemCount: controller.postTurnChecks.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onReorder: controller.reorderPostChecks,
+                    itemBuilder: (context, index) {
+                      final id = controller.postTurnChecks[index];
+                      final command = controller.commandById(id);
+                      return ListTile(
+                        key: ValueKey(id),
+                        title: Text(id),
+                        subtitle: Text(
+                          command?.exec.join(' ') ??
+                              'Command missing',
+                        ),
+                        trailing: const Icon(Icons.drag_handle),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: controller.saveConfig,
+                icon: const Icon(Icons.save),
+                label: const Text('Save Config'),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  Future<void> _openCommandEditor(
+    BuildContext context,
+    SettingsController controller, {
+    robot_farm_api.CommandConfig? command,
+  }) async {
+    final result = await showModalBottomSheet<robot_farm_api.CommandConfig>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => CommandEditorSheet(initial: command),
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    if (command == null) {
+      controller.addCommand(result);
+    } else {
+      controller.updateCommand(command.id, result);
+    }
+  }
+}
+
+class CommandEditorSheet extends StatefulWidget {
+  const CommandEditorSheet({super.key, this.initial});
+
+  final robot_farm_api.CommandConfig? initial;
+
+  @override
+  State<CommandEditorSheet> createState() => _CommandEditorSheetState();
+}
+
+class _CommandEditorSheetState extends State<CommandEditorSheet> {
+  late final TextEditingController _idController;
+  late final TextEditingController _execController;
+  late final TextEditingController _stdoutController;
+  late final TextEditingController _timeoutController;
+  late final TextEditingController _cwdController;
+  bool _hidden = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _connectionController = Get.find<ConnectionController>();
+    final initial = widget.initial;
+    _idController = TextEditingController(text: initial?.id ?? '');
+    _execController = TextEditingController(
+      text: initial?.exec.join('\n') ?? '',
+    );
+    _stdoutController = TextEditingController(
+      text: initial?.stdoutSuccessMessage ?? '',
+    );
+    _timeoutController = TextEditingController(
+      text: initial?.timeoutSeconds?.toString() ?? '',
+    );
+    _cwdController = TextEditingController(text: initial?.cwd ?? '');
+    _hidden = initial?.hidden ?? false;
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _idController.dispose();
+    _execController.dispose();
+    _stdoutController.dispose();
+    _timeoutController.dispose();
+     _cwdController.dispose();
     super.dispose();
   }
 
-  void _ensureController(int length) {
-    if (_controller == null || _controller!.length != length) {
-      _controller?.dispose();
-      _controller = TabController(length: length, vsync: this);
+  void _submit() {
+    final id = _idController.text.trim();
+    if (id.isEmpty) {
+      setState(() => _error = 'Command ID is required.');
+      return;
     }
+
+    final exec = _execController.text
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+
+    if (exec.isEmpty) {
+      setState(() => _error = 'At least one exec line is required.');
+      return;
+    }
+
+    final timeout = _timeoutController.text.trim().isEmpty
+        ? null
+        : int.tryParse(_timeoutController.text.trim());
+
+    final command = robot_farm_api.CommandConfig(
+      id: id,
+      exec: exec,
+      stdoutSuccessMessage:
+          _stdoutController.text.trim().isEmpty ? null : _stdoutController.text.trim(),
+      hidden: _hidden,
+      timeoutSeconds: timeout,
+      cwd: _cwdController.text.trim().isEmpty ? null : _cwdController.text.trim(),
+    );
+
+    Navigator.of(context).pop(command);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Obx(() {
-      final workers = _connectionController.workers.toList();
-      final tabCount = workers.isEmpty ? 1 : workers.length;
-      _ensureController(tabCount);
-      final tabs = workers.isEmpty
-          ? const [Tab(text: 'Workers')]
-          : workers.map((w) => Tab(text: 'Worker ${w.id}')).toList();
-
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: DefaultTabController(
-            length: tabCount,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TabBar(controller: _controller, isScrollable: true, tabs: tabs),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: TabBarView(
-                    controller: _controller,
-                    children: workers.isEmpty
-                        ? const [
-                            Center(
-                              child: Text(
-                                'No workers detected. Add a git worktree to see it here.',
-                              ),
-                            ),
-                          ]
-                        : workers
-                              .map(
-                                (worker) => Center(
-                                  child: Text(
-                                    'Feed for worker ${worker.id} (stub).',
-                                    style: theme.textTheme.bodyLarge,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  icon: const Icon(Icons.terminal),
-                  label: const Text('Run workspace command'),
-                  onPressed: workers.isEmpty
-                      ? null
-                      : () {
-                          final index = _controller?.index ?? 0;
-                          final worker = workers[index];
-                          widget.onRunCommand(worker.id);
-                        },
-                ),
-              ],
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: inset),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.initial == null ? 'Add Command' : 'Edit Command',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-          ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _idController,
+              decoration: const InputDecoration(labelText: 'Command ID'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _execController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Exec (one line per argument)',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _stdoutController,
+              decoration: const InputDecoration(
+                labelText: 'Stdout success message',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _cwdController,
+              decoration: const InputDecoration(
+                labelText: 'Working directory (optional)',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _timeoutController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Timeout seconds',
+              ),
+            ),
+            SwitchListTile(
+              value: _hidden,
+              onChanged: (value) => setState(() => _hidden = value),
+              title: const Text('Hidden'),
+            ),
+            if (_error != null) ...[
+              Text(
+                _error!,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Theme.of(context).colorScheme.error),
+              ),
+              const SizedBox(height: 12),
+            ],
+            FilledButton(
+              onPressed: _submit,
+              child: const Text('Save'),
+            ),
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 }

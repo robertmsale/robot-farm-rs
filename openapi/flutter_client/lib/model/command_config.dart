@@ -18,6 +18,7 @@ class CommandConfig {
     this.stdoutSuccessMessage,
     this.hidden = false,
     this.timeoutSeconds,
+    this.cwd,
   });
 
   String id;
@@ -43,13 +44,23 @@ class CommandConfig {
   ///
   int? timeoutSeconds;
 
+  /// Override working directory for this command. Paths may be absolute or relative to the workspace root.
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? cwd;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is CommandConfig &&
     other.id == id &&
     _deepEquality.equals(other.exec, exec) &&
     other.stdoutSuccessMessage == stdoutSuccessMessage &&
     other.hidden == hidden &&
-    other.timeoutSeconds == timeoutSeconds;
+    other.timeoutSeconds == timeoutSeconds &&
+    other.cwd == cwd;
 
   @override
   int get hashCode =>
@@ -58,10 +69,11 @@ class CommandConfig {
     (exec.hashCode) +
     (stdoutSuccessMessage == null ? 0 : stdoutSuccessMessage!.hashCode) +
     (hidden.hashCode) +
-    (timeoutSeconds == null ? 0 : timeoutSeconds!.hashCode);
+    (timeoutSeconds == null ? 0 : timeoutSeconds!.hashCode) +
+    (cwd == null ? 0 : cwd!.hashCode);
 
   @override
-  String toString() => 'CommandConfig[id=$id, exec=$exec, stdoutSuccessMessage=$stdoutSuccessMessage, hidden=$hidden, timeoutSeconds=$timeoutSeconds]';
+  String toString() => 'CommandConfig[id=$id, exec=$exec, stdoutSuccessMessage=$stdoutSuccessMessage, hidden=$hidden, timeoutSeconds=$timeoutSeconds, cwd=$cwd]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -77,6 +89,11 @@ class CommandConfig {
       json[r'timeout_seconds'] = this.timeoutSeconds;
     } else {
       json[r'timeout_seconds'] = null;
+    }
+    if (this.cwd != null) {
+      json[r'cwd'] = this.cwd;
+    } else {
+      json[r'cwd'] = null;
     }
     return json;
   }
@@ -107,6 +124,7 @@ class CommandConfig {
         stdoutSuccessMessage: mapValueOfType<String>(json, r'stdout_success_message'),
         hidden: mapValueOfType<bool>(json, r'hidden') ?? false,
         timeoutSeconds: mapValueOfType<int>(json, r'timeout_seconds'),
+        cwd: mapValueOfType<String>(json, r'cwd'),
       );
     }
     return null;

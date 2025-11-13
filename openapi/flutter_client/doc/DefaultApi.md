@@ -675,7 +675,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **execOrchestratorCommand**
-> ExecResult execOrchestratorCommand(body)
+> ExecResult execOrchestratorCommand(execCommandInput)
 
 Execute a shell command for the orchestrator
 
@@ -684,10 +684,10 @@ Execute a shell command for the orchestrator
 import 'package:my_api_client/api.dart';
 
 final api_instance = DefaultApi();
-final body = String(); // String | 
+final execCommandInput = ExecCommandInput(); // ExecCommandInput | 
 
 try {
-    final result = api_instance.execOrchestratorCommand(body);
+    final result = api_instance.execOrchestratorCommand(execCommandInput);
     print(result);
 } catch (e) {
     print('Exception when calling DefaultApi->execOrchestratorCommand: $e\n');
@@ -698,7 +698,7 @@ try {
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | **String**|  | 
+ **execCommandInput** | [**ExecCommandInput**](ExecCommandInput.md)|  | 
 
 ### Return type
 
@@ -710,13 +710,13 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: text/plain
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **execWorkerCommand**
-> ExecResult execWorkerCommand(workerId, body)
+> ExecResult execWorkerCommand(workerId, execCommandInput)
 
 Execute a shell command within a worker workspace
 
@@ -726,10 +726,10 @@ import 'package:my_api_client/api.dart';
 
 final api_instance = DefaultApi();
 final workerId = 789; // int | Identifier of the worker whose workspace should be used for execution.
-final body = String(); // String | 
+final execCommandInput = ExecCommandInput(); // ExecCommandInput | 
 
 try {
-    final result = api_instance.execWorkerCommand(workerId, body);
+    final result = api_instance.execWorkerCommand(workerId, execCommandInput);
     print(result);
 } catch (e) {
     print('Exception when calling DefaultApi->execWorkerCommand: $e\n');
@@ -741,7 +741,7 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **workerId** | **int**| Identifier of the worker whose workspace should be used for execution. | 
- **body** | **String**|  | 
+ **execCommandInput** | [**ExecCommandInput**](ExecCommandInput.md)|  | 
 
 ### Return type
 
@@ -753,7 +753,7 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: text/plain
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

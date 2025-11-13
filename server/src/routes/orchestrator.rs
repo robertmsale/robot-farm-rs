@@ -1,6 +1,6 @@
 use crate::{globals::PROJECT_DIR, shared::shell};
-use axum::{Json, body::Bytes, http::StatusCode, response::IntoResponse};
-use openapi::models::ExecResult;
+use axum::{Json, http::StatusCode, response::IntoResponse};
+use openapi::models::{ExecCommandInput, ExecResult};
 use std::path::PathBuf;
 use tracing::error;
 
@@ -9,10 +9,20 @@ pub async fn delete_orchestrator_session() -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
-pub async fn exec_orchestrator_command(body: Bytes) -> Result<Json<ExecResult>, StatusCode> {
-    let command = String::from_utf8(body.to_vec()).map_err(|_| StatusCode::BAD_REQUEST)?;
+pub async fn exec_orchestrator_command(
+    Json(payload): Json<ExecCommandInput>,
+) -> Result<Json<ExecResult>, StatusCode> {
+    let command = payload.command.trim();
+    if command.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
     let staging: PathBuf = PathBuf::from(PROJECT_DIR.as_str()).join("staging");
-    let result = shell::run_shell_command(&staging, command.trim())
+    let working_dir =
+        shell::resolve_working_dir(&staging, payload.cwd.as_deref()).map_err(|err| {
+            error!(?err, "invalid working directory for orchestrator command");
+            StatusCode::BAD_REQUEST
+        })?;
+    let result = shell::run_shell_command(&working_dir, command)
         .await
         .map_err(|err| {
             error!(?err, "failed to execute orchestrator command");

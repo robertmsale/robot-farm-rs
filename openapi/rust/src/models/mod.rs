@@ -8,6 +8,8 @@ pub mod commit_info;
 pub use self::commit_info::CommitInfo;
 pub mod config;
 pub use self::config::Config;
+pub mod exec_command_input;
+pub use self::exec_command_input::ExecCommandInput;
 pub mod exec_result;
 pub use self::exec_result::ExecResult;
 pub mod feed;

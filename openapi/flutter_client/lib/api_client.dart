@@ -192,6 +192,8 @@ class ApiClient {
           return CommitInfo.fromJson(value);
         case 'Config':
           return Config.fromJson(value);
+        case 'ExecCommandInput':
+          return ExecCommandInput.fromJson(value);
         case 'ExecResult':
           return ExecResult.fromJson(value);
         case 'Feed':
