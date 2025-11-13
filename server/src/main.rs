@@ -10,6 +10,7 @@ use tracing::{info, warn};
 
 #[path = "ai/lib.rs"]
 mod ai;
+mod compliance;
 mod db;
 mod docker;
 mod globals;
@@ -24,6 +25,7 @@ mod threads;
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     tracing_subscriber::fmt::init();
+    dotenvy::dotenv().ok();
 
     let cli = parse_cli_args()?;
     if let Some(workspace) = cli.workspace.as_ref() {
@@ -43,6 +45,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .await
         .expect("failed to initialize database");
 
+    compliance::init();
     system::init_system_state();
 
     make_worker_image();

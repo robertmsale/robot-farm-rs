@@ -33,6 +33,7 @@ class RobotFarmApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'Robot Farm Client',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.greenAccent),
         useMaterial3: true,
@@ -259,6 +260,14 @@ class ConnectionController extends GetxController {
     } catch (err) {
       Get.snackbar('Failed to clear feeds', '$err');
     }
+  }
+
+  void showEnqueueMessageSheet() {
+    Get.snackbar('Coming soon', 'Manual system messages not wired yet.');
+  }
+
+  void showQueueManager() {
+    Get.snackbar('Coming soon', 'Queue editor UI not implemented yet.');
   }
 
   String? get currentBaseUrl => _currentBaseUrl;
@@ -579,11 +588,15 @@ class HomeScreen extends GetView<ConnectionController> {
 
     final orchestratorPane = OrchestratorPane(
       onRunCommand: () => _openCommandSheet(context),
-      events: mockCodexEvents,
+      onEnqueueMessage: controller.showEnqueueMessageSheet,
+      onEditQueue: controller.showQueueManager,
+      systemEvents: mockSystemEvents,
     );
     final workerPane = WorkerFeedPane(
       onRunCommand: (workerId) =>
           _openCommandSheet(context, workerId: workerId),
+      onEnqueueMessage: (_) => controller.showEnqueueMessageSheet(),
+      onEditQueue: (_) => controller.showQueueManager(),
     );
 
     final child = isPhone
@@ -677,12 +690,16 @@ enum _HomeMenuAction { tasksView, taskWizard, clearFeeds }
 class OrchestratorPane extends StatelessWidget {
   const OrchestratorPane({
     required this.onRunCommand,
-    required this.events,
+    required this.onEnqueueMessage,
+    required this.onEditQueue,
+    required this.systemEvents,
     super.key,
   });
 
   final VoidCallback onRunCommand;
-  final List<CodexEvent> events;
+  final VoidCallback onEnqueueMessage;
+  final VoidCallback onEditQueue;
+  final List<SystemFeedEvent> systemEvents;
 
   @override
   Widget build(BuildContext context) {
@@ -697,22 +714,27 @@ class OrchestratorPane extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Orchestrator Feed', style: theme.textTheme.titleLarge),
+            Row(
+              children: [
+                Text('Orchestrator Feed', style: theme.textTheme.titleLarge),
+                const Spacer(),
+                _FeedActionsMenu(
+                  onRunCommand: onRunCommand,
+                  onEnqueueMessage: onEnqueueMessage,
+                  onEditQueue: onEditQueue,
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             Expanded(
-              child: events.isEmpty
+              child: systemEvents.isEmpty
                   ? const Center(
                       child: Text(
                         'Turn-by-turn orchestrator output will appear here.',
                         textAlign: TextAlign.center,
                       ),
                     )
-                  : _OrchestratorFeed(events: events),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.terminal),
-              label: const Text('Run staging command'),
-              onPressed: onRunCommand,
+                  : _SystemFeed(events: systemEvents),
             ),
           ],
         ),
@@ -721,10 +743,10 @@ class OrchestratorPane extends StatelessWidget {
   }
 }
 
-class _OrchestratorFeed extends StatelessWidget {
-  const _OrchestratorFeed({required this.events});
+class _SystemFeed extends StatelessWidget {
+  const _SystemFeed({required this.events});
 
-  final List<CodexEvent> events;
+  final List<SystemFeedEvent> events;
 
   @override
   Widget build(BuildContext context) {
@@ -734,8 +756,11 @@ class _OrchestratorFeed extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final event = events[index];
-        final viewModel =
-            _EventViewModel.fromEvent(context, event, fullDetail: false);
+        final viewModel = _SystemEventViewModel.fromEvent(
+          context,
+          event,
+          fullDetail: false,
+        );
 
         return InkWell(
           borderRadius: radius,
@@ -796,13 +821,13 @@ class _OrchestratorFeed extends StatelessWidget {
     );
   }
 
-  void _showEventDetails(BuildContext context, CodexEvent event) {
+  void _showEventDetails(BuildContext context, SystemFeedEvent event) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
         final viewModel =
-            _EventViewModel.fromEvent(ctx, event, fullDetail: true);
+            _SystemEventViewModel.fromEvent(ctx, event, fullDetail: true);
         return FractionallySizedBox(
           heightFactor: 0.85,
           child: SafeArea(
@@ -870,8 +895,8 @@ class _OrchestratorFeed extends StatelessWidget {
   }
 }
 
-class _EventViewModel {
-  _EventViewModel({
+class _SystemEventViewModel {
+  _SystemEventViewModel({
     required this.title,
     this.subtitle,
     this.body,
@@ -885,168 +910,32 @@ class _EventViewModel {
   final IconData icon;
   final Color color;
 
-  factory _EventViewModel.fromEvent(
+  factory _SystemEventViewModel.fromEvent(
     BuildContext context,
-    CodexEvent event, {
+    SystemFeedEvent event, {
     required bool fullDetail,
   }) {
-    final color = colorForEvent(context, event) ?? Theme.of(context).primaryColor;
-    final icon = iconForEvent(event);
-    String title;
-    String? subtitle;
-    Widget? body;
+    final scheme = Theme.of(context).colorScheme;
+    final color = event.badgeColor(scheme);
 
-    switch (event.type) {
-      case CodexEventType.threadStarted:
-        title = 'Thread started';
-        subtitle = 'Session ${event.threadId}';
-        break;
-      case CodexEventType.turnStarted:
-        title = 'Turn started';
-        subtitle = 'Codex is planning the next actions.';
-        break;
-      case CodexEventType.turnCompleted:
-        title = 'Turn completed';
-        final usage = event.usage!;
-        subtitle =
-            'Input ${usage.inputTokens} (+${usage.cachedInputTokens} cached) · Output ${usage.outputTokens} tokens';
-        break;
-      case CodexEventType.turnFailed:
-        title = 'Turn failed';
-        subtitle = event.error;
-        break;
-      case CodexEventType.error:
-        title = 'Stream error';
-        subtitle = event.error;
-        break;
-      case CodexEventType.itemStarted:
-      case CodexEventType.itemUpdated:
-      case CodexEventType.itemCompleted:
-        final item = event.item!;
-        final phase = switch (event.type) {
-          CodexEventType.itemStarted => 'started',
-          CodexEventType.itemUpdated => 'updated',
-          CodexEventType.itemCompleted => 'completed',
-          _ => '',
-        };
-        title = '${_describeItemType(item.type)} $phase';
-        final details = _itemDetails(item, fullDetail);
-        subtitle = details.subtitle;
-        body = details.body;
-        break;
+    Widget? body;
+    final subtitle =
+        'Source: ${event.source} • Target: ${event.target} • ${event.category}';
+
+    if (fullDetail) {
+      body = _OutputBubble(text: event.details);
+    } else if (event.details.length > 160) {
+      body = _OutputBubble(text: event.details, maxLines: 4);
     }
 
-    return _EventViewModel(
-      title: title,
+    return _SystemEventViewModel(
+      title: event.summary,
       subtitle: subtitle,
       body: body,
-      icon: icon,
+      icon: Icons.auto_awesome,
       color: color,
     );
   }
-
-  static String _describeItemType(CodexItemType type) {
-    switch (type) {
-      case CodexItemType.agentMessage:
-        return 'Agent message';
-      case CodexItemType.reasoning:
-        return 'Reasoning note';
-      case CodexItemType.commandExecution:
-        return 'Command execution';
-      case CodexItemType.fileChange:
-        return 'File changes';
-      case CodexItemType.mcpToolCall:
-        return 'Tool call';
-      case CodexItemType.webSearch:
-        return 'Web search';
-      case CodexItemType.todoList:
-        return 'Todo list';
-      case CodexItemType.error:
-        return 'Item error';
-    }
-  }
-
-  static _ItemDetails _itemDetails(CodexItem item, bool fullDetail) {
-    switch (item.type) {
-      case CodexItemType.agentMessage:
-      case CodexItemType.reasoning:
-      case CodexItemType.error:
-        return _ItemDetails(
-          subtitle: fullDetail ? null : item.message,
-          body: fullDetail && item.message != null
-              ? _OutputBubble(text: item.message!)
-              : null,
-        );
-      case CodexItemType.commandExecution:
-        return _ItemDetails(
-          subtitle: item.command,
-          body: item.output == null || item.output!.isEmpty
-              ? null
-              : _OutputBubble(
-                  text: item.output!,
-                  maxLines: fullDetail ? null : 8,
-                ),
-        );
-      case CodexItemType.fileChange:
-        final statusText =
-            item.status == null ? null : 'Status: ${item.status}';
-        return _ItemDetails(
-          subtitle: statusText,
-          body: item.fileChanges == null
-              ? null
-              : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: item.fileChanges!
-                .map(
-                  (change) => Text(
-                    '${change.kind.name.toUpperCase()}: ${change.path}',
-                          style: const TextStyle(fontFamily: 'monospace'),
-                        ),
-                      )
-                      .toList(),
-                ),
-        );
-      case CodexItemType.mcpToolCall:
-        final call = item.toolCall;
-        return _ItemDetails(
-          subtitle: call == null
-              ? null
-              : '${call.server} · ${call.tool} (${call.status})',
-        );
-      case CodexItemType.webSearch:
-        return _ItemDetails(subtitle: item.query);
-      case CodexItemType.todoList:
-        final todos = item.todos ?? [];
-        if (todos.isEmpty) return const _ItemDetails(subtitle: 'No steps yet.');
-        return _ItemDetails(
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: todos
-                .map(
-                  (todo) => Row(
-                    children: [
-                      Icon(
-                        todo.completed ? Icons.check_circle : Icons.circle_outlined,
-                        size: 16,
-                        color: todo.completed ? Colors.green : Colors.grey,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(todo.text)),
-                    ],
-                  ),
-                )
-                .toList(),
-          ),
-        );
-    }
-  }
-}
-
-class _ItemDetails {
-  const _ItemDetails({this.subtitle, this.body});
-
-  final String? subtitle;
-  final Widget? body;
 }
 
 class _OutputBubble extends StatelessWidget {
@@ -1078,9 +967,16 @@ class _OutputBubble extends StatelessWidget {
 }
 
 class WorkerFeedPane extends StatelessWidget {
-  const WorkerFeedPane({required this.onRunCommand, super.key});
+  const WorkerFeedPane({
+    required this.onRunCommand,
+    required this.onEnqueueMessage,
+    required this.onEditQueue,
+    super.key,
+  });
 
   final void Function(int workerId) onRunCommand;
+  final void Function(int workerId) onEnqueueMessage;
+  final void Function(int workerId) onEditQueue;
 
   @override
   Widget build(BuildContext context) {
@@ -1136,14 +1032,21 @@ class WorkerFeedPane extends StatelessWidget {
                                 .toList(),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.terminal),
-                    label: const Text('Run workspace command'),
-                    onPressed: controller.activeWorkerId == null
-                        ? null
-                        : () => onRunCommand(controller.activeWorkerId!),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _FeedActionsMenu(
+                      onRunCommand: controller.activeWorkerId == null
+                          ? null
+                          : () => onRunCommand(controller.activeWorkerId!),
+                      onEnqueueMessage: controller.activeWorkerId == null
+                          ? null
+                          : () => onEnqueueMessage(controller.activeWorkerId!),
+                      onEditQueue: controller.activeWorkerId == null
+                          ? null
+                          : () => onEditQueue(controller.activeWorkerId!),
+                    ),
                   ),
+                  const SizedBox(height: 12),
                 ],
                 const SizedBox(height: 12),
               ],
@@ -1790,6 +1693,70 @@ class _CommandEditorSheetState extends State<CommandEditorSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+class _FeedActionsMenu extends StatelessWidget {
+  const _FeedActionsMenu({
+    required this.onRunCommand,
+    required this.onEnqueueMessage,
+    required this.onEditQueue,
+  });
+
+  final VoidCallback? onRunCommand;
+  final VoidCallback? onEnqueueMessage;
+  final VoidCallback? onEditQueue;
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton.extended(
+      heroTag: null,
+      elevation: 0,
+      extendedPadding: const EdgeInsets.symmetric(horizontal: 16),
+      label: const Text('Actions'),
+      icon: const Icon(Icons.add),
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          builder: (ctx) => SafeArea(
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.terminal),
+                  title: const Text('Run command'),
+                  onTap: onRunCommand == null
+                      ? null
+                      : () {
+                          Navigator.of(ctx).pop();
+                          onRunCommand!();
+                        },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.mail),
+                  title: const Text('Enqueue message'),
+                  onTap: onEnqueueMessage == null
+                      ? null
+                      : () {
+                          Navigator.of(ctx).pop();
+                          onEnqueueMessage!();
+                        },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.list_alt),
+                  title: const Text('Modify queue'),
+                  subtitle: const Text('Reorder, delete, or clear messages'),
+                  onTap: onEditQueue == null
+                      ? null
+                      : () {
+                          Navigator.of(ctx).pop();
+                          onEditQueue!();
+                        },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -140,141 +140,83 @@ class CodexTodo {
   final bool completed;
 }
 
-final List<CodexEvent> mockCodexEvents = [
-  CodexEvent.threadStarted('e5821b4c-101a-4a0d-8f2c-123456789abc'),
-  CodexEvent.turnStarted(),
-  CodexEvent.item(
-    phase: CodexEventType.itemStarted,
-    item: CodexItem(
-      id: 'item_reasoning',
-      type: CodexItemType.reasoning,
-      message: 'Need to validate the worker list strategy before editing settings.',
-    ),
+/// Mock system events (non-Codex) so the feed can preview the system payload style.
+class SystemFeedEvent {
+  const SystemFeedEvent({
+    required this.level,
+    required this.source,
+    required this.target,
+    required this.category,
+    required this.summary,
+    required this.details,
+  });
+
+  final FeedLevel level;
+  final String source;
+  final String target;
+  final String category;
+  final String summary;
+  final String details;
+
+  Color badgeColor(ColorScheme scheme) {
+    switch (level) {
+      case FeedLevel.error:
+        return scheme.error;
+      case FeedLevel.warning:
+        return scheme.tertiary;
+      case FeedLevel.info:
+        return scheme.primary;
+    }
+  }
+}
+
+enum FeedLevel { info, warning, error }
+
+final List<SystemFeedEvent> mockSystemEvents = [
+  SystemFeedEvent(
+    level: FeedLevel.info,
+    source: 'System',
+    target: 'Orchestrator',
+    category: 'strategy',
+    summary: 'ws2 is idle — assign a task from `chores` or `bugs`.',
+    details:
+        'Strategy Planner (Planning) detected idle workers: ws2. Focus groups: chores, bugs.',
   ),
-  CodexEvent.item(
-    phase: CodexEventType.itemStarted,
-    item: CodexItem(
-      id: 'item_0',
-      type: CodexItemType.todoList,
-      todos: const [
-        CodexTodo(text: 'Read config.json', completed: true),
-        CodexTodo(text: 'Plan backend updates', completed: false),
-      ],
-    ),
+  SystemFeedEvent(
+    level: FeedLevel.warning,
+    source: 'System',
+    target: 'ws3',
+    category: 'validation',
+    summary: 'Post-turn validation failed.',
+    details:
+        'Tests failed: `cargo test` exited with code 101. The worktree was not merged into staging.',
   ),
-  CodexEvent.item(
-    phase: CodexEventType.itemCompleted,
-    item: CodexItem(
-      id: 'item_1',
-      type: CodexItemType.mcpToolCall,
-      toolCall: const CodexToolCall(
-        server: 'web-search',
-        tool: 'search',
-        status: 'completed',
-      ),
-    ),
+  SystemFeedEvent(
+    level: FeedLevel.info,
+    source: 'User',
+    target: 'Orchestrator',
+    category: 'user',
+    summary: '“Remember to keep worker ws1 focused on CLI improvements.”',
+    details:
+        'Manual message injected into orchestrator feed via system message endpoint.',
   ),
-  CodexEvent.item(
-    phase: CodexEventType.itemCompleted,
-    item: CodexItem(
-      id: 'item_2',
-      type: CodexItemType.webSearch,
-      query: 'Tokio bounded channel examples',
-    ),
+  SystemFeedEvent(
+    level: FeedLevel.error,
+    source: 'System',
+    target: 'Orchestrator',
+    category: 'merge',
+    summary: 'Merge conflict detected while merging ws4 → staging.',
+    details:
+        'Conflict files: server/src/routes/task.rs, client/lib/main.dart. Worker notified to resolve and re-run COMPLETE_TASK.',
   ),
-  CodexEvent.item(
-    phase: CodexEventType.itemCompleted,
-    item: CodexItem(
-      id: 'item_3',
-      type: CodexItemType.commandExecution,
-      command: 'rg TODO server/src',
-      output: 'Found 4 TODOs\nserver/src/main.rs:42: TODO',
-      exitCode: 0,
-      status: 'completed',
-    ),
-  ),
-  CodexEvent.item(
-    phase: CodexEventType.itemCompleted,
-    item: CodexItem(
-      id: 'item_4',
-      type: CodexItemType.fileChange,
-      status: 'completed',
-      fileChanges: const [
-        CodexFileChange(path: 'server/src/db/task.rs', kind: CodexFileChangeKind.update),
-        CodexFileChange(path: 'client/lib/main.dart', kind: CodexFileChangeKind.update),
-      ],
-    ),
-  ),
-  CodexEvent.item(
-    phase: CodexEventType.itemCompleted,
-    item: CodexItem(
-      id: 'item_5',
-      type: CodexItemType.agentMessage,
-      message:
-          'Updated the DB layer with real SQLx queries. Next I will wire the feed UI.',
-    ),
-  ),
-  CodexEvent.item(
-    phase: CodexEventType.itemCompleted,
-    item: CodexItem(
-      id: 'item_6',
-      type: CodexItemType.error,
-      message: 'Failed to parse cargo metadata. Falling back to manual run.',
-    ),
-  ),
-  CodexEvent.turnCompleted(
-    const CodexTokenUsage(
-      inputTokens: 1420,
-      cachedInputTokens: 80,
-      outputTokens: 512,
-    ),
-  ),
-  CodexEvent.turnFailed('Network hiccup while contacting the MCP server.'),
-  CodexEvent.item(
-    phase: CodexEventType.itemStarted,
-    item: CodexItem(
-      id: 'item_retry',
-      type: CodexItemType.commandExecution,
-      command: 'git status --short',
-      output: '',
-      status: 'in_progress',
-    ),
-  ),
-  CodexEvent.item(
-    phase: CodexEventType.itemUpdated,
-    item: CodexItem(
-      id: 'item_retry',
-      type: CodexItemType.commandExecution,
-      command: 'git status --short',
-      output: ' M server/src/main.rs',
-      status: 'in_progress',
-    ),
-  ),
-  CodexEvent.item(
-    phase: CodexEventType.itemCompleted,
-    item: CodexItem(
-      id: 'item_retry',
-      type: CodexItemType.commandExecution,
-      command: 'git status --short',
-      output: ' M server/src/main.rs\n?? server/src/models/codex_events.rs',
-      exitCode: 0,
-      status: 'completed',
-    ),
-  ),
-  CodexEvent.item(
-    phase: CodexEventType.itemCompleted,
-    item: CodexItem(
-      id: 'item_final_agent',
-      type: CodexItemType.agentMessage,
-      message: 'Retry succeeded. Ready for the next command.',
-    ),
-  ),
-  CodexEvent.turnCompleted(
-    const CodexTokenUsage(
-      inputTokens: 600,
-      cachedInputTokens: 0,
-      outputTokens: 210,
-    ),
+  SystemFeedEvent(
+    level: FeedLevel.info,
+    source: 'System',
+    target: 'Orchestrator',
+    category: 'queue',
+    summary: 'HotfixSwarm: four workers activated.',
+    details:
+        'Workers ws1 (frontend), ws2 (backend), ws3 (database), ws4 (deps) are now assigned per strategy.',
   ),
 ];
 
