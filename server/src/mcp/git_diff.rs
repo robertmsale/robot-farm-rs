@@ -9,14 +9,8 @@ use tokio::process::Command;
 use crate::globals::PROJECT_DIR;
 
 use super::{
-    parse_params,
-    roles_all,
-    schema_for_type,
-    AgentRole,
-    McpTool,
-    ToolContext,
-    ToolInvocationError,
-    ToolInvocationResponse,
+    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
+    roles_all, schema_for_type,
 };
 
 #[derive(Default)]
@@ -36,7 +30,7 @@ impl McpTool for GitDiffTool {
         "Show git diff output for the staging repository (optionally scoped to a path)."
     }
 
-    fn input_schema(&self) -> schemars::schema::Schema {
+    fn input_schema(&self) -> Value {
         schema_for_type::<GitDiffInput>()
     }
 

@@ -9,14 +9,8 @@ use tokio::process::Command;
 use crate::globals::PROJECT_DIR;
 
 use super::{
-    parse_params,
-    roles_all,
-    schema_for_type,
-    AgentRole,
-    McpTool,
-    ToolContext,
-    ToolInvocationError,
-    ToolInvocationResponse,
+    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
+    roles_all, schema_for_type,
 };
 
 #[derive(Default)]
@@ -36,7 +30,7 @@ impl McpTool for GitStatusTool {
         "Show the concise git status for the staging repository."
     }
 
-    fn input_schema(&self) -> schemars::schema::Schema {
+    fn input_schema(&self) -> Value {
         schema_for_type::<GitStatusInput>()
     }
 
@@ -57,7 +51,9 @@ impl McpTool for GitStatusTool {
 #[derive(Debug, Deserialize, JsonSchema)]
 struct GitStatusInput {}
 
-async fn run_git_command<const N: usize>(args: [&str; N]) -> Result<ToolInvocationResponse, ToolInvocationError> {
+async fn run_git_command<const N: usize>(
+    args: [&str; N],
+) -> Result<ToolInvocationResponse, ToolInvocationError> {
     let repo = Path::new(PROJECT_DIR.as_str()).join("staging");
     let output = Command::new("git")
         .args(args)

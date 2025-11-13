@@ -301,9 +301,7 @@ mod tests {
         assert!(args.contains(&"mcp_servers.robot_farm.enabled=true".to_string()));
         assert!(args.contains(&"mcp_servers.robot_farm.tool_timeout_sec=900".to_string()));
         assert!(
-            args.contains(
-                &"mcp_servers.robot_farm.url=\"http://127.0.0.1:9000/mcp\"".to_string()
-            )
+            args.contains(&"mcp_servers.robot_farm.url=\"http://127.0.0.1:9000/mcp\"".to_string())
         );
     }
 
