@@ -2,10 +2,23 @@ import 'package:flutter/material.dart';
 
 import 'models.dart';
 
-class QueueSheet extends StatelessWidget {
+class QueueSheet extends StatefulWidget {
   const QueueSheet({required this.messages, super.key});
 
   final List<QueueMessageViewModel> messages;
+
+  @override
+  State<QueueSheet> createState() => _QueueSheetState();
+}
+
+class _QueueSheetState extends State<QueueSheet> {
+  late List<QueueMessageViewModel> _messages;
+
+  @override
+  void initState() {
+    super.initState();
+    _messages = List.of(widget.messages);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,11 +40,11 @@ class QueueSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: messages.isEmpty
+              child: _messages.isEmpty
                   ? const Center(child: Text('Queue is empty.'))
                   : ReorderableListView.builder(
                       itemBuilder: (context, index) {
-                        final entry = messages[index];
+                        final entry = _messages[index];
                         return Card(
                           key: ValueKey(entry.message.id),
                           child: ListTile(
@@ -39,20 +52,30 @@ class QueueSheet extends StatelessWidget {
                             subtitle: Text(entry.subtitle),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete_outline),
-                              onPressed: () {},
+                              onPressed: () {
+                                setState(() => _messages.removeAt(index));
+                              },
                             ),
                           ),
                         );
                       },
-                      itemCount: messages.length,
-                      onReorder: (oldIndex, newIndex) {},
+                      itemCount: _messages.length,
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          if (newIndex > oldIndex) newIndex -= 1;
+                          final item = _messages.removeAt(oldIndex);
+                          _messages.insert(newIndex, item);
+                        });
+                      },
                     ),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
               icon: const Icon(Icons.delete_sweep),
               label: const Text('Clear queue'),
-              onPressed: () {},
+              onPressed: () {
+                setState(() => _messages.clear());
+              },
             )
           ],
         ),

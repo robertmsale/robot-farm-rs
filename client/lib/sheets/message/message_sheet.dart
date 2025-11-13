@@ -1,15 +1,34 @@
 import 'package:flutter/material.dart';
 
-class EnqueueMessageSheet extends StatelessWidget {
+class EnqueueMessageSheet extends StatefulWidget {
   const EnqueueMessageSheet({super.key, this.initialTarget});
 
   final String? initialTarget;
 
   @override
-  Widget build(BuildContext context) {
-    final targetController = TextEditingController(text: initialTarget);
-    final messageController = TextEditingController();
+  State<EnqueueMessageSheet> createState() => _EnqueueMessageSheetState();
+}
 
+class _EnqueueMessageSheetState extends State<EnqueueMessageSheet> {
+  late final TextEditingController targetController;
+  late final TextEditingController messageController;
+
+  @override
+  void initState() {
+    super.initState();
+    targetController = TextEditingController(text: widget.initialTarget);
+    messageController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    targetController.dispose();
+    messageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24),

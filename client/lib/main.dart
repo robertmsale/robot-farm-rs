@@ -11,6 +11,9 @@ import 'package:web_socket/web_socket.dart' as ws;
 
 import 'components/models/codex_event.dart';
 import 'sheets/command_sheet.dart';
+import 'sheets/message/message_sheet.dart';
+import 'sheets/queue/models.dart';
+import 'sheets/queue/queue_sheet.dart';
 import 'task_wizard/task_wizard_controller.dart';
 import 'task_wizard/task_wizard_screen.dart';
 import 'tasks/tasks_controller.dart';
@@ -19,6 +22,31 @@ import 'tasks/tasks_screen.dart';
 const int kDefaultApiPort = 8080;
 const String kWebsocketPath = '/ws';
 const String kPastLoginsKey = 'past_logins';
+
+final List<QueueMessageViewModel> kMockQueueMessages =
+    <robot_farm_api.Message>[
+  robot_farm_api.Message(
+    id: 1,
+    from: 'System',
+    to: 'Orchestrator',
+    message: 'Auto-assign ws2 as soon as possible.',
+    insertedAt: 0,
+  ),
+  robot_farm_api.Message(
+    id: 2,
+    from: 'Quality Assurance',
+    to: 'Orchestrator',
+    message: 'Requesting status update before next sync.',
+    insertedAt: 1,
+  ),
+  robot_farm_api.Message(
+    id: 3,
+    from: 'System',
+    to: 'ws3',
+    message: 'Reminder: run COMPLETE_TASK when tests pass.',
+    insertedAt: 2,
+  ),
+].map(QueueMessageViewModel.new).toList();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -262,13 +290,6 @@ class ConnectionController extends GetxController {
     }
   }
 
-  void showEnqueueMessageSheet() {
-    Get.snackbar('Coming soon', 'Manual system messages not wired yet.');
-  }
-
-  void showQueueManager() {
-    Get.snackbar('Coming soon', 'Queue editor UI not implemented yet.');
-  }
 
   String? get currentBaseUrl => _currentBaseUrl;
 
@@ -562,6 +583,12 @@ class ConnectionScreen extends GetView<ConnectionController> {
 class HomeScreen extends GetView<ConnectionController> {
   const HomeScreen({super.key});
 
+  void _disposeWorkerFeedController() {
+    if (Get.isRegistered<WorkerFeedController>()) {
+      Get.delete<WorkerFeedController>(force: true);
+    }
+  }
+
   void _openCommandSheet(BuildContext context, {int? workerId}) {
     final baseUrl = controller.currentBaseUrl;
     if (baseUrl == null) {
@@ -579,6 +606,23 @@ class HomeScreen extends GetView<ConnectionController> {
     );
   }
 
+  void _openQueueSheet(BuildContext context, {int? workerId}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => QueueSheet(messages: kMockQueueMessages),
+    );
+  }
+
+  void _openMessageSheet(BuildContext context, {int? workerId}) {
+    final target = workerId == null ? 'Orchestrator' : 'ws$workerId';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EnqueueMessageSheet(initialTarget: target),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPhone = context.isPhone;
@@ -588,15 +632,16 @@ class HomeScreen extends GetView<ConnectionController> {
 
     final orchestratorPane = OrchestratorPane(
       onRunCommand: () => _openCommandSheet(context),
-      onEnqueueMessage: controller.showEnqueueMessageSheet,
-      onEditQueue: controller.showQueueManager,
+      onEnqueueMessage: () => _openMessageSheet(context),
+      onEditQueue: () => _openQueueSheet(context),
       systemEvents: mockSystemEvents,
     );
     final workerPane = WorkerFeedPane(
       onRunCommand: (workerId) =>
           _openCommandSheet(context, workerId: workerId),
-      onEnqueueMessage: (_) => controller.showEnqueueMessageSheet(),
-      onEditQueue: (_) => controller.showQueueManager(),
+      onEnqueueMessage: (workerId) =>
+          _openMessageSheet(context, workerId: workerId),
+      onEditQueue: (workerId) => _openQueueSheet(context, workerId: workerId),
     );
 
     final child = isPhone
@@ -620,7 +665,10 @@ class HomeScreen extends GetView<ConnectionController> {
         title: const Text('Robot Farm'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.offAllNamed('/'),
+          onPressed: () {
+            _disposeWorkerFeedController();
+            Get.offAllNamed('/');
+          },
         ),
         actions: [
           Obx(
