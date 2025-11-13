@@ -21,9 +21,9 @@ pub struct OrchestratorTurn {
     /// Expanded details supporting the summary.
     #[schemars(required)]
     pub details: Option<String>,
-    /// Assignments payload when intent=ASSIGN_TASKS.
+    /// Assignment payload when intent=ASSIGN_TASK.
     #[schemars(required)]
-    pub assignments: Option<Vec<Assignment>>,
+    pub assignments: Option<Assignment>,
 }
 
 /// Structured payload produced by a worker turn.
@@ -53,7 +53,7 @@ pub struct WorkerTurn {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrchestratorIntent {
-    AssignTasks,
+    AssignTask,
     StatusUpdate,
     AckPause,
 }
@@ -93,12 +93,9 @@ pub struct WorkerCompletion {
     /// Completion notes or highlights.
     #[schemars(required)]
     pub notes: Option<String>,
-    /// Follow-up questions, if any.
-    #[schemars(required)]
-    pub open_questions: Option<Vec<String>>,
     /// Short summary describing the changes for auto-commit messages. Aim for <= 72 characters.
     #[schemars(required, length(min = 3, max = 120))]
-    pub commit_summary: Option<String>,
+    pub commit_summary: String,
 }
 
 /// Blocked entry describing impediments.
@@ -109,8 +106,6 @@ pub struct BlockedEntry {
     pub task_slug: String,
     /// Explanation of why work cannot proceed.
     pub reason: String,
-    /// Whether a merge conflict must be resolved.
-    pub requires_merge_resolution: bool,
     /// Suggestions for unblocking the task.
     pub proposed_unblock_steps: Vec<String>,
 }
