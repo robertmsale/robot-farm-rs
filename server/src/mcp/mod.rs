@@ -18,6 +18,7 @@ pub(crate) mod session;
 
 mod git_diff;
 mod git_status;
+mod project_commands;
 mod project_command_list;
 mod project_command_run;
 mod tasks_create;
@@ -34,6 +35,7 @@ mod tasks_list;
 mod tasks_set_status;
 mod tasks_update;
 
+use project_commands::ProjectCommandRegistry;
 use session::SessionManager;
 
 const JSONRPC_VERSION: &str = "2.0";

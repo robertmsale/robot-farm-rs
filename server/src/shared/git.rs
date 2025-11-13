@@ -1,5 +1,5 @@
-use gix::bstr::ByteSlice;
 use gix::ThreadSafeRepository;
+use gix::bstr::ByteSlice;
 use openapi::models::CommitInfo;
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -65,6 +65,8 @@ pub enum GitError {
     BareRepository { path: PathBuf },
     #[error("failed to parse git output: {0}")]
     Parse(String),
+    #[error("worktree not found: {0}")]
+    NotFound(String),
 }
 
 pub fn ensure_non_bare_repo(repo_root: &Path) -> Result<(), GitError> {
@@ -185,9 +187,7 @@ pub fn collect_worktree_status(
             return collect_status_for_path(id, path, include_hunks);
         }
     }
-    Err(GitError::Parse(format!(
-        "unknown worktree id: {worktree_id}"
-    )))
+    Err(GitError::NotFound(worktree_id.to_string()))
 }
 
 pub fn get_commit_info(repo_root: &Path, rev: &str) -> Result<CommitInfo, GitError> {
@@ -299,10 +299,7 @@ fn collect_status_for_path(
     path: PathBuf,
     include_hunks: bool,
 ) -> Result<WorktreeStatus, GitError> {
-    let ParsedStatus {
-        branch,
-        entries,
-    } = parse_porcelain_status(&path)?;
+    let ParsedStatus { branch, entries } = parse_porcelain_status(&path)?;
     let tracked_numstat = collect_tracked_numstat(&path)?;
     let tracked_hunks = if include_hunks {
         collect_tracked_hunks(&path)?
@@ -445,7 +442,7 @@ fn parse_porcelain_status(repo_root: &Path) -> Result<ParsedStatus, GitError> {
             other => {
                 return Err(GitError::Parse(format!(
                     "unknown porcelain entry prefix: {other}"
-                )))
+                )));
             }
         }
     }
@@ -529,14 +526,17 @@ fn parse_diff_output(diff: &str) -> Result<HashMap<String, Vec<DiffHunk>>, GitEr
     let mut current_hunk_header: Option<String> = None;
     let mut current_lines: Vec<String> = Vec::new();
     let mut old_path: Option<String> = None;
-    let mut new_path: Option<String> = None;
 
     for line in diff.lines() {
         if line.starts_with("diff --git ") {
-            finalize_hunk(&mut map, &current_file, &mut current_hunk_header, &mut current_lines);
+            finalize_hunk(
+                &mut map,
+                &current_file,
+                &mut current_hunk_header,
+                &mut current_lines,
+            );
             current_file = None;
             old_path = None;
-            new_path = None;
             continue;
         }
         if line.starts_with("--- ") {
@@ -544,12 +544,17 @@ fn parse_diff_output(diff: &str) -> Result<HashMap<String, Vec<DiffHunk>>, GitEr
             continue;
         }
         if line.starts_with("+++ ") {
-            new_path = parse_diff_path(line);
-            current_file = new_path.clone().or_else(|| old_path.clone());
+            let path = parse_diff_path(line);
+            current_file = path.or_else(|| old_path.clone());
             continue;
         }
         if line.starts_with("@@") {
-            finalize_hunk(&mut map, &current_file, &mut current_hunk_header, &mut current_lines);
+            finalize_hunk(
+                &mut map,
+                &current_file,
+                &mut current_hunk_header,
+                &mut current_lines,
+            );
             current_hunk_header = Some(line.to_string());
             continue;
         }
@@ -558,7 +563,12 @@ fn parse_diff_output(diff: &str) -> Result<HashMap<String, Vec<DiffHunk>>, GitEr
         }
     }
 
-    finalize_hunk(&mut map, &current_file, &mut current_hunk_header, &mut current_lines);
+    finalize_hunk(
+        &mut map,
+        &current_file,
+        &mut current_hunk_header,
+        &mut current_lines,
+    );
     Ok(map)
 }
 

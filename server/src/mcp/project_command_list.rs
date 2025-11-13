@@ -3,11 +3,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::routes::config::{ConfigError, load_config_from_disk};
-
 use super::{
-    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
-    roles_all, schema_for_type, serialize_json,
+    project_commands::ProjectCommandRegistry, AgentRole, McpTool, ToolContext,
+    ToolInvocationError, ToolInvocationResponse, parse_params, roles_all, schema_for_type,
+    serialize_json,
 };
 
 #[derive(Default)]
@@ -41,9 +40,9 @@ impl McpTool for ProjectCommandListTool {
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
         let _: ProjectCommandListInput = parse_params(args)?;
-        let config = load_config_from_disk().map_err(map_config_error)?;
+        let commands = ProjectCommandRegistry::global().list();
         let payload = json!({
-            "commands": config.commands,
+            "commands": commands,
         });
         let text = serialize_json(&payload)?;
         Ok(ToolInvocationResponse::text(text))
@@ -52,10 +51,3 @@ impl McpTool for ProjectCommandListTool {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct ProjectCommandListInput {}
-
-fn map_config_error(err: ConfigError) -> ToolInvocationError {
-    match err {
-        ConfigError::NotFound(_) => ToolInvocationError::NotFound("config.json".to_string()),
-        _ => ToolInvocationError::Internal(err.to_string()),
-    }
-}

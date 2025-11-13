@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket/web_socket.dart' as ws;
 
 import 'components/models/codex_event.dart';
+import 'git_status/git_status_controller.dart';
+import 'git_status/git_status_screen.dart';
 import 'sheets/command_sheet.dart';
 import 'sheets/message/message_sheet.dart';
 import 'sheets/queue/models.dart';
@@ -24,8 +26,7 @@ const int kDefaultApiPort = 8080;
 const String kWebsocketPath = '/ws';
 const String kPastLoginsKey = 'past_logins';
 
-final List<QueueMessageViewModel> kMockQueueMessages =
-    <robot_farm_api.Message>[
+final List<QueueMessageViewModel> kMockQueueMessages = <robot_farm_api.Message>[
   robot_farm_api.Message(
     id: 1,
     from: 'System',
@@ -75,24 +76,31 @@ class RobotFarmApp extends StatelessWidget {
         GetPage(
           name: '/tasks',
           page: () => const TasksScreen(),
-          binding: BindingsBuilder(
-            () {
-              Get.put(
-                TasksController(
-                  () => Get.find<ConnectionController>().currentBaseUrl,
-                ),
-              );
-            },
-          ),
+          binding: BindingsBuilder(() {
+            Get.put(
+              TasksController(
+                () => Get.find<ConnectionController>().currentBaseUrl,
+              ),
+            );
+          }),
+        ),
+        GetPage(
+          name: '/git-status',
+          page: () => const GitStatusScreen(),
+          binding: BindingsBuilder(() {
+            Get.put(
+              GitStatusController(
+                () => Get.find<ConnectionController>().currentBaseUrl,
+              ),
+            );
+          }),
         ),
         GetPage(
           name: '/task-wizard',
           page: () => const TaskWizardScreen(),
-          binding: BindingsBuilder(
-            () {
-              Get.put(TaskWizardController());
-            },
-          ),
+          binding: BindingsBuilder(() {
+            Get.put(TaskWizardController());
+          }),
         ),
       ],
     );
@@ -262,9 +270,7 @@ class ConnectionController extends GetxController {
     isPlaying.toggle();
     Get.snackbar(
       isPlaying.value ? 'Resumed' : 'Paused',
-      isPlaying.value
-          ? 'Automation continues running.'
-          : 'Automation paused.',
+      isPlaying.value ? 'Automation continues running.' : 'Automation paused.',
       snackPosition: SnackPosition.BOTTOM,
     );
   }
@@ -290,7 +296,6 @@ class ConnectionController extends GetxController {
       Get.snackbar('Failed to clear feeds', '$err');
     }
   }
-
 
   String? get currentBaseUrl => _currentBaseUrl;
 
@@ -683,7 +688,7 @@ class HomeScreen extends GetView<ConnectionController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Robot Farm'),
+        title: const Text('Robot Farm 🌾'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Get.offAllNamed('/'),
@@ -707,6 +712,9 @@ class HomeScreen extends GetView<ConnectionController> {
                 case _HomeMenuAction.tasksView:
                   Get.toNamed('/tasks');
                   break;
+                case _HomeMenuAction.gitStatuses:
+                  Get.toNamed('/git-status');
+                  break;
                 case _HomeMenuAction.taskWizard:
                   Get.toNamed('/task-wizard');
                   break;
@@ -724,6 +732,13 @@ class HomeScreen extends GetView<ConnectionController> {
                 child: ListTile(
                   leading: Icon(Icons.list_alt),
                   title: Text('Tasks View'),
+                ),
+              ),
+              PopupMenuItem(
+                value: _HomeMenuAction.gitStatuses,
+                child: ListTile(
+                  leading: Icon(Icons.code),
+                  title: Text('Git Statuses'),
                 ),
               ),
               PopupMenuItem(
@@ -761,7 +776,13 @@ class HomeScreen extends GetView<ConnectionController> {
   }
 }
 
-enum _HomeMenuAction { tasksView, taskWizard, changeStrategy, clearFeeds }
+enum _HomeMenuAction {
+  tasksView,
+  gitStatuses,
+  taskWizard,
+  changeStrategy,
+  clearFeeds,
+}
 
 class OrchestratorPane extends StatelessWidget {
   const OrchestratorPane({
@@ -853,12 +874,10 @@ class _SystemFeed extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 18,
-                        backgroundColor:
-                            viewModel.color.withValues(alpha: 0.15),
-                        child: Icon(
-                          viewModel.icon,
-                          color: viewModel.color,
+                        backgroundColor: viewModel.color.withValues(
+                          alpha: 0.15,
                         ),
+                        child: Icon(viewModel.icon, color: viewModel.color),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -867,9 +886,7 @@ class _SystemFeed extends StatelessWidget {
                           children: [
                             Text(
                               viewModel.title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             if (viewModel.subtitle != null) ...[
@@ -902,8 +919,11 @@ class _SystemFeed extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
-        final viewModel =
-            _SystemEventViewModel.fromEvent(ctx, event, fullDetail: true);
+        final viewModel = _SystemEventViewModel.fromEvent(
+          ctx,
+          event,
+          fullDetail: true,
+        );
         return FractionallySizedBox(
           heightFactor: 0.85,
           child: SafeArea(
@@ -916,12 +936,10 @@ class _SystemFeed extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundColor:
-                            viewModel.color.withValues(alpha: 0.15),
-                        child: Icon(
-                          viewModel.icon,
-                          color: viewModel.color,
+                        backgroundColor: viewModel.color.withValues(
+                          alpha: 0.15,
                         ),
+                        child: Icon(viewModel.icon, color: viewModel.color),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -930,9 +948,7 @@ class _SystemFeed extends StatelessWidget {
                           children: [
                             Text(
                               viewModel.title,
-                              style: Theme.of(ctx)
-                                  .textTheme
-                                  .titleLarge
+                              style: Theme.of(ctx).textTheme.titleLarge
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             if (viewModel.subtitle != null) ...[
@@ -1031,12 +1047,13 @@ class _OutputBubble extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(fontFamily: 'monospace'),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
         maxLines: maxLines,
-        overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
+        overflow: maxLines == null
+            ? TextOverflow.visible
+            : TextOverflow.ellipsis,
       ),
     );
   }
@@ -1207,8 +1224,8 @@ class SettingsController extends GetxController {
       );
 
   List<String> get postTurnChecks => List<String>.unmodifiable(
-        config.value?.postTurnChecks ?? const <String>[],
-      );
+    config.value?.postTurnChecks ?? const <String>[],
+  );
 
   @override
   void onReady() {
@@ -1231,8 +1248,9 @@ class SettingsController extends GetxController {
       final result = await api.getConfig();
       config.value = result;
       if (result != null) {
-        orchestratorController.text =
-            result.appendAgentsFile.orchestrator.join(', ');
+        orchestratorController.text = result.appendAgentsFile.orchestrator.join(
+          ', ',
+        );
         workerController.text = result.appendAgentsFile.worker.join(', ');
       }
     } on robot_farm_api.ApiException catch (err) {
@@ -1338,8 +1356,9 @@ class SettingsController extends GetxController {
     final updatedCommands = List<robot_farm_api.CommandConfig>.from(
       current.commands,
     );
-    final index =
-        updatedCommands.indexWhere((command) => command.id == originalId);
+    final index = updatedCommands.indexWhere(
+      (command) => command.id == originalId,
+    );
     if (index == -1) {
       error.value = 'Command "$originalId" not found.';
       return error.value;
@@ -1360,10 +1379,7 @@ class SettingsController extends GetxController {
       }
     }
 
-    _assignConfig(
-      commands: updatedCommands,
-      postTurnChecks: updatedChecks,
-    );
+    _assignConfig(commands: updatedCommands, postTurnChecks: updatedChecks);
     error.value = null;
     return null;
   }
@@ -1376,15 +1392,13 @@ class SettingsController extends GetxController {
     )..removeWhere((command) => command.id == id);
     final updatedChecks = List<String>.from(current.postTurnChecks)
       ..removeWhere((entry) => entry == id);
-    _assignConfig(
-      commands: updatedCommands,
-      postTurnChecks: updatedChecks,
-    );
+    _assignConfig(commands: updatedCommands, postTurnChecks: updatedChecks);
   }
 
   robot_farm_api.CommandConfig? commandById(String id) {
-    return config.value?.commands
-        .firstWhereOrNull((command) => command.id == id);
+    return config.value?.commands.firstWhereOrNull(
+      (command) => command.id == id,
+    );
   }
 
   List<String> _splitPaths(String value) => value
@@ -1400,16 +1414,17 @@ class SettingsController extends GetxController {
   }) {
     final current = config.value;
     if (current == null) return;
-    final append = appendAgentsFile ??
+    final append =
+        appendAgentsFile ??
         robot_farm_api.AppendFilesConfig(
-          orchestrator:
-              List<String>.from(current.appendAgentsFile.orchestrator),
+          orchestrator: List<String>.from(
+            current.appendAgentsFile.orchestrator,
+          ),
           worker: List<String>.from(current.appendAgentsFile.worker),
         );
-    final cmds = commands ??
-        List<robot_farm_api.CommandConfig>.from(current.commands);
-    final checks =
-        postTurnChecks ?? List<String>.from(current.postTurnChecks);
+    final cmds =
+        commands ?? List<robot_farm_api.CommandConfig>.from(current.commands);
+    final checks = postTurnChecks ?? List<String>.from(current.postTurnChecks);
     config.value = robot_farm_api.Config(
       appendAgentsFile: append,
       commands: cmds,
@@ -1508,20 +1523,21 @@ class SettingsScreen extends StatelessWidget {
                       child: Row(
                         children: [
                           Checkbox(
-                            value:
-                                controller.isCommandSelected(command.id),
+                            value: controller.isCommandSelected(command.id),
                             onChanged: (checked) =>
                                 controller.toggleCommandSelection(
-                              command.id,
-                              checked ?? false,
-                            ),
+                                  command.id,
+                                  checked ?? false,
+                                ),
                           ),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(command.id,
-                                    style: theme.textTheme.titleMedium),
+                                Text(
+                                  command.id,
+                                  style: theme.textTheme.titleMedium,
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
                                   command.exec.join(' '),
@@ -1551,8 +1567,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 24),
-              Text('Post-turn checks order',
-                  style: theme.textTheme.titleLarge),
+              Text('Post-turn checks order', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
               if (controller.postTurnChecks.isEmpty)
                 const Text(
@@ -1561,9 +1576,9 @@ class SettingsScreen extends StatelessWidget {
               else
                 SizedBox(
                   height: math.min(
-                      360,
-                      controller.postTurnChecks.length * 70.0 +
-                          24),
+                    360,
+                    controller.postTurnChecks.length * 70.0 + 24,
+                  ),
                   child: ReorderableListView.builder(
                     itemCount: controller.postTurnChecks.length,
                     shrinkWrap: true,
@@ -1576,8 +1591,7 @@ class SettingsScreen extends StatelessWidget {
                         key: ValueKey(id),
                         title: Text(id),
                         subtitle: Text(
-                          command?.exec.join(' ') ??
-                              'Command missing',
+                          command?.exec.join(' ') ?? 'Command missing',
                         ),
                         trailing: const Icon(Icons.drag_handle),
                       );
@@ -1662,7 +1676,7 @@ class _CommandEditorSheetState extends State<CommandEditorSheet> {
     _execController.dispose();
     _stdoutController.dispose();
     _timeoutController.dispose();
-     _cwdController.dispose();
+    _cwdController.dispose();
     super.dispose();
   }
 
@@ -1691,11 +1705,14 @@ class _CommandEditorSheetState extends State<CommandEditorSheet> {
     final command = robot_farm_api.CommandConfig(
       id: id,
       exec: exec,
-      stdoutSuccessMessage:
-          _stdoutController.text.trim().isEmpty ? null : _stdoutController.text.trim(),
+      stdoutSuccessMessage: _stdoutController.text.trim().isEmpty
+          ? null
+          : _stdoutController.text.trim(),
       hidden: _hidden,
       timeoutSeconds: timeout,
-      cwd: _cwdController.text.trim().isEmpty ? null : _cwdController.text.trim(),
+      cwd: _cwdController.text.trim().isEmpty
+          ? null
+          : _cwdController.text.trim(),
     );
 
     Navigator.of(context).pop(command);
@@ -1747,9 +1764,7 @@ class _CommandEditorSheetState extends State<CommandEditorSheet> {
             TextField(
               controller: _timeoutController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Timeout seconds',
-              ),
+              decoration: const InputDecoration(labelText: 'Timeout seconds'),
             ),
             SwitchListTile(
               value: _hidden,
@@ -1759,23 +1774,20 @@ class _CommandEditorSheetState extends State<CommandEditorSheet> {
             if (_error != null) ...[
               Text(
                 _error!,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: Theme.of(context).colorScheme.error),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
               const SizedBox(height: 12),
             ],
-            FilledButton(
-              onPressed: _submit,
-              child: const Text('Save'),
-            ),
+            FilledButton(onPressed: _submit, child: const Text('Save')),
           ],
         ),
       ),
     );
   }
 }
+
 class _FeedActionsMenu extends StatelessWidget {
   const _FeedActionsMenu({
     required this.onRunCommand,

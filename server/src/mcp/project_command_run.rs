@@ -6,15 +6,12 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::{process::Command, time::timeout};
 
-use crate::{
-    globals::PROJECT_DIR,
-    routes::config::{ConfigError, load_config_from_disk},
-    shared::shell,
-};
+use crate::{globals::PROJECT_DIR, shared::shell};
 
 use super::{
-    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
-    roles_all, schema_for_type, serialize_json,
+    project_commands::ProjectCommandRegistry, AgentRole, McpTool, ToolContext,
+    ToolInvocationError, ToolInvocationResponse, parse_params, roles_all, schema_for_type,
+    serialize_json,
 };
 
 #[derive(Default)]
@@ -60,11 +57,8 @@ struct ProjectCommandRunInput {
 async fn run_command(
     input: ProjectCommandRunInput,
 ) -> Result<ToolInvocationResponse, ToolInvocationError> {
-    let config = load_config_from_disk().map_err(map_config_error)?;
-    let command = config
-        .commands
-        .into_iter()
-        .find(|cmd| cmd.id == input.command_id)
+    let command = ProjectCommandRegistry::global()
+        .get(&input.command_id)
         .ok_or_else(|| ToolInvocationError::NotFound(format!("command {}", input.command_id)))?;
 
     if command.exec.is_empty() {
@@ -125,11 +119,4 @@ async fn run_command(
         response.is_error = true;
     }
     Ok(response)
-}
-
-fn map_config_error(err: ConfigError) -> ToolInvocationError {
-    match err {
-        ConfigError::NotFound(_) => ToolInvocationError::NotFound("config.json".to_string()),
-        _ => ToolInvocationError::Internal(err.to_string()),
-    }
 }
