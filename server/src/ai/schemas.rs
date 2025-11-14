@@ -41,7 +41,7 @@ pub struct WorkerTurn {
     /// Expanded details supporting the summary.
     #[schemars(required)]
     pub details: Option<String>,
-    /// Completed tasks payload when intent=COMPLETE_TASKS.
+    /// Completed tasks payload when intent=COMPLETE_TASK.
     #[schemars(required)]
     pub completed: Option<WorkerCompletion>,
     /// Blocked tasks payload when intent=BLOCKED.

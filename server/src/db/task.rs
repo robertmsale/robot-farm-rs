@@ -20,13 +20,14 @@ fn row_to_task(row: sqlx::sqlite::SqliteRow) -> Task {
         commit_hash: row.get("commit_hash"),
         status: parse_status(&status),
         owner: row.get("owner"),
+        description: row.get("description"),
     }
 }
 
 pub async fn list_tasks() -> DbResult<Vec<Task>> {
     let rows = sqlx::query(
         r#"
-        SELECT id, group_id, slug, title, commit_hash, status, owner
+        SELECT id, group_id, slug, title, commit_hash, status, owner, description
         FROM task
         ORDER BY id ASC
         "#,
@@ -45,15 +46,16 @@ pub async fn create_task(payload: TaskCreateInput) -> DbResult<Task> {
         commit_hash,
         status,
         owner,
+        description,
     } = payload;
 
     let status_str = status.to_string();
 
     let row = sqlx::query(
         r#"
-        INSERT INTO task (group_id, slug, title, commit_hash, status, owner)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-        RETURNING id, group_id, slug, title, commit_hash, status, owner
+        INSERT INTO task (group_id, slug, title, commit_hash, status, owner, description)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        RETURNING id, group_id, slug, title, commit_hash, status, owner, description
         "#,
     )
     .bind(group_id)
@@ -62,6 +64,7 @@ pub async fn create_task(payload: TaskCreateInput) -> DbResult<Task> {
     .bind(commit_hash)
     .bind(status_str)
     .bind(owner)
+    .bind(description)
     .fetch_one(db::pool())
     .await?;
 
@@ -71,7 +74,7 @@ pub async fn create_task(payload: TaskCreateInput) -> DbResult<Task> {
 pub async fn get_task(task_id: i64) -> DbResult<Option<Task>> {
     let row = sqlx::query(
         r#"
-        SELECT id, group_id, slug, title, commit_hash, status, owner
+        SELECT id, group_id, slug, title, commit_hash, status, owner, description
         FROM task
         WHERE id = ?1
         "#,
@@ -91,6 +94,7 @@ pub async fn update_task(task_id: i64, payload: TaskUpdateInput) -> DbResult<Opt
         commit_hash,
         status,
         owner,
+        description,
     } = payload;
 
     if group_id.is_none()
@@ -99,6 +103,7 @@ pub async fn update_task(task_id: i64, payload: TaskUpdateInput) -> DbResult<Opt
         && commit_hash.is_none()
         && status.is_none()
         && owner.is_none()
+        && description.is_none()
     {
         return get_task(task_id).await;
     }
@@ -124,11 +129,14 @@ pub async fn update_task(task_id: i64, payload: TaskUpdateInput) -> DbResult<Opt
     if let Some(owner) = owner {
         assignments.push("owner = ").push_bind(owner);
     }
+    if let Some(description) = description {
+        assignments.push("description = ").push_bind(description);
+    }
 
     builder
         .push(" WHERE id = ")
         .push_bind(task_id)
-        .push(" RETURNING id, group_id, slug, title, commit_hash, status, owner");
+        .push(" RETURNING id, group_id, slug, title, commit_hash, status, owner, description");
 
     let row = builder.build().fetch_optional(db::pool()).await?;
     Ok(row.map(row_to_task))
@@ -151,7 +159,7 @@ pub async fn delete_task(task_id: i64) -> DbResult<bool> {
 pub async fn get_task_by_slug(slug: &str) -> DbResult<Option<Task>> {
     let row = sqlx::query(
         r#"
-        SELECT id, group_id, slug, title, commit_hash, status, owner
+        SELECT id, group_id, slug, title, commit_hash, status, owner, description
         FROM task
         WHERE slug = ?1
         "#,

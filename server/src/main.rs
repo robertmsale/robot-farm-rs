@@ -11,11 +11,13 @@ use tracing::{info, warn};
 #[path = "ai/lib.rs"]
 mod ai;
 mod compliance;
+mod config_sync;
 mod db;
 mod docker;
 mod globals;
 mod mcp;
 mod models;
+mod post_turn_checks;
 #[path = "routes/lib.rs"]
 mod routes;
 mod shared;
@@ -41,6 +43,9 @@ async fn main() -> Result<(), anyhow::Error> {
     let staging = Path::new(PROJECT_DIR.as_str()).join("staging");
     shared_git::ensure_non_bare_repo(&staging)
         .unwrap_or_else(|err| panic!("staging repository check failed: {err}"));
+
+    config_sync::reload_from_disk()
+        .map_err(|err| anyhow!("failed to sync configuration: {err}"))?;
 
     let _db_pool = db::ensure_db()
         .await

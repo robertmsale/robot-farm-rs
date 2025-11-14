@@ -1407,6 +1407,12 @@
           "append_agents_file": {
             "$ref": "#/components/schemas/AppendFilesConfig"
           },
+          "models": {
+            "$ref": "#/components/schemas/AgentModelOverrides"
+          },
+          "reasoning": {
+            "$ref": "#/components/schemas/AgentReasoningOverrides"
+          },
           "commands": {
             "type": "array",
             "items": {
@@ -1424,10 +1430,81 @@
         },
         "required": [
           "append_agents_file",
+          "models",
+          "reasoning",
           "commands",
           "post_turn_checks"
         ],
         "additionalProperties": false
+      },
+      "AgentModelOverrides": {
+        "type": "object",
+        "description": "Model selection per persona.",
+        "properties": {
+          "orchestrator": {
+            "type": "string",
+            "description": "Codex model used for the orchestrator persona.",
+            "enum": [
+              "gpt-5.1-codex",
+              "gpt-5.1-codex-mini",
+              "gpt-5.1"
+            ]
+          },
+          "worker": {
+            "type": "string",
+            "description": "Codex model used for worker personas.",
+            "enum": [
+              "gpt-5.1-codex",
+              "gpt-5.1-codex-mini",
+              "gpt-5.1"
+            ]
+          },
+          "wizard": {
+            "type": "string",
+            "description": "Codex model used by the task wizard helper.",
+            "enum": [
+              "gpt-5.1-codex",
+              "gpt-5.1-codex-mini",
+              "gpt-5.1"
+            ]
+          }
+        },
+        "required": [
+          "orchestrator",
+          "worker",
+          "wizard"
+        ],
+        "additionalProperties": false
+      },
+      "AgentReasoningOverrides": {
+        "type": "object",
+        "description": "Reasoning effort per persona. When a persona is configured to use gpt-5.1-codex-mini, the \"low\" reasoning level is not supported.",
+        "properties": {
+          "orchestrator": {
+            "$ref": "#/components/schemas/ReasoningEffort"
+          },
+          "worker": {
+            "$ref": "#/components/schemas/ReasoningEffort"
+          },
+          "wizard": {
+            "$ref": "#/components/schemas/ReasoningEffort"
+          }
+        },
+        "required": [
+          "orchestrator",
+          "worker",
+          "wizard"
+        ],
+        "additionalProperties": false
+      },
+      "ReasoningEffort": {
+        "type": "string",
+        "description": "Codex reasoning effort to request when launching a persona.",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
       },
       "TaskDependency": {
         "type": "object",
@@ -1495,6 +1572,10 @@
           },
           "owner": {
             "$ref": "#/components/schemas/Owner"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the task."
           }
         },
         "required": [
@@ -1503,7 +1584,8 @@
           "slug",
           "title",
           "status",
-          "owner"
+          "owner",
+          "description"
         ],
         "additionalProperties": false
       },
@@ -1531,6 +1613,10 @@
           },
           "owner": {
             "$ref": "#/components/schemas/Owner"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the task."
           }
         },
         "required": [
@@ -1538,7 +1624,8 @@
           "slug",
           "title",
           "status",
-          "owner"
+          "owner",
+          "description"
         ],
         "additionalProperties": false
       },
@@ -1566,6 +1653,10 @@
           },
           "owner": {
             "$ref": "#/components/schemas/Owner"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the task."
           }
         },
         "additionalProperties": false,

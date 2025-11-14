@@ -30,7 +30,7 @@ RUN mkdir -p /etc/apt/keyrings && \
 
 RUN corepack enable && \
     corepack prepare pnpm@9.12.2 --activate && \
-    npm install -g @openai/codex@0.56.0
+    npm install -g @openai/codex@0.58.0
 
 WORKDIR /workspace
 

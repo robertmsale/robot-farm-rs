@@ -1,5 +1,9 @@
 pub mod active_strategy;
 pub use self::active_strategy::ActiveStrategy;
+pub mod agent_model_overrides;
+pub use self::agent_model_overrides::AgentModelOverrides;
+pub mod agent_reasoning_overrides;
+pub use self::agent_reasoning_overrides::AgentReasoningOverrides;
 pub mod append_files_config;
 pub use self::append_files_config::AppendFilesConfig;
 pub mod command_config;
@@ -36,6 +40,8 @@ pub mod insert_message_one_of_1;
 pub use self::insert_message_one_of_1::InsertMessageOneOf1;
 pub mod message;
 pub use self::message::Message;
+pub mod reasoning_effort;
+pub use self::reasoning_effort::ReasoningEffort;
 pub mod strategy;
 pub use self::strategy::Strategy;
 pub mod task;

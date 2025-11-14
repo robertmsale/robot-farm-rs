@@ -79,9 +79,9 @@ Future<TaskGroupEditPayload?> showTaskGroupEditorSheet(
                         const SizedBox(width: 12),
                         FilledButton(
                           onPressed: form.isValid
-                              ? () => Navigator.of(context).pop(
-                                    form.buildPayload(),
-                                  )
+                              ? () => Navigator.of(
+                                  context,
+                                ).pop(form.buildPayload())
                               : null,
                           child: Text(isCreate ? 'Create' : 'Save changes'),
                         ),
@@ -186,7 +186,22 @@ Future<TaskEditPayload?> showTaskEditorSheet(
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: form.descriptionController,
+                        maxLines: null,
+                        expands: true,
+                        keyboardType: TextInputType.multiline,
+                        textAlignVertical: TextAlignVertical.top,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -197,9 +212,9 @@ Future<TaskEditPayload?> showTaskEditorSheet(
                         const SizedBox(width: 12),
                         FilledButton(
                           onPressed: form.isValid
-                              ? () => Navigator.of(context).pop(
-                                    form.buildPayload(),
-                                  )
+                              ? () => Navigator.of(
+                                  context,
+                                ).pop(form.buildPayload())
                               : null,
                           child: Text(isCreate ? 'Create' : 'Save changes'),
                         ),
@@ -231,8 +246,9 @@ class TaskGroupEditorController extends GetxController {
       ..addListener(_invalidate);
     titleController = TextEditingController(text: group?.title ?? '')
       ..addListener(_invalidate);
-    descriptionController = TextEditingController(text: group?.description ?? '')
-      ..addListener(_invalidate);
+    descriptionController = TextEditingController(
+      text: group?.description ?? '',
+    )..addListener(_invalidate);
   }
 
   void _invalidate() => update();
@@ -243,10 +259,10 @@ class TaskGroupEditorController extends GetxController {
       descriptionController.text.trim().isNotEmpty;
 
   TaskGroupEditPayload buildPayload() => TaskGroupEditPayload(
-        slug: slugController.text.trim(),
-        title: titleController.text.trim(),
-        description: descriptionController.text.trim(),
-      );
+    slug: slugController.text.trim(),
+    title: titleController.text.trim(),
+    description: descriptionController.text.trim(),
+  );
 
   @override
   void onClose() {
@@ -265,6 +281,7 @@ class TaskEditorController extends GetxController {
   late final TextEditingController titleController;
   late final TextEditingController commitController;
   late final TextEditingController ownerController;
+  late final TextEditingController descriptionController;
   late robot_farm_api.TaskStatus selectedStatus;
 
   @override
@@ -277,6 +294,8 @@ class TaskEditorController extends GetxController {
     commitController = TextEditingController(text: task?.commitHash ?? '')
       ..addListener(_invalidate);
     ownerController = TextEditingController(text: task?.owner ?? '')
+      ..addListener(_invalidate);
+    descriptionController = TextEditingController(text: task?.description ?? '')
       ..addListener(_invalidate);
     selectedStatus = task?.status ?? robot_farm_api.TaskStatus.ready;
   }
@@ -294,17 +313,19 @@ class TaskEditorController extends GetxController {
   bool get isValid =>
       slugController.text.trim().isNotEmpty &&
       titleController.text.trim().isNotEmpty &&
-      ownerController.text.trim().isNotEmpty;
+      ownerController.text.trim().isNotEmpty &&
+      descriptionController.text.trim().isNotEmpty;
 
   TaskEditPayload buildPayload() => TaskEditPayload(
-        slug: slugController.text.trim(),
-        title: titleController.text.trim(),
-        commitHash: commitController.text.trim().isEmpty
-            ? null
-            : commitController.text.trim(),
-        status: selectedStatus,
-        owner: ownerController.text.trim(),
-      );
+    slug: slugController.text.trim(),
+    title: titleController.text.trim(),
+    commitHash: commitController.text.trim().isEmpty
+        ? null
+        : commitController.text.trim(),
+    status: selectedStatus,
+    owner: ownerController.text.trim(),
+    description: descriptionController.text.trim(),
+  );
 
   @override
   void onClose() {
@@ -312,6 +333,7 @@ class TaskEditorController extends GetxController {
     titleController.dispose();
     commitController.dispose();
     ownerController.dispose();
+    descriptionController.dispose();
     super.onClose();
   }
 }

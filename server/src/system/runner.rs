@@ -1,4 +1,7 @@
-use crate::shared::{codex_exec::CodexExecBuilder, docker::DockerRunBuilder};
+use crate::{
+    shared::{codex_exec::CodexExecBuilder, docker::DockerRunBuilder},
+    system::codex_config::{self, AgentKind as CodexAgentKind},
+};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy)]
@@ -35,6 +38,12 @@ pub fn plan_codex_run(
         None => CodexExecBuilder::new(),
     };
 
+    let agent_kind = match persona {
+        Persona::Orchestrator => CodexAgentKind::Orchestrator,
+        Persona::Worker(_) => CodexAgentKind::Worker,
+    };
+    let launch_settings = codex_config::settings_for(agent_kind);
+
     codex = codex
         .json(true)
         .output_schema("/opt/robot-farm/schema.json")
@@ -43,6 +52,11 @@ pub fn plan_codex_run(
         .config_override(format!(
             "mcp_servers.robot_farm.url=\"http://127.0.0.1:{}/mcp\"",
             config.api_port.unwrap_or(8080)
+        ))
+        .config_override(format!("model=\"{}\"", launch_settings.model))
+        .config_override(format!(
+            "model_reasoning_effort=\"{}\"",
+            launch_settings.reasoning
         ));
 
     let (workspace_host, workspace_container) = match persona {

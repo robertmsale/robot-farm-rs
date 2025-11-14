@@ -19,6 +19,7 @@ class TaskUpdateInput {
     this.commitHash,
     this.status,
     this.owner,
+    this.description,
   });
 
   ///
@@ -71,6 +72,15 @@ class TaskUpdateInput {
   ///
   String? owner;
 
+  /// Detailed description of the task.
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? description;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is TaskUpdateInput &&
     other.groupId == groupId &&
@@ -78,7 +88,8 @@ class TaskUpdateInput {
     other.title == title &&
     other.commitHash == commitHash &&
     other.status == status &&
-    other.owner == owner;
+    other.owner == owner &&
+    other.description == description;
 
   @override
   int get hashCode =>
@@ -88,10 +99,11 @@ class TaskUpdateInput {
     (title == null ? 0 : title!.hashCode) +
     (commitHash == null ? 0 : commitHash!.hashCode) +
     (status == null ? 0 : status!.hashCode) +
-    (owner == null ? 0 : owner!.hashCode);
+    (owner == null ? 0 : owner!.hashCode) +
+    (description == null ? 0 : description!.hashCode);
 
   @override
-  String toString() => 'TaskUpdateInput[groupId=$groupId, slug=$slug, title=$title, commitHash=$commitHash, status=$status, owner=$owner]';
+  String toString() => 'TaskUpdateInput[groupId=$groupId, slug=$slug, title=$title, commitHash=$commitHash, status=$status, owner=$owner, description=$description]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -125,6 +137,11 @@ class TaskUpdateInput {
     } else {
       json[r'owner'] = null;
     }
+    if (this.description != null) {
+      json[r'description'] = this.description;
+    } else {
+      json[r'description'] = null;
+    }
     return json;
   }
 
@@ -153,6 +170,7 @@ class TaskUpdateInput {
         commitHash: mapValueOfType<String>(json, r'commit_hash'),
         status: TaskStatus.fromJson(json[r'status']),
         owner: mapValueOfType<String>(json, r'owner'),
+        description: mapValueOfType<String>(json, r'description'),
       );
     }
     return null;

@@ -3,6 +3,7 @@ use chrono::Utc;
 use openapi::models::Message;
 use sqlx::{QueryBuilder, Row, Sqlite};
 
+#[derive(Clone, Debug, Default)]
 pub struct MessageFilters {
     pub from: Option<String>,
     pub to: Option<String>,

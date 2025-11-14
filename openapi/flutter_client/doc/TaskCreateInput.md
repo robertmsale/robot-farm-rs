@@ -14,6 +14,7 @@ Name | Type | Description | Notes
 **commitHash** | **String** | Commit hash associated with the task. | [optional] 
 **status** | [**TaskStatus**](TaskStatus.md) |  | 
 **owner** | **String** | Owner information encoded as display text (\"Orchestrator\", \"Quality Assurance\", or worker handles like \"ws42\"). | 
+**description** | **String** | Detailed description of the task. | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

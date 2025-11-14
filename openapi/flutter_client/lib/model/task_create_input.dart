@@ -19,6 +19,7 @@ class TaskCreateInput {
     this.commitHash,
     required this.status,
     required this.owner,
+    required this.description,
   });
 
   int groupId;
@@ -41,6 +42,9 @@ class TaskCreateInput {
   /// Owner information encoded as display text (\"Orchestrator\", \"Quality Assurance\", or worker handles like \"ws42\").
   String owner;
 
+  /// Detailed description of the task.
+  String description;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is TaskCreateInput &&
     other.groupId == groupId &&
@@ -48,7 +52,8 @@ class TaskCreateInput {
     other.title == title &&
     other.commitHash == commitHash &&
     other.status == status &&
-    other.owner == owner;
+    other.owner == owner &&
+    other.description == description;
 
   @override
   int get hashCode =>
@@ -58,10 +63,11 @@ class TaskCreateInput {
     (title.hashCode) +
     (commitHash == null ? 0 : commitHash!.hashCode) +
     (status.hashCode) +
-    (owner.hashCode);
+    (owner.hashCode) +
+    (description.hashCode);
 
   @override
-  String toString() => 'TaskCreateInput[groupId=$groupId, slug=$slug, title=$title, commitHash=$commitHash, status=$status, owner=$owner]';
+  String toString() => 'TaskCreateInput[groupId=$groupId, slug=$slug, title=$title, commitHash=$commitHash, status=$status, owner=$owner, description=$description]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -75,6 +81,7 @@ class TaskCreateInput {
     }
       json[r'status'] = this.status;
       json[r'owner'] = this.owner;
+      json[r'description'] = this.description;
     return json;
   }
 
@@ -103,6 +110,7 @@ class TaskCreateInput {
         commitHash: mapValueOfType<String>(json, r'commit_hash'),
         status: TaskStatus.fromJson(json[r'status'])!,
         owner: mapValueOfType<String>(json, r'owner')!,
+        description: mapValueOfType<String>(json, r'description')!,
       );
     }
     return null;
@@ -155,6 +163,7 @@ class TaskCreateInput {
     'title',
     'status',
     'owner',
+    'description',
   };
 }
 

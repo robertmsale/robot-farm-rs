@@ -72,6 +72,10 @@ impl McpTool for TasksUpdateTool {
             payload.owner = Some(owner);
             touched = true;
         }
+        if let Some(description) = input.description {
+            payload.description = Some(description);
+            touched = true;
+        }
 
         if !touched {
             return Err(ToolInvocationError::InvalidParams(
@@ -98,4 +102,5 @@ struct TasksUpdateInputPayload {
     pub commit_hash: Option<String>,
     pub status: Option<String>,
     pub owner: Option<String>,
+    pub description: Option<String>,
 }

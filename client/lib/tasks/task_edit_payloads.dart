@@ -19,6 +19,7 @@ class TaskEditPayload {
     this.commitHash,
     required this.status,
     required this.owner,
+    required this.description,
   });
 
   final String slug;
@@ -26,4 +27,5 @@ class TaskEditPayload {
   final String? commitHash;
   final robot_farm_api.TaskStatus status;
   final String owner;
+  final String description;
 }

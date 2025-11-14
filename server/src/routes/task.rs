@@ -1,4 +1,5 @@
 use crate::db;
+use crate::db::task_group;
 use axum::{
     Json,
     extract::{Path, Query},
@@ -33,6 +34,24 @@ pub async fn list_tasks(
 pub async fn create_task(
     Json(payload): Json<TaskCreateInput>,
 ) -> Result<(StatusCode, Json<Task>), StatusCode> {
+    task_group::get_task_group(payload.group_id)
+        .await
+        .map_err(|err| {
+            error!(
+                ?err,
+                group_id = payload.group_id,
+                "failed to verify task group"
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or_else(|| {
+            error!(
+                group_id = payload.group_id,
+                "attempted to create task for unknown group"
+            );
+            StatusCode::BAD_REQUEST
+        })?;
+
     let task = db::task::create_task(payload).await.map_err(|err| {
         error!(?err, "failed to create task");
         StatusCode::INTERNAL_SERVER_ERROR

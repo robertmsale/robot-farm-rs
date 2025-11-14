@@ -30,6 +30,9 @@ pub struct Task {
     /// Owner information encoded as display text (\"Orchestrator\", \"Quality Assurance\", or worker handles like \"ws42\").
     #[serde(rename = "owner")]
     pub owner: String,
+    /// Detailed description of the task.
+    #[serde(rename = "description")]
+    pub description: String,
 }
 
 impl Task {
@@ -41,6 +44,7 @@ impl Task {
         title: String,
         status: models::TaskStatus,
         owner: String,
+        description: String,
     ) -> Task {
         Task {
             id,
@@ -50,6 +54,7 @@ impl Task {
             commit_hash: None,
             status,
             owner,
+            description,
         }
     }
 }

@@ -99,7 +99,7 @@ class RobotFarmApp extends StatelessWidget {
           name: '/task-wizard',
           page: () => const TaskWizardScreen(),
           binding: BindingsBuilder(() {
-            Get.put(TaskWizardController());
+            Get.put(TaskWizardController(Get.find<ConnectionController>()));
           }),
         ),
       ],
@@ -1208,6 +1208,21 @@ class WorkerFeedController extends GetxController
   }
 }
 
+enum CodexPersona { orchestrator, worker, wizard }
+
+extension CodexPersonaX on CodexPersona {
+  String get label {
+    switch (this) {
+      case CodexPersona.orchestrator:
+        return 'Orchestrator';
+      case CodexPersona.worker:
+        return 'Worker';
+      case CodexPersona.wizard:
+        return 'Wizard';
+    }
+  }
+}
+
 class SettingsController extends GetxController {
   SettingsController(this._connection);
 
@@ -1217,6 +1232,21 @@ class SettingsController extends GetxController {
   final RxnString error = RxnString();
   final TextEditingController orchestratorController = TextEditingController();
   final TextEditingController workerController = TextEditingController();
+  static const String _modelCodex = 'gpt-5.1-codex';
+  static const String _modelCodexMini = 'gpt-5.1-codex-mini';
+  static const String _modelGpt51 = 'gpt-5.1';
+  static const String _defaultReasoning = 'medium';
+  static const List<String> modelOptions = <String>[
+    _modelCodex,
+    _modelCodexMini,
+    _modelGpt51,
+  ];
+  static const List<String> _reasoningLevels = <String>[
+    'low',
+    'medium',
+    'high',
+  ];
+  static const List<String> _reasoningMediumHigh = <String>['medium', 'high'];
 
   List<robot_farm_api.CommandConfig> get commands =>
       List<robot_farm_api.CommandConfig>.unmodifiable(
@@ -1226,6 +1256,35 @@ class SettingsController extends GetxController {
   List<String> get postTurnChecks => List<String>.unmodifiable(
     config.value?.postTurnChecks ?? const <String>[],
   );
+
+  String modelFor(CodexPersona persona) {
+    final models = _currentModels();
+    switch (persona) {
+      case CodexPersona.orchestrator:
+        return models.orchestrator.value;
+      case CodexPersona.worker:
+        return models.worker.value;
+      case CodexPersona.wizard:
+        return models.wizard.value;
+    }
+  }
+
+  String reasoningFor(CodexPersona persona) {
+    final reasoning = _currentReasoning();
+    switch (persona) {
+      case CodexPersona.orchestrator:
+        return reasoning.orchestrator.value;
+      case CodexPersona.worker:
+        return reasoning.worker.value;
+      case CodexPersona.wizard:
+        return reasoning.wizard.value;
+    }
+  }
+
+  List<String> reasoningOptionsFor(CodexPersona persona) {
+    final model = modelFor(persona);
+    return model == _modelCodexMini ? _reasoningMediumHigh : _reasoningLevels;
+  }
 
   @override
   void onReady() {
@@ -1304,6 +1363,37 @@ class SettingsController extends GetxController {
       worker: _splitPaths(value),
     );
     _assignConfig(appendAgentsFile: updated);
+  }
+
+  void updateModel(CodexPersona persona, String value) {
+    if (config.value == null) return;
+    final updatedModels = _modelsWith(
+      orchestrator: persona == CodexPersona.orchestrator
+          ? _parseOrchestratorModel(value)
+          : null,
+      worker: persona == CodexPersona.worker ? _parseWorkerModel(value) : null,
+      wizard: persona == CodexPersona.wizard ? _parseWizardModel(value) : null,
+    );
+    final adjustedReasoning = _ensureReasoningCompatibility(
+      persona,
+      updatedModels,
+      _currentReasoning(),
+    );
+    _assignConfig(models: updatedModels, reasoning: adjustedReasoning);
+  }
+
+  void updateReasoning(CodexPersona persona, String value) {
+    if (config.value == null) return;
+    if (_modelDisallowsLow(modelFor(persona)) && value == 'low') {
+      return;
+    }
+    final effort = _parseReasoning(value);
+    final updatedReasoning = _reasoningWith(
+      orchestrator: persona == CodexPersona.orchestrator ? effort : null,
+      worker: persona == CodexPersona.worker ? effort : null,
+      wizard: persona == CodexPersona.wizard ? effort : null,
+    );
+    _assignConfig(reasoning: updatedReasoning);
   }
 
   bool isCommandSelected(String id) => postTurnChecks.contains(id);
@@ -1411,6 +1501,8 @@ class SettingsController extends GetxController {
     robot_farm_api.AppendFilesConfig? appendAgentsFile,
     List<robot_farm_api.CommandConfig>? commands,
     List<String>? postTurnChecks,
+    robot_farm_api.AgentModelOverrides? models,
+    robot_farm_api.AgentReasoningOverrides? reasoning,
   }) {
     final current = config.value;
     if (current == null) return;
@@ -1422,15 +1514,171 @@ class SettingsController extends GetxController {
           ),
           worker: List<String>.from(current.appendAgentsFile.worker),
         );
+    final appliedModels =
+        models ??
+        robot_farm_api.AgentModelOverrides(
+          orchestrator: current.models.orchestrator,
+          worker: current.models.worker,
+          wizard: current.models.wizard,
+        );
+    final appliedReasoning =
+        reasoning ??
+        robot_farm_api.AgentReasoningOverrides(
+          orchestrator: current.reasoning.orchestrator,
+          worker: current.reasoning.worker,
+          wizard: current.reasoning.wizard,
+        );
     final cmds =
         commands ?? List<robot_farm_api.CommandConfig>.from(current.commands);
     final checks = postTurnChecks ?? List<String>.from(current.postTurnChecks);
     config.value = robot_farm_api.Config(
       appendAgentsFile: append,
+      models: appliedModels,
+      reasoning: appliedReasoning,
       commands: cmds,
       postTurnChecks: checks,
     );
     config.refresh();
+  }
+
+  robot_farm_api.AgentModelOverrides _currentModels() {
+    final current = config.value?.models;
+    if (current == null) {
+      return _defaultModels();
+    }
+    return robot_farm_api.AgentModelOverrides(
+      orchestrator: current.orchestrator,
+      worker: current.worker,
+      wizard: current.wizard,
+    );
+  }
+
+  robot_farm_api.AgentReasoningOverrides _currentReasoning() {
+    final current = config.value?.reasoning;
+    if (current == null) {
+      return _defaultReasoningConfig();
+    }
+    return robot_farm_api.AgentReasoningOverrides(
+      orchestrator: current.orchestrator,
+      worker: current.worker,
+      wizard: current.wizard,
+    );
+  }
+
+  robot_farm_api.AgentModelOverrides _defaultModels() =>
+      robot_farm_api.AgentModelOverrides(
+        orchestrator:
+            robot_farm_api.AgentModelOverridesOrchestratorEnum.gpt5Period1Codex,
+        worker: robot_farm_api.AgentModelOverridesWorkerEnum.gpt5Period1Codex,
+        wizard: robot_farm_api.AgentModelOverridesWizardEnum.gpt5Period1Codex,
+      );
+
+  robot_farm_api.AgentReasoningOverrides _defaultReasoningConfig() =>
+      robot_farm_api.AgentReasoningOverrides(
+        orchestrator: robot_farm_api.ReasoningEffort.medium,
+        worker: robot_farm_api.ReasoningEffort.medium,
+        wizard: robot_farm_api.ReasoningEffort.medium,
+      );
+
+  robot_farm_api.AgentModelOverrides _modelsWith({
+    robot_farm_api.AgentModelOverridesOrchestratorEnum? orchestrator,
+    robot_farm_api.AgentModelOverridesWorkerEnum? worker,
+    robot_farm_api.AgentModelOverridesWizardEnum? wizard,
+    robot_farm_api.AgentModelOverrides? existing,
+  }) {
+    final current = existing ?? _currentModels();
+    return robot_farm_api.AgentModelOverrides(
+      orchestrator: orchestrator ?? current.orchestrator,
+      worker: worker ?? current.worker,
+      wizard: wizard ?? current.wizard,
+    );
+  }
+
+  robot_farm_api.AgentReasoningOverrides _reasoningWith({
+    robot_farm_api.ReasoningEffort? orchestrator,
+    robot_farm_api.ReasoningEffort? worker,
+    robot_farm_api.ReasoningEffort? wizard,
+    robot_farm_api.AgentReasoningOverrides? existing,
+  }) {
+    final current = existing ?? _currentReasoning();
+    return robot_farm_api.AgentReasoningOverrides(
+      orchestrator: orchestrator ?? current.orchestrator,
+      worker: worker ?? current.worker,
+      wizard: wizard ?? current.wizard,
+    );
+  }
+
+  robot_farm_api.AgentModelOverridesOrchestratorEnum _parseOrchestratorModel(
+    String value,
+  ) => const robot_farm_api.AgentModelOverridesOrchestratorEnumTypeTransformer()
+      .decode(value, allowNull: false)!;
+
+  robot_farm_api.AgentModelOverridesWorkerEnum _parseWorkerModel(
+    String value,
+  ) => const robot_farm_api.AgentModelOverridesWorkerEnumTypeTransformer()
+      .decode(value, allowNull: false)!;
+
+  robot_farm_api.AgentModelOverridesWizardEnum _parseWizardModel(
+    String value,
+  ) => const robot_farm_api.AgentModelOverridesWizardEnumTypeTransformer()
+      .decode(value, allowNull: false)!;
+
+  robot_farm_api.ReasoningEffort _parseReasoning(String value) =>
+      const robot_farm_api.ReasoningEffortTypeTransformer().decode(
+        value,
+        allowNull: false,
+      )!;
+
+  bool _modelDisallowsLow(String model) => model == _modelCodexMini;
+
+  robot_farm_api.AgentReasoningOverrides _ensureReasoningCompatibility(
+    CodexPersona persona,
+    robot_farm_api.AgentModelOverrides models,
+    robot_farm_api.AgentReasoningOverrides reasoning,
+  ) {
+    if (!_modelDisallowsLow(_modelValueFrom(persona, models))) {
+      return reasoning;
+    }
+    if (_reasoningValueFrom(persona, reasoning) != 'low') {
+      return reasoning;
+    }
+    final fallback = _parseReasoning(_defaultReasoning);
+    switch (persona) {
+      case CodexPersona.orchestrator:
+        return _reasoningWith(orchestrator: fallback, existing: reasoning);
+      case CodexPersona.worker:
+        return _reasoningWith(worker: fallback, existing: reasoning);
+      case CodexPersona.wizard:
+        return _reasoningWith(wizard: fallback, existing: reasoning);
+    }
+  }
+
+  String _modelValueFrom(
+    CodexPersona persona,
+    robot_farm_api.AgentModelOverrides models,
+  ) {
+    switch (persona) {
+      case CodexPersona.orchestrator:
+        return models.orchestrator.value;
+      case CodexPersona.worker:
+        return models.worker.value;
+      case CodexPersona.wizard:
+        return models.wizard.value;
+    }
+  }
+
+  String _reasoningValueFrom(
+    CodexPersona persona,
+    robot_farm_api.AgentReasoningOverrides reasoning,
+  ) {
+    switch (persona) {
+      case CodexPersona.orchestrator:
+        return reasoning.orchestrator.value;
+      case CodexPersona.worker:
+        return reasoning.worker.value;
+      case CodexPersona.wizard:
+        return reasoning.wizard.value;
+    }
   }
 
   @override
@@ -1497,6 +1745,68 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 onChanged: controller.updateWorkerPaths,
               ),
+              const SizedBox(height: 24),
+              Text(
+                'Codex Models & Reasoning',
+                style: theme.textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              ...CodexPersona.values.map((persona) {
+                final modelValue = controller.modelFor(persona);
+                final reasoningValue = controller.reasoningFor(persona);
+                final reasoningOptions = controller.reasoningOptionsFor(
+                  persona,
+                );
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(persona.label, style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: modelValue,
+                          decoration: const InputDecoration(labelText: 'Model'),
+                          items: SettingsController.modelOptions
+                              .map(
+                                (model) => DropdownMenuItem(
+                                  value: model,
+                                  child: Text(model),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              controller.updateModel(persona, value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: reasoningValue,
+                          decoration: const InputDecoration(
+                            labelText: 'Reasoning effort',
+                          ),
+                          items: reasoningOptions
+                              .map(
+                                (level) => DropdownMenuItem(
+                                  value: level,
+                                  child: Text(_formatReasoningLabel(level)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              controller.updateReasoning(persona, value);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1632,6 +1942,11 @@ class SettingsScreen extends StatelessWidget {
       controller.updateCommand(command.id, result);
     }
   }
+}
+
+String _formatReasoningLabel(String value) {
+  if (value.isEmpty) return value;
+  return '${value[0].toUpperCase()}${value.substring(1)}';
 }
 
 class CommandEditorSheet extends StatefulWidget {

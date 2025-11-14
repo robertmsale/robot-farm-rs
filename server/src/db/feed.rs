@@ -1,6 +1,17 @@
 use crate::db::{self, DbResult};
+use chrono::Utc;
 use openapi::models::{Feed, FeedLevel, FeedOrderField};
 use sqlx::{QueryBuilder, Row, Sqlite};
+
+#[derive(Clone)]
+pub struct NewFeedEntry {
+    pub source: String,
+    pub target: String,
+    pub level: FeedLevel,
+    pub text: String,
+    pub raw: String,
+    pub category: String,
+}
 
 pub struct FeedFilters {
     pub source: Option<String>,
@@ -55,6 +66,28 @@ pub async fn list_feed(filters: FeedFilters) -> DbResult<Vec<Feed>> {
 pub async fn delete_feed() -> DbResult<()> {
     sqlx::query("DELETE FROM feed").execute(db::pool()).await?;
     Ok(())
+}
+
+pub async fn insert_feed_entry(entry: NewFeedEntry) -> DbResult<Feed> {
+    let ts = Utc::now().timestamp();
+    let row = sqlx::query(
+        r#"
+        INSERT INTO feed (source, target, ts, level, text, raw, category)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        RETURNING id, source, target, ts, level, text, raw, category
+        "#,
+    )
+    .bind(&entry.source)
+    .bind(&entry.target)
+    .bind(ts)
+    .bind(level_to_str(entry.level))
+    .bind(&entry.text)
+    .bind(&entry.raw)
+    .bind(&entry.category)
+    .fetch_one(db::pool())
+    .await?;
+
+    row_to_feed(row).ok_or(sqlx::Error::RowNotFound)
 }
 
 fn level_to_str(level: FeedLevel) -> &'static str {

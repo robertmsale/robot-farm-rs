@@ -16,6 +16,10 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     #[serde(rename = "append_agents_file")]
     pub append_agents_file: Box<models::AppendFilesConfig>,
+    #[serde(rename = "models")]
+    pub models: Box<models::AgentModelOverrides>,
+    #[serde(rename = "reasoning")]
+    pub reasoning: Box<models::AgentReasoningOverrides>,
     #[serde(rename = "commands")]
     pub commands: Vec<models::CommandConfig>,
     /// Commands executed after each turn.
@@ -27,11 +31,15 @@ impl Config {
     /// Workspace configuration stored on disk.
     pub fn new(
         append_agents_file: models::AppendFilesConfig,
+        models: models::AgentModelOverrides,
+        reasoning: models::AgentReasoningOverrides,
         commands: Vec<models::CommandConfig>,
         post_turn_checks: Vec<String>,
     ) -> Config {
         Config {
             append_agents_file: Box::new(append_agents_file),
+            models: Box::new(models),
+            reasoning: Box::new(reasoning),
             commands,
             post_turn_checks,
         }

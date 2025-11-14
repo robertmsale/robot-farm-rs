@@ -61,6 +61,9 @@ String parameterToString(dynamic value) {
   if (value is FeedOrderField) {
     return FeedOrderFieldTypeTransformer().encode(value).toString();
   }
+  if (value is ReasoningEffort) {
+    return ReasoningEffortTypeTransformer().encode(value).toString();
+  }
   if (value is Strategy) {
     return StrategyTypeTransformer().encode(value).toString();
   }

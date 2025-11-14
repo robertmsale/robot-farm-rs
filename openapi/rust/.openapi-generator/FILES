@@ -7,6 +7,8 @@ src/apis/configuration.rs
 src/apis/mod.rs
 src/lib.rs
 src/models/active_strategy.rs
+src/models/agent_model_overrides.rs
+src/models/agent_reasoning_overrides.rs
 src/models/append_files_config.rs
 src/models/command_config.rs
 src/models/commit_info.rs
@@ -26,6 +28,7 @@ src/models/insert_message_one_of.rs
 src/models/insert_message_one_of_1.rs
 src/models/message.rs
 src/models/mod.rs
+src/models/reasoning_effort.rs
 src/models/strategy.rs
 src/models/task.rs
 src/models/task_create_input.rs

@@ -28,6 +28,9 @@ pub struct TaskCreateInput {
     /// Owner information encoded as display text (\"Orchestrator\", \"Quality Assurance\", or worker handles like \"ws42\").
     #[serde(rename = "owner")]
     pub owner: String,
+    /// Detailed description of the task.
+    #[serde(rename = "description")]
+    pub description: String,
 }
 
 impl TaskCreateInput {
@@ -38,6 +41,7 @@ impl TaskCreateInput {
         title: String,
         status: models::TaskStatus,
         owner: String,
+        description: String,
     ) -> TaskCreateInput {
         TaskCreateInput {
             group_id,
@@ -46,6 +50,7 @@ impl TaskCreateInput {
             commit_hash: None,
             status,
             owner,
+            description,
         }
     }
 }

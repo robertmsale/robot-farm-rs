@@ -1,3 +1,4 @@
+pub mod codex_config;
 pub mod events;
 pub mod queue;
 pub mod runner;

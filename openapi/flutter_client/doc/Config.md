@@ -9,6 +9,8 @@ import 'package:my_api_client/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **appendAgentsFile** | [**AppendFilesConfig**](AppendFilesConfig.md) |  | 
+**models** | [**AgentModelOverrides**](AgentModelOverrides.md) |  | 
+**reasoning** | [**AgentReasoningOverrides**](AgentReasoningOverrides.md) |  | 
 **commands** | [**List<CommandConfig>**](CommandConfig.md) |  | [default to const []]
 **postTurnChecks** | **List<String>** | Commands executed after each turn. | [default to const []]
 

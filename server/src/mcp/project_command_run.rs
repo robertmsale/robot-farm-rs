@@ -9,9 +9,8 @@ use tokio::{process::Command, time::timeout};
 use crate::{globals::PROJECT_DIR, shared::shell};
 
 use super::{
-    project_commands::ProjectCommandRegistry, AgentRole, McpTool, ToolContext,
-    ToolInvocationError, ToolInvocationResponse, parse_params, roles_all, schema_for_type,
-    serialize_json,
+    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
+    project_commands::ProjectCommandRegistry, roles_all, schema_for_type, serialize_json,
 };
 
 #[derive(Default)]

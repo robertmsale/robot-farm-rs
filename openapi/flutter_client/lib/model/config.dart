@@ -14,11 +14,17 @@ class Config {
   /// Returns a new [Config] instance.
   Config({
     required this.appendAgentsFile,
+    required this.models,
+    required this.reasoning,
     this.commands = const [],
     this.postTurnChecks = const [],
   });
 
   AppendFilesConfig appendAgentsFile;
+
+  AgentModelOverrides models;
+
+  AgentReasoningOverrides reasoning;
 
   List<CommandConfig> commands;
 
@@ -28,6 +34,8 @@ class Config {
   @override
   bool operator ==(Object other) => identical(this, other) || other is Config &&
     other.appendAgentsFile == appendAgentsFile &&
+    other.models == models &&
+    other.reasoning == reasoning &&
     _deepEquality.equals(other.commands, commands) &&
     _deepEquality.equals(other.postTurnChecks, postTurnChecks);
 
@@ -35,15 +43,19 @@ class Config {
   int get hashCode =>
     // ignore: unnecessary_parenthesis
     (appendAgentsFile.hashCode) +
+    (models.hashCode) +
+    (reasoning.hashCode) +
     (commands.hashCode) +
     (postTurnChecks.hashCode);
 
   @override
-  String toString() => 'Config[appendAgentsFile=$appendAgentsFile, commands=$commands, postTurnChecks=$postTurnChecks]';
+  String toString() => 'Config[appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
       json[r'append_agents_file'] = this.appendAgentsFile;
+      json[r'models'] = this.models;
+      json[r'reasoning'] = this.reasoning;
       json[r'commands'] = this.commands;
       json[r'post_turn_checks'] = this.postTurnChecks;
     return json;
@@ -69,6 +81,8 @@ class Config {
 
       return Config(
         appendAgentsFile: AppendFilesConfig.fromJson(json[r'append_agents_file'])!,
+        models: AgentModelOverrides.fromJson(json[r'models'])!,
+        reasoning: AgentReasoningOverrides.fromJson(json[r'reasoning'])!,
         commands: CommandConfig.listFromJson(json[r'commands']),
         postTurnChecks: json[r'post_turn_checks'] is Iterable
             ? (json[r'post_turn_checks'] as Iterable).cast<String>().toList(growable: false)
@@ -121,6 +135,8 @@ class Config {
   /// The list of required keys that must be present in a JSON.
   static const requiredKeys = <String>{
     'append_agents_file',
+    'models',
+    'reasoning',
     'commands',
     'post_turn_checks',
   };

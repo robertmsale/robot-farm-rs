@@ -31,6 +31,8 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [ActiveStrategy](docs/ActiveStrategy.md)
+ - [AgentModelOverrides](docs/AgentModelOverrides.md)
+ - [AgentReasoningOverrides](docs/AgentReasoningOverrides.md)
  - [AppendFilesConfig](docs/AppendFilesConfig.md)
  - [CommandConfig](docs/CommandConfig.md)
  - [CommitInfo](docs/CommitInfo.md)
@@ -49,6 +51,7 @@ Class | Method | HTTP request | Description
  - [InsertMessageOneOf](docs/InsertMessageOneOf.md)
  - [InsertMessageOneOf1](docs/InsertMessageOneOf1.md)
  - [Message](docs/Message.md)
+ - [ReasoningEffort](docs/ReasoningEffort.md)
  - [Strategy](docs/Strategy.md)
  - [Task](docs/Task.md)
  - [TaskCreateInput](docs/TaskCreateInput.md)

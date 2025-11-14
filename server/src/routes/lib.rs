@@ -9,6 +9,7 @@ mod strategy;
 mod task;
 mod task_dependency;
 mod task_group;
+mod task_wizard;
 mod worker;
 mod ws;
 
@@ -34,6 +35,7 @@ pub fn build_routes() -> Router {
     Router::new()
         .route("/healthz", get(healthz::healthz_handler))
         .route("/ws", get(ws::websocket_handler))
+        .route("/task-wizard/ws", get(task_wizard::websocket_handler))
         .route(
             "/config",
             get(config::get_config)

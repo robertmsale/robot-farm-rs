@@ -47,6 +47,7 @@ pub struct ProcessSpawnIntent {
     pub working_dir: PathBuf,
     pub stream_stdout: bool,
     pub stream_stderr: bool,
+    pub stdin: Option<Vec<u8>>,
 }
 
 pub struct SpawnRequest {
@@ -120,6 +121,7 @@ pub struct ProcessRequest {
     pub working_dir: PathBuf,
     pub stream_stdout: bool,
     pub stream_stderr: bool,
+    pub stdin: Option<Vec<u8>>,
 }
 
 impl From<ProcessSpawnIntent> for ProcessRequest {
@@ -132,6 +134,7 @@ impl From<ProcessSpawnIntent> for ProcessRequest {
             working_dir: value.working_dir,
             stream_stdout: value.stream_stdout,
             stream_stderr: value.stream_stderr,
+            stdin: value.stdin,
         }
     }
 }

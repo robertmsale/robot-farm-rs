@@ -5,6 +5,7 @@ pub struct DockerRunBuilder {
     image: Option<String>,
     command: Option<Vec<String>>,
     remove_container: bool,
+    interactive: bool,
     attach_streams: Vec<String>,
     user: Option<String>,
     workdir: Option<PathBuf>,
@@ -22,6 +23,11 @@ impl DockerRunBuilder {
 
     pub fn remove_container(mut self, enabled: bool) -> Self {
         self.remove_container = enabled;
+        self
+    }
+
+    pub fn interactive(mut self, enabled: bool) -> Self {
+        self.interactive = enabled;
         self
     }
 
@@ -70,6 +76,10 @@ impl DockerRunBuilder {
 
     pub fn build(self) -> Vec<String> {
         let mut args = vec!["docker".to_string(), "run".to_string()];
+
+        if self.interactive {
+            args.push("-i".to_string());
+        }
 
         if self.remove_container {
             args.push("--rm".to_string());

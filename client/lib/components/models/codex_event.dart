@@ -22,6 +22,29 @@ enum CodexItemType {
   error,
 }
 
+CodexItemType _itemTypeFromString(String? value) {
+  switch (value) {
+    case 'agent_message':
+      return CodexItemType.agentMessage;
+    case 'reasoning':
+      return CodexItemType.reasoning;
+    case 'command_execution':
+      return CodexItemType.commandExecution;
+    case 'file_change':
+      return CodexItemType.fileChange;
+    case 'mcp_tool_call':
+      return CodexItemType.mcpToolCall;
+    case 'web_search':
+      return CodexItemType.webSearch;
+    case 'todo_list':
+      return CodexItemType.todoList;
+    case 'error':
+      return CodexItemType.error;
+    default:
+      return CodexItemType.agentMessage;
+  }
+}
+
 class CodexEvent {
   const CodexEvent({
     required this.type,
@@ -37,36 +60,96 @@ class CodexEvent {
   final String? error;
   final CodexItem? item;
 
-  factory CodexEvent.threadStarted(String threadId) => CodexEvent(
-        type: CodexEventType.threadStarted,
-        threadId: threadId,
-      );
+  factory CodexEvent.threadStarted(String threadId) =>
+      CodexEvent(type: CodexEventType.threadStarted, threadId: threadId);
 
   factory CodexEvent.turnStarted() =>
       const CodexEvent(type: CodexEventType.turnStarted);
 
-  factory CodexEvent.turnCompleted(CodexTokenUsage usage) => CodexEvent(
-        type: CodexEventType.turnCompleted,
-        usage: usage,
-      );
+  factory CodexEvent.turnCompleted(CodexTokenUsage usage) =>
+      CodexEvent(type: CodexEventType.turnCompleted, usage: usage);
 
-  factory CodexEvent.turnFailed(String message) => CodexEvent(
-        type: CodexEventType.turnFailed,
-        error: message,
-      );
+  factory CodexEvent.turnFailed(String message) =>
+      CodexEvent(type: CodexEventType.turnFailed, error: message);
 
   factory CodexEvent.item({
     required CodexEventType phase,
     required CodexItem item,
   }) {
-    assert(phase == CodexEventType.itemStarted ||
-        phase == CodexEventType.itemUpdated ||
-        phase == CodexEventType.itemCompleted);
+    assert(
+      phase == CodexEventType.itemStarted ||
+          phase == CodexEventType.itemUpdated ||
+          phase == CodexEventType.itemCompleted,
+    );
     return CodexEvent(type: phase, item: item);
   }
 
   factory CodexEvent.streamError(String message) =>
       CodexEvent(type: CodexEventType.error, error: message);
+
+  factory CodexEvent.fromJson(Map<String, dynamic> json) {
+    final typeString = json['type'] as String? ?? '';
+    switch (typeString) {
+      case 'thread.started':
+        return CodexEvent.threadStarted(json['thread_id']?.toString() ?? '');
+      case 'turn.started':
+        return CodexEvent.turnStarted();
+      case 'turn.completed':
+        return CodexEvent.turnCompleted(
+          CodexTokenUsage.fromJson(json['usage'] as Map<String, dynamic>?),
+        );
+      case 'turn.failed':
+        final message = json['error'] is Map<String, dynamic>
+            ? ((json['error'] as Map<String, dynamic>)['message']?.toString() ??
+                  'Unknown error')
+            : json['error']?.toString() ?? 'Unknown error';
+        return CodexEvent.turnFailed(message);
+      case 'item.started':
+        return CodexEvent.item(
+          phase: CodexEventType.itemStarted,
+          item: CodexItem.fromJson(json['item'] as Map<String, dynamic>?),
+        );
+      case 'item.updated':
+        return CodexEvent.item(
+          phase: CodexEventType.itemUpdated,
+          item: CodexItem.fromJson(json['item'] as Map<String, dynamic>?),
+        );
+      case 'item.completed':
+        return CodexEvent.item(
+          phase: CodexEventType.itemCompleted,
+          item: CodexItem.fromJson(json['item'] as Map<String, dynamic>?),
+        );
+      case 'error':
+        return CodexEvent.streamError(
+          json['message']?.toString() ?? 'Unknown error',
+        );
+      default:
+        return CodexEvent.streamError('Unhandled event: $typeString');
+    }
+  }
+
+  String describe() {
+    switch (type) {
+      case CodexEventType.threadStarted:
+        return 'Thread started: ${threadId ?? 'unknown'}';
+      case CodexEventType.turnStarted:
+        return 'Turn started';
+      case CodexEventType.turnCompleted:
+        final usage = this.usage;
+        if (usage == null) {
+          return 'Turn completed';
+        }
+        return 'Turn completed (${usage.outputTokens} output tokens)';
+      case CodexEventType.turnFailed:
+        return 'Turn failed: ${error ?? 'Unknown error'}';
+      case CodexEventType.itemStarted:
+      case CodexEventType.itemUpdated:
+      case CodexEventType.itemCompleted:
+        return item?.describe(type) ?? 'Item event';
+      case CodexEventType.error:
+        return 'Stream error: ${error ?? 'Unknown error'}';
+    }
+  }
 }
 
 class CodexTokenUsage {
@@ -79,6 +162,21 @@ class CodexTokenUsage {
   final int inputTokens;
   final int cachedInputTokens;
   final int outputTokens;
+
+  factory CodexTokenUsage.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const CodexTokenUsage(
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        outputTokens: 0,
+      );
+    }
+    return CodexTokenUsage(
+      inputTokens: (json['input_tokens'] as num?)?.toInt() ?? 0,
+      cachedInputTokens: (json['cached_input_tokens'] as num?)?.toInt() ?? 0,
+      outputTokens: (json['output_tokens'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
 
 class CodexItem {
@@ -107,19 +205,105 @@ class CodexItem {
   final CodexToolCall? toolCall;
   final String? query;
   final List<CodexTodo>? todos;
+
+  factory CodexItem.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const CodexItem(id: 'item', type: CodexItemType.agentMessage);
+    }
+    final changes = (json['changes'] as List<dynamic>?)
+        ?.map(
+          (entry) => CodexFileChange.fromJson(entry as Map<String, dynamic>?),
+        )
+        .whereType<CodexFileChange>()
+        .toList();
+    final todos = (json['items'] as List<dynamic>?)
+        ?.map((entry) => CodexTodo.fromJson(entry as Map<String, dynamic>?))
+        .whereType<CodexTodo>()
+        .toList();
+    return CodexItem(
+      id: json['id']?.toString() ?? 'item',
+      type: _itemTypeFromString(json['type']?.toString()),
+      message: json['text']?.toString(),
+      command: json['command']?.toString(),
+      output: json['aggregated_output']?.toString(),
+      exitCode: (json['exit_code'] as num?)?.toInt(),
+      status: json['status']?.toString(),
+      fileChanges: changes,
+      toolCall: CodexToolCall.fromJson(
+        json['tool_call'] as Map<String, dynamic>?,
+      ),
+      query: json['query']?.toString(),
+      todos: todos,
+    );
+  }
+
+  String describe(CodexEventType phase) {
+    switch (type) {
+      case CodexItemType.agentMessage:
+        return message ?? 'Agent response';
+      case CodexItemType.reasoning:
+        return message ?? 'Reasoning update';
+      case CodexItemType.commandExecution:
+        return '${_phaseLabel(phase)} command: ${command ?? 'unknown'}';
+      case CodexItemType.fileChange:
+        return 'File changes (${fileChanges?.length ?? 0})';
+      case CodexItemType.mcpToolCall:
+        return 'Tool ${toolCall?.tool ?? 'unknown'} (${toolCall?.status ?? 'status'})';
+      case CodexItemType.webSearch:
+        return 'Web search: ${query ?? 'unknown'}';
+      case CodexItemType.todoList:
+        return 'Todo list updated';
+      case CodexItemType.error:
+        return message ?? 'Item error';
+    }
+  }
+
+  String _phaseLabel(CodexEventType phase) {
+    switch (phase) {
+      case CodexEventType.itemStarted:
+        return 'Running';
+      case CodexEventType.itemUpdated:
+        return 'Updating';
+      case CodexEventType.itemCompleted:
+        return 'Completed';
+      default:
+        return '';
+    }
+  }
 }
 
 class CodexFileChange {
-  const CodexFileChange({
-    required this.path,
-    required this.kind,
-  });
+  const CodexFileChange({required this.path, required this.kind});
 
   final String path;
   final CodexFileChangeKind kind;
+
+  factory CodexFileChange.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const CodexFileChange(
+        path: 'unknown',
+        kind: CodexFileChangeKind.update,
+      );
+    }
+    return CodexFileChange(
+      path: json['path']?.toString() ?? 'unknown',
+      kind: _fileKindFromString(json['kind']?.toString()),
+    );
+  }
 }
 
 enum CodexFileChangeKind { add, delete, update }
+
+CodexFileChangeKind _fileKindFromString(String? value) {
+  switch (value) {
+    case 'add':
+      return CodexFileChangeKind.add;
+    case 'delete':
+      return CodexFileChangeKind.delete;
+    default:
+      return CodexFileChangeKind.update;
+  }
+}
 
 class CodexToolCall {
   const CodexToolCall({
@@ -131,6 +315,21 @@ class CodexToolCall {
   final String server;
   final String tool;
   final String status;
+
+  factory CodexToolCall.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const CodexToolCall(
+        server: 'robot_farm',
+        tool: 'unknown',
+        status: 'completed',
+      );
+    }
+    return CodexToolCall(
+      server: json['server']?.toString() ?? 'robot_farm',
+      tool: json['tool']?.toString() ?? 'unknown',
+      status: json['status']?.toString() ?? 'unknown',
+    );
+  }
 }
 
 class CodexTodo {
@@ -138,6 +337,16 @@ class CodexTodo {
 
   final String text;
   final bool completed;
+
+  factory CodexTodo.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const CodexTodo(text: '', completed: false);
+    }
+    return CodexTodo(
+      text: json['text']?.toString() ?? '',
+      completed: json['completed'] == true,
+    );
+  }
 }
 
 /// Mock system events (non-Codex) so the feed can preview the system payload style.

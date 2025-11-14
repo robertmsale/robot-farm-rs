@@ -4,9 +4,8 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{
-    project_commands::ProjectCommandRegistry, AgentRole, McpTool, ToolContext,
-    ToolInvocationError, ToolInvocationResponse, parse_params, roles_all, schema_for_type,
-    serialize_json,
+    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
+    project_commands::ProjectCommandRegistry, roles_all, schema_for_type, serialize_json,
 };
 
 #[derive(Default)]

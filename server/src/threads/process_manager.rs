@@ -7,7 +7,7 @@ use crate::models::process::{
 use chrono::Utc;
 use std::collections::HashMap;
 use std::process::Stdio;
-use tokio::io::{AsyncRead, AsyncReadExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -186,6 +186,7 @@ async fn run_child(
     lifecycle_tx: mpsc::Sender<ProcessLifecycleEvent>,
 ) {
     let run_id = request.metadata.run_id;
+    let stdin_payload = request.stdin.clone();
     let mut command = build_command(&request);
 
     match command.spawn() {
@@ -193,6 +194,17 @@ async fn run_child(
             let _ = lifecycle_tx
                 .send(ProcessLifecycleEvent::Starting { run_id })
                 .await;
+
+            if let Some(payload) = stdin_payload {
+                if let Some(mut stdin) = child.stdin.take() {
+                    tokio::spawn(async move {
+                        if stdin.write_all(&payload).await.is_err() {
+                            warn!(%run_id, "failed to write wizard prompt to child stdin");
+                        }
+                        let _ = stdin.shutdown().await;
+                    });
+                }
+            }
 
             if request.stream_stdout {
                 if let Some(stdout) = child.stdout.take() {
@@ -231,6 +243,12 @@ fn build_command(request: &ProcessRequest) -> Command {
     command.current_dir(&request.working_dir);
     for (key, value) in &request.env {
         command.env(key, value);
+    }
+
+    if request.stdin.is_some() {
+        command.stdin(Stdio::piped());
+    } else {
+        command.stdin(Stdio::null());
     }
 
     if request.stream_stdout {

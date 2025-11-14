@@ -58,7 +58,14 @@ impl McpTool for TasksCreateTool {
             Some(value) => parse_task_status(value)?,
             None => TaskStatus::Ready,
         };
-        let mut payload = TaskCreateInput::new(group.id, input.slug, input.title, status, owner);
+        let mut payload = TaskCreateInput::new(
+            group.id,
+            input.slug,
+            input.title,
+            status,
+            owner,
+            input.description,
+        );
         payload.commit_hash = input.commit_hash;
         let created = task_db::create_task(payload)
             .await
@@ -77,4 +84,5 @@ struct TasksCreateInputPayload {
     pub commit_hash: Option<String>,
     pub status: Option<String>,
     pub owner: Option<String>,
+    pub description: String,
 }

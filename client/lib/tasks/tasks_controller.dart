@@ -58,7 +58,8 @@ class TasksController extends GetxController {
     isLoadingGroups.value = true;
     error.value = null;
     try {
-      final groups = await api.listTaskGroups() ?? const <robot_farm_api.TaskGroup>[];
+      final groups =
+          await api.listTaskGroups() ?? const <robot_farm_api.TaskGroup>[];
       final previousId = activeGroupId.value;
       taskGroups.assignAll(groups);
 
@@ -117,8 +118,9 @@ class TasksController extends GetxController {
       activeGroupId.value = created.id;
       tasks.clear();
     } on robot_farm_api.ApiException catch (err) {
-      throw Exception(err.message ??
-          'Failed to create task group (HTTP ${err.code}).');
+      throw Exception(
+        err.message ?? 'Failed to create task group (HTTP ${err.code}).',
+      );
     } catch (err) {
       throw Exception('Failed to create task group: $err');
     }
@@ -130,6 +132,13 @@ class TasksController extends GetxController {
       throw Exception('Select a task group before creating tasks.');
     }
 
+    if (activeGroup == null) {
+      await refreshTaskGroups();
+      if (activeGroup == null) {
+        throw Exception('Selected task group is no longer available.');
+      }
+    }
+
     final api = _apiOrThrow();
     final input = robot_farm_api.TaskCreateInput(
       groupId: groupId,
@@ -138,6 +147,7 @@ class TasksController extends GetxController {
       commitHash: payload.commitHash,
       status: payload.status,
       owner: payload.owner,
+      description: payload.description,
     );
 
     try {
@@ -152,6 +162,9 @@ class TasksController extends GetxController {
         tasks.refresh();
       }
     } on robot_farm_api.ApiException catch (err) {
+      if (err.code == 400) {
+        await refreshTaskGroups();
+      }
       throw Exception(
         err.message ?? 'Failed to create task (HTTP ${err.code}).',
       );
@@ -160,10 +173,7 @@ class TasksController extends GetxController {
     }
   }
 
-  Future<void> applyGroupEdit(
-    int groupId,
-    TaskGroupEditPayload payload,
-  ) async {
+  Future<void> applyGroupEdit(int groupId, TaskGroupEditPayload payload) async {
     final api = _apiOrThrow();
     final input = robot_farm_api.TaskGroupUpdateInput(
       slug: payload.slug,
@@ -183,8 +193,9 @@ class TasksController extends GetxController {
         taskGroups.refresh();
       }
     } on robot_farm_api.ApiException catch (err) {
-      throw Exception(err.message ??
-          'Failed to update task group (HTTP ${err.code}).');
+      throw Exception(
+        err.message ?? 'Failed to update task group (HTTP ${err.code}).',
+      );
     } catch (err) {
       throw Exception('Failed to update task group: $err');
     }
@@ -198,6 +209,7 @@ class TasksController extends GetxController {
       commitHash: payload.commitHash,
       status: payload.status,
       owner: payload.owner,
+      description: payload.description,
     );
 
     try {
@@ -217,9 +229,10 @@ class TasksController extends GetxController {
       } else if (activeGroupId.value == updated.groupId) {
         tasks.add(updated);
       }
-
     } on robot_farm_api.ApiException catch (err) {
-      throw Exception(err.message ?? 'Failed to update task (HTTP ${err.code}).');
+      throw Exception(
+        err.message ?? 'Failed to update task (HTTP ${err.code}).',
+      );
     } catch (err) {
       throw Exception('Failed to update task: $err');
     }
@@ -267,10 +280,13 @@ class TasksController extends GetxController {
 
     try {
       final allTasks = await api.listTasks() ?? const <robot_farm_api.Task>[];
-      final filtered = allTasks.where((task) => task.groupId == groupId).toList();
+      final filtered = allTasks
+          .where((task) => task.groupId == groupId)
+          .toList();
       tasks.assignAll(filtered);
     } on robot_farm_api.ApiException catch (err) {
-      taskError.value = err.message ?? 'Failed to load tasks (HTTP ${err.code}).';
+      taskError.value =
+          err.message ?? 'Failed to load tasks (HTTP ${err.code}).';
       tasks.clear();
     } catch (err) {
       taskError.value = 'Failed to load tasks: $err';

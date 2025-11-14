@@ -1,4 +1,7 @@
 use crate::db;
+use crate::threads;
+use crate::threads::database_manager::DatabaseManagerError;
+use crate::threads::queue_manager::QueueManagerError;
 use axum::{
     Json,
     extract::{Path, Query},
@@ -23,7 +26,8 @@ pub async fn list_messages(
         to: query.to,
     };
 
-    match db::message_queue::list_messages(filters).await {
+    let handles = threads::thread_handles();
+    match handles.queue.list_messages(filters).await {
         Ok(messages) => Ok(Json(messages)),
         Err(err) => {
             error!(?err, "failed to list queue messages");
@@ -33,7 +37,8 @@ pub async fn list_messages(
 }
 
 pub async fn delete_all_messages() -> StatusCode {
-    match db::message_queue::delete_all_messages().await {
+    let handles = threads::thread_handles();
+    match handles.queue.delete_all_messages().await {
         Ok(_) => StatusCode::NO_CONTENT,
         Err(err) => {
             error!(?err, "failed to clear message queue");
@@ -55,11 +60,15 @@ pub async fn insert_message_relative(
         }
     };
 
-    match db::message_queue::insert_message_relative(message_id, directive).await {
+    let handles = threads::thread_handles();
+    match handles
+        .queue
+        .insert_message_relative(message_id, directive)
+        .await
+    {
         Ok(queue) => Ok(Json(queue)),
-        Err(db::message_queue::MessageQueueError::MessageNotFound)
-        | Err(db::message_queue::MessageQueueError::AnchorNotFound) => Err(StatusCode::NOT_FOUND),
-        Err(db::message_queue::MessageQueueError::Db(err)) => {
+        Err(err) if is_message_missing(&err) => Err(StatusCode::NOT_FOUND),
+        Err(err) => {
             error!(?err, "failed to reorder message queue");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
@@ -67,7 +76,8 @@ pub async fn insert_message_relative(
 }
 
 pub async fn delete_message_by_id(Path(message_id): Path<i64>) -> StatusCode {
-    match db::message_queue::delete_message_by_id(message_id).await {
+    let handles = threads::thread_handles();
+    match handles.queue.delete_message_by_id(message_id).await {
         Ok(true) => StatusCode::NO_CONTENT,
         Ok(false) => StatusCode::NOT_FOUND,
         Err(err) => {
@@ -78,11 +88,27 @@ pub async fn delete_message_by_id(Path(message_id): Path<i64>) -> StatusCode {
 }
 
 pub async fn delete_messages_for_recipient(Path(recipient): Path<String>) -> StatusCode {
-    match db::message_queue::delete_messages_for_recipient(&recipient).await {
+    let handles = threads::thread_handles();
+    match handles
+        .queue
+        .delete_messages_for_recipient(recipient.clone())
+        .await
+    {
         Ok(_) => StatusCode::NO_CONTENT,
         Err(err) => {
             error!(?err, recipient, "failed to delete messages for recipient");
             StatusCode::INTERNAL_SERVER_ERROR
         }
+    }
+}
+
+fn is_message_missing(error: &QueueManagerError) -> bool {
+    match error {
+        QueueManagerError::Database(DatabaseManagerError::MessageQueue(inner)) => matches!(
+            inner,
+            db::message_queue::MessageQueueError::MessageNotFound
+                | db::message_queue::MessageQueueError::AnchorNotFound
+        ),
+        _ => false,
     }
 }

@@ -184,6 +184,10 @@ class ApiClient {
           return value is DateTime ? value : DateTime.tryParse(value);
         case 'ActiveStrategy':
           return ActiveStrategy.fromJson(value);
+        case 'AgentModelOverrides':
+          return AgentModelOverrides.fromJson(value);
+        case 'AgentReasoningOverrides':
+          return AgentReasoningOverrides.fromJson(value);
         case 'AppendFilesConfig':
           return AppendFilesConfig.fromJson(value);
         case 'CommandConfig':
@@ -220,6 +224,8 @@ class ApiClient {
           return InsertMessageOneOf1.fromJson(value);
         case 'Message':
           return Message.fromJson(value);
+        case 'ReasoningEffort':
+          return ReasoningEffortTypeTransformer().decode(value);
         case 'Strategy':
           return StrategyTypeTransformer().decode(value);
         case 'Task':

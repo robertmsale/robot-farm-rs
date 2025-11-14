@@ -28,6 +28,9 @@ pub struct TaskUpdateInput {
     /// Owner information encoded as display text (\"Orchestrator\", \"Quality Assurance\", or worker handles like \"ws42\").
     #[serde(rename = "owner", skip_serializing_if = "Option::is_none")]
     pub owner: Option<String>,
+    /// Detailed description of the task.
+    #[serde(rename = "description", skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 impl TaskUpdateInput {
@@ -40,6 +43,7 @@ impl TaskUpdateInput {
             commit_hash: None,
             status: None,
             owner: None,
+            description: None,
         }
     }
 }

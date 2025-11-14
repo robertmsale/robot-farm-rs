@@ -31,6 +31,8 @@ part 'auth/http_bearer_auth.dart';
 part 'api/default_api.dart';
 
 part 'model/active_strategy.dart';
+part 'model/agent_model_overrides.dart';
+part 'model/agent_reasoning_overrides.dart';
 part 'model/append_files_config.dart';
 part 'model/command_config.dart';
 part 'model/commit_info.dart';
@@ -49,6 +51,7 @@ part 'model/insert_message.dart';
 part 'model/insert_message_one_of.dart';
 part 'model/insert_message_one_of1.dart';
 part 'model/message.dart';
+part 'model/reasoning_effort.dart';
 part 'model/strategy.dart';
 part 'model/task.dart';
 part 'model/task_create_input.dart';
