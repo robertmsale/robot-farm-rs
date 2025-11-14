@@ -59,6 +59,24 @@ pub async fn delete_all_messages() -> DbResult<()> {
     Ok(())
 }
 
+pub async fn enqueue_message(from_actor: &str, to_actor: &str, message: &str) -> DbResult<Message> {
+    let inserted_at = Utc::now().timestamp();
+    let row = sqlx::query(
+        r#"
+        INSERT INTO message_queue (from_actor, to_actor, message, inserted_at)
+        VALUES (?1, ?2, ?3, ?4)
+        RETURNING id, from_actor, to_actor, message, inserted_at
+        "#,
+    )
+    .bind(from_actor)
+    .bind(to_actor)
+    .bind(message)
+    .bind(inserted_at)
+    .fetch_one(db::pool())
+    .await?;
+    Ok(row_to_message(row))
+}
+
 pub async fn delete_message_by_id(message_id: i64) -> DbResult<bool> {
     let result = sqlx::query("DELETE FROM message_queue WHERE id = ?1")
         .bind(message_id)

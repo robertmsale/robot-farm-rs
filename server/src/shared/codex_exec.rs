@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use crate::shared::docker::ensure_default_mcp_url;
+
 #[derive(Debug, Default, Clone)]
 pub struct CodexExecBuilder {
     mode: ExecMode,
@@ -271,15 +273,15 @@ pub fn build_default_codex_exec_command(
         None => CodexExecBuilder::new(),
     };
 
+    let mcp_url = ensure_default_mcp_url(port);
+
     builder
         .change_dir("/workspace")
         .json(true)
         .output_schema("/opt/robot-farm/schema.json")
         .config_override("mcp_servers.robot_farm.enabled=true")
         .config_override("mcp_servers.robot_farm.tool_timeout_sec=900")
-        .config_override(format!(
-            "mcp_servers.robot_farm.url=\"http://127.0.0.1:{port}/mcp\""
-        ))
+        .config_override(format!("mcp_servers.robot_farm.url=\"{mcp_url}\""))
         .build()
 }
 
@@ -300,9 +302,11 @@ mod tests {
         assert!(args.contains(&"-c".to_string()));
         assert!(args.contains(&"mcp_servers.robot_farm.enabled=true".to_string()));
         assert!(args.contains(&"mcp_servers.robot_farm.tool_timeout_sec=900".to_string()));
-        assert!(
-            args.contains(&"mcp_servers.robot_farm.url=\"http://127.0.0.1:9000/mcp\"".to_string())
+        let expected = format!(
+            "mcp_servers.robot_farm.url=\"{}\"",
+            ensure_default_mcp_url(9000)
         );
+        assert!(args.contains(&expected));
     }
 
     #[test]

@@ -1610,24 +1610,35 @@ class SettingsController extends GetxController {
 
   robot_farm_api.AgentModelOverridesOrchestratorEnum _parseOrchestratorModel(
     String value,
-  ) => const robot_farm_api.AgentModelOverridesOrchestratorEnumTypeTransformer()
-      .decode(value, allowNull: false)!;
+  ) {
+    final transformer =
+        robot_farm_api.AgentModelOverridesOrchestratorEnumTypeTransformer();
+    return transformer.decode(value, allowNull: false)!;
+  }
 
   robot_farm_api.AgentModelOverridesWorkerEnum _parseWorkerModel(
     String value,
-  ) => const robot_farm_api.AgentModelOverridesWorkerEnumTypeTransformer()
-      .decode(value, allowNull: false)!;
+  ) {
+    final transformer =
+        robot_farm_api.AgentModelOverridesWorkerEnumTypeTransformer();
+    return transformer.decode(value, allowNull: false)!;
+  }
 
   robot_farm_api.AgentModelOverridesWizardEnum _parseWizardModel(
     String value,
-  ) => const robot_farm_api.AgentModelOverridesWizardEnumTypeTransformer()
-      .decode(value, allowNull: false)!;
+  ) {
+    final transformer =
+        robot_farm_api.AgentModelOverridesWizardEnumTypeTransformer();
+    return transformer.decode(value, allowNull: false)!;
+  }
 
-  robot_farm_api.ReasoningEffort _parseReasoning(String value) =>
-      const robot_farm_api.ReasoningEffortTypeTransformer().decode(
-        value,
-        allowNull: false,
-      )!;
+  robot_farm_api.ReasoningEffort _parseReasoning(String value) {
+    final transformer = robot_farm_api.ReasoningEffortTypeTransformer();
+    return transformer.decode(
+      value,
+      allowNull: false,
+    )!;
+  }
 
   bool _modelDisallowsLow(String model) => model == _modelCodexMini;
 
@@ -1766,7 +1777,7 @@ class SettingsScreen extends StatelessWidget {
                         Text(persona.label, style: theme.textTheme.titleMedium),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
-                          value: modelValue,
+                          initialValue: modelValue,
                           decoration: const InputDecoration(labelText: 'Model'),
                           items: SettingsController.modelOptions
                               .map(
@@ -1784,7 +1795,7 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
-                          value: reasoningValue,
+                          initialValue: reasoningValue,
                           decoration: const InputDecoration(
                             labelText: 'Reasoning effort',
                           ),

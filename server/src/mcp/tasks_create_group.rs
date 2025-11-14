@@ -8,7 +8,7 @@ use crate::db::task_group as task_group_db;
 
 use super::{
     AgentRole, McpTool, TaskGroupSummary, ToolContext, ToolInvocationError, ToolInvocationResponse,
-    parse_params, schema_for_type, serialize_json,
+    ensure_task_mutation_allowed, parse_params, schema_for_type, serialize_json,
 };
 
 #[derive(Default)]
@@ -38,17 +38,18 @@ impl McpTool for TaskGroupsCreateTool {
 
     fn is_visible(&self, ctx: &ToolContext) -> bool {
         match ctx.role() {
-            AgentRole::Wizard => true,
+            AgentRole::Wizard | AgentRole::Qa => true,
             AgentRole::Orchestrator => ctx.is_planning(),
-            _ => false,
+            AgentRole::Worker => false,
         }
     }
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
+        ensure_task_mutation_allowed(ctx)?;
         let input: TaskGroupsCreateInput = parse_params(args)?;
         let payload = TaskGroupCreateInput::new(input.slug, input.title, input.description);
         let created = task_group_db::create_task_group(payload)

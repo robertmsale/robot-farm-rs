@@ -265,6 +265,28 @@ impl ToolInvocationError {
     }
 }
 
+fn is_task_mutation_tool(name: &str) -> bool {
+    TASK_MUTATION_TOOLS.iter().any(|tool| tool == &name)
+}
+
+fn mutation_denied_message(ctx: &ToolContext) -> Option<String> {
+    match ctx.role() {
+        AgentRole::Worker => Some("Workers are not allowed to edit tasks.".to_string()),
+        AgentRole::Orchestrator if !ctx.is_planning() => {
+            Some("You may only use this tool when PLANNING is the active strategy.".to_string())
+        }
+        _ => None,
+    }
+}
+
+pub(super) fn ensure_task_mutation_allowed(ctx: &ToolContext) -> Result<(), ToolInvocationError> {
+    if let Some(message) = mutation_denied_message(ctx) {
+        Err(ToolInvocationError::Unauthorized(message))
+    } else {
+        Ok(())
+    }
+}
+
 #[async_trait]
 pub trait McpTool: Send + Sync {
     fn name(&self) -> &'static str;
@@ -292,6 +314,17 @@ const ROLES_ALL: &[AgentRole] = &[
 ];
 const ROLES_COORDINATION: &[AgentRole] =
     &[AgentRole::Orchestrator, AgentRole::Qa, AgentRole::Wizard];
+
+const TASK_MUTATION_TOOLS: &[&str] = &[
+    "tasks_create",
+    "tasks_update",
+    "tasks_delete",
+    "tasks_set_status",
+    "task_groups_create",
+    "task_groups_update",
+    "task_groups_delete",
+    "tasks_dependencies_set",
+];
 
 pub async fn handle_http_request(
     agent: Agent,
@@ -533,13 +566,14 @@ async fn handle_tools_call(ctx: &ToolContext, id: Option<Value>, params: Option<
         }
     };
 
-    if !tool.is_visible(ctx) {
-        return make_error_response(
-            id,
-            -32001,
-            format!("agent not allowed to call {}", tool.name()),
-            None,
-        );
+    if !tool.allowed_roles().contains(&ctx.role()) {
+        let message = if is_task_mutation_tool(tool.name()) {
+            mutation_denied_message(ctx)
+                .unwrap_or_else(|| format!("{} is not available for this agent", tool.name()))
+        } else {
+            format!("agent not allowed to call {}", tool.name())
+        };
+        return make_error_response(id, -32001, message, None);
     }
 
     match tool.call(ctx, params.arguments).await {

@@ -1,15 +1,18 @@
+use crate::ai::schemas::WorkerTurn;
+use crate::models::codex_events::{CodexEvent, TurnItemDetail};
 use crate::models::process::{
     KillReason, KillSignal, ProcessDirective, ProcessEvent, ProcessExit, ProcessHandle,
     ProcessKillDirective, ProcessKillHandle, ProcessKilled, ProcessLaunchDirective,
     ProcessLifecycleEvent, ProcessOutputChunk, ProcessOutputError, ProcessRequest,
-    ProcessSpawnError, ProcessStream, RunId,
+    ProcessSpawnError, ProcessStream, RunId, RunMetadata,
 };
 use chrono::Utc;
 use std::collections::HashMap;
 use std::process::Stdio;
+use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
-use tokio::sync::mpsc;
+use tokio::sync::{Mutex, mpsc};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, warn};
 
@@ -31,10 +34,27 @@ pub struct ProcessManagerRuntime {
     pub directives_rx: mpsc::Receiver<ProcessDirective>,
     pub config: ProcessManagerConfig,
     pub lifecycle_tx: mpsc::Sender<ProcessLifecycleEvent>,
+    pub notifications_tx: mpsc::Sender<ProcessNotification>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ProcessNotification {
+    WorkerTurn {
+        run_id: RunId,
+        worker_id: i64,
+        metadata: RunMetadata,
+        turn: WorkerTurn,
+    },
 }
 
 struct ActiveProcess {
     kill_tx: mpsc::Sender<KillSignal>,
+}
+
+struct WorkerObserver {
+    worker_id: i64,
+    metadata: RunMetadata,
+    collector: Arc<Mutex<StructuredOutputCollector>>,
 }
 
 pub fn spawn_process_manager(runtime: ProcessManagerRuntime) -> JoinHandle<()> {
@@ -63,6 +83,7 @@ async fn run_manager(mut runtime: ProcessManagerRuntime) {
                             &mut active,
                             cleanup_tx.clone(),
                             runtime.lifecycle_tx.clone(),
+                            runtime.notifications_tx.clone(),
                         )
                         .await
                     }
@@ -95,10 +116,19 @@ async fn handle_directive(
     active: &mut HashMap<RunId, ActiveProcess>,
     cleanup_tx: mpsc::Sender<RunId>,
     lifecycle_tx: mpsc::Sender<ProcessLifecycleEvent>,
+    notifications_tx: mpsc::Sender<ProcessNotification>,
 ) {
     match directive {
         ProcessDirective::Launch(launch) => {
-            launch_process(launch, config, active, cleanup_tx, lifecycle_tx).await;
+            launch_process(
+                launch,
+                config,
+                active,
+                cleanup_tx,
+                lifecycle_tx,
+                notifications_tx,
+            )
+            .await;
         }
         ProcessDirective::Kill(kill) => {
             kill_process(kill, active).await;
@@ -127,6 +157,7 @@ async fn launch_process(
     active: &mut HashMap<RunId, ActiveProcess>,
     cleanup_tx: mpsc::Sender<RunId>,
     lifecycle_tx: mpsc::Sender<ProcessLifecycleEvent>,
+    notifications_tx: mpsc::Sender<ProcessNotification>,
 ) {
     let run_id = directive.request.metadata.run_id;
 
@@ -151,7 +182,7 @@ async fn launch_process(
     let cleanup = cleanup_tx.clone();
     let request = directive.request;
     tokio::spawn(async move {
-        run_child(request, events_tx, kill_rx, lifecycle_tx).await;
+        run_child(request, events_tx, kill_rx, lifecycle_tx, notifications_tx).await;
         let _ = cleanup.send(run_id).await;
     });
 
@@ -184,10 +215,14 @@ async fn run_child(
     events_tx: mpsc::Sender<ProcessEvent>,
     kill_rx: mpsc::Receiver<KillSignal>,
     lifecycle_tx: mpsc::Sender<ProcessLifecycleEvent>,
+    notifications_tx: mpsc::Sender<ProcessNotification>,
 ) {
     let run_id = request.metadata.run_id;
     let stdin_payload = request.stdin.clone();
     let mut command = build_command(&request);
+    let worker_id = parse_worker_id(&request.metadata);
+    let worker_collector =
+        worker_id.map(|_| Arc::new(Mutex::new(StructuredOutputCollector::default())));
 
     match command.spawn() {
         Ok(mut child) => {
@@ -209,18 +244,44 @@ async fn run_child(
             if request.stream_stdout {
                 if let Some(stdout) = child.stdout.take() {
                     let tx = events_tx.clone();
-                    tokio::spawn(forward_output(stdout, tx, run_id, ProcessStream::Stdout));
+                    let collector = worker_collector.clone();
+                    tokio::spawn(forward_output(
+                        stdout,
+                        tx,
+                        run_id,
+                        ProcessStream::Stdout,
+                        collector,
+                    ));
                 }
             }
 
             if request.stream_stderr {
                 if let Some(stderr) = child.stderr.take() {
                     let tx = events_tx.clone();
-                    tokio::spawn(forward_output(stderr, tx, run_id, ProcessStream::Stderr));
+                    tokio::spawn(forward_output(
+                        stderr,
+                        tx,
+                        run_id,
+                        ProcessStream::Stderr,
+                        None,
+                    ));
                 }
             }
 
-            observe_child(child, run_id, events_tx, kill_rx, lifecycle_tx).await;
+            observe_child(
+                child,
+                run_id,
+                events_tx,
+                kill_rx,
+                lifecycle_tx,
+                worker_id.map(|id| WorkerObserver {
+                    worker_id: id,
+                    metadata: request.metadata.clone(),
+                    collector: worker_collector.expect("collector set when worker detected"),
+                }),
+                notifications_tx.clone(),
+            )
+            .await;
         }
         Err(err) => {
             let _ = events_tx
@@ -266,12 +327,29 @@ fn build_command(request: &ProcessRequest) -> Command {
     command
 }
 
+fn parse_worker_id(metadata: &RunMetadata) -> Option<i64> {
+    for tag in &metadata.tags {
+        if let Some(rest) = tag.strip_prefix("worker:") {
+            if let Ok(id) = rest.parse() {
+                return Some(id);
+            }
+        }
+    }
+    if let Some(rest) = metadata.persona.strip_prefix("worker:") {
+        let rest = rest.trim_start_matches("ws");
+        return rest.parse().ok();
+    }
+    None
+}
+
 async fn observe_child(
     mut child: tokio::process::Child,
     run_id: RunId,
     events_tx: mpsc::Sender<ProcessEvent>,
     mut kill_rx: mpsc::Receiver<KillSignal>,
     lifecycle_tx: mpsc::Sender<ProcessLifecycleEvent>,
+    worker_ctx: Option<WorkerObserver>,
+    notifications_tx: mpsc::Sender<ProcessNotification>,
 ) {
     let mut kill_reason: Option<KillReason> = None;
 
@@ -329,6 +407,70 @@ async fn observe_child(
             }
         }
     }
+
+    if let Some(observer) = worker_ctx {
+        if let Some(turn) = observer.collector.lock().await.take_turn() {
+            let notification = ProcessNotification::WorkerTurn {
+                run_id,
+                worker_id: observer.worker_id,
+                metadata: observer.metadata,
+                turn,
+            };
+            if notifications_tx.send(notification).await.is_err() {
+                warn!(%run_id, "failed to deliver worker turn notification");
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct StructuredOutputCollector {
+    buffer: Vec<u8>,
+    turn: Option<WorkerTurn>,
+}
+
+impl StructuredOutputCollector {
+    fn ingest(&mut self, bytes: &[u8]) {
+        self.buffer.extend_from_slice(bytes);
+        while let Some(pos) = self.buffer.iter().position(|b| *b == b'\n') {
+            let mut line = self.buffer.drain(..=pos).collect::<Vec<_>>();
+            if let Some(last) = line.last() {
+                if *last == b'\n' {
+                    line.pop();
+                }
+            }
+            let text = String::from_utf8_lossy(&line).trim().to_string();
+            if text.is_empty() {
+                continue;
+            }
+            self.process_line(&text);
+        }
+    }
+
+    fn take_turn(&mut self) -> Option<WorkerTurn> {
+        if !self.buffer.is_empty() {
+            let text = String::from_utf8_lossy(&self.buffer).trim().to_string();
+            if !text.is_empty() {
+                self.process_line(&text);
+            }
+            self.buffer.clear();
+        }
+        self.turn.take()
+    }
+
+    fn process_line(&mut self, line: &str) {
+        let event: CodexEvent = match serde_json::from_str(line) {
+            Ok(event) => event,
+            Err(_) => return,
+        };
+        if let CodexEvent::ItemCompleted { item } = event {
+            if let TurnItemDetail::AgentMessage { text } = item.detail {
+                if let Ok(turn) = serde_json::from_str::<WorkerTurn>(&text) {
+                    self.turn = Some(turn);
+                }
+            }
+        }
+    }
 }
 
 async fn forward_output<R>(
@@ -336,6 +478,7 @@ async fn forward_output<R>(
     events_tx: mpsc::Sender<ProcessEvent>,
     run_id: RunId,
     stream: ProcessStream,
+    collector: Option<Arc<Mutex<StructuredOutputCollector>>>,
 ) where
     R: AsyncRead + Unpin + Send + 'static,
 {
@@ -354,8 +497,19 @@ async fn forward_output<R>(
                     captured_at: Utc::now(),
                 };
 
-                if events_tx.send(ProcessEvent::Output(chunk)).await.is_err() {
+                if events_tx
+                    .send(ProcessEvent::Output(chunk.clone()))
+                    .await
+                    .is_err()
+                {
                     break;
+                }
+
+                if let Some(tap) = &collector {
+                    if stream == ProcessStream::Stdout {
+                        let mut guard = tap.lock().await;
+                        guard.ingest(&chunk.bytes);
+                    }
                 }
 
                 sequence += 1;

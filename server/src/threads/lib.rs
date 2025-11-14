@@ -36,11 +36,13 @@ fn spawn_threads() -> ThreadHandles {
     let database_config = DatabaseManagerConfig::default();
     let queue_config = QueueManagerConfig::default();
     let (lifecycle_tx, lifecycle_rx) = mpsc::channel(256);
+    let (notification_tx, notification_rx) = mpsc::channel(128);
     let (middleware_handle, directives_rx) = spawn_middleware(middleware_config, lifecycle_rx);
     let runtime = ProcessManagerRuntime {
         directives_rx,
         config: manager_config,
         lifecycle_tx,
+        notifications_tx: notification_tx,
     };
     spawn_process_manager(runtime);
     let database_handle = spawn_database_manager(database_config);
@@ -48,6 +50,7 @@ fn spawn_threads() -> ThreadHandles {
         queue_config,
         database_handle.clone(),
         middleware_handle.clone(),
+        notification_rx,
     );
 
     ThreadHandles {

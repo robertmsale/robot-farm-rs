@@ -8,7 +8,8 @@ use crate::db::task_group as task_group_db;
 
 use super::{
     AgentRole, McpTool, TaskGroupSummary, ToolContext, ToolInvocationError, ToolInvocationResponse,
-    parse_params, require_group_by_slug, roles_coordination, schema_for_type, serialize_json,
+    ensure_task_mutation_allowed, parse_params, require_group_by_slug, roles_coordination,
+    schema_for_type, serialize_json,
 };
 
 #[derive(Default)]
@@ -34,9 +35,10 @@ impl McpTool for TaskGroupsUpdateTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
+        ensure_task_mutation_allowed(ctx)?;
         let input: TaskGroupsUpdateInput = parse_params(args)?;
         let group = require_group_by_slug(&input.slug).await?;
         let mut payload = TaskGroupUpdateInput::new();

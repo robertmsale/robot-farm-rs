@@ -103,6 +103,34 @@ pub fn merge_ff_only(repo_root: &Path, revision: &str) -> Result<(), GitError> {
     Ok(())
 }
 
+pub fn stage_all(repo_root: &Path) -> Result<(), GitError> {
+    run_git_command(
+        repo_root,
+        vec![OsString::from("add"), OsString::from("--all")],
+    )?;
+    Ok(())
+}
+
+pub fn commit(repo_root: &Path, message: &str) -> Result<(), GitError> {
+    run_git_command(
+        repo_root,
+        vec![
+            OsString::from("commit"),
+            OsString::from("-m"),
+            OsString::from(message),
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn abort_merge(repo_root: &Path) -> Result<(), GitError> {
+    run_git_command(
+        repo_root,
+        vec![OsString::from("merge"), OsString::from("--abort")],
+    )?;
+    Ok(())
+}
+
 pub fn collect_merge_conflicts(repo_root: &Path) -> Result<Vec<MergeConflict>, GitError> {
     let files_output = run_git_command(
         repo_root,

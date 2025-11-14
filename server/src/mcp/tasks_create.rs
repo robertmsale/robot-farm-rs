@@ -7,9 +7,9 @@ use serde_json::{Value, json};
 use crate::db::task as task_db;
 
 use super::{
-    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
-    parse_task_status, require_group_by_slug, roles_coordination, schema_for_type, serialize_json,
-    summarize_task,
+    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse,
+    ensure_task_mutation_allowed, parse_params, parse_task_status, require_group_by_slug,
+    roles_coordination, schema_for_type, serialize_json, summarize_task,
 };
 
 #[derive(Default)]
@@ -39,9 +39,8 @@ impl McpTool for TasksCreateTool {
 
     fn is_visible(&self, ctx: &ToolContext) -> bool {
         match ctx.role() {
-            AgentRole::Wizard => true,
+            AgentRole::Wizard | AgentRole::Qa => true,
             AgentRole::Orchestrator => ctx.is_planning(),
-            AgentRole::Qa => false,
             AgentRole::Worker => false,
         }
     }
@@ -51,6 +50,7 @@ impl McpTool for TasksCreateTool {
         ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
+        ensure_task_mutation_allowed(ctx)?;
         let input: TasksCreateInputPayload = parse_params(args)?;
         let group = require_group_by_slug(&input.group_slug).await?;
         let owner = input.owner.unwrap_or_else(|| ctx.agent.label());

@@ -9,10 +9,10 @@ pub mod mcp;
 pub mod models;
 pub mod post_turn_checks;
 pub mod realtime;
-pub mod shared;
-pub mod system;
-pub mod util;
 #[path = "routes/lib.rs"]
 pub mod routes;
+pub mod shared;
+pub mod system;
 #[path = "threads/lib.rs"]
 pub mod threads;
+pub mod util;

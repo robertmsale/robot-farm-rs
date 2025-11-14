@@ -82,6 +82,21 @@ impl DatabaseManagerHandle {
             .await
     }
 
+    pub async fn enqueue_message(
+        &self,
+        from_actor: String,
+        to_actor: String,
+        body: String,
+    ) -> Result<Message, DatabaseManagerError> {
+        self.request(|respond_to| DatabaseManagerCommand::CreateMessage {
+            from_actor,
+            to_actor,
+            body,
+            respond_to,
+        })
+        .await
+    }
+
     async fn request<T>(
         &self,
         build: impl FnOnce(oneshot::Sender<Result<T, DatabaseManagerError>>) -> DatabaseManagerCommand,
@@ -126,6 +141,12 @@ enum DatabaseManagerCommand {
     InsertFeedEntry {
         entry: NewFeedEntry,
         respond_to: oneshot::Sender<Result<Feed, DatabaseManagerError>>,
+    },
+    CreateMessage {
+        from_actor: String,
+        to_actor: String,
+        body: String,
+        respond_to: oneshot::Sender<Result<Message, DatabaseManagerError>>,
     },
 }
 
@@ -185,6 +206,17 @@ async fn run_manager(mut rx: mpsc::Receiver<DatabaseManagerCommand>) {
             }
             DatabaseManagerCommand::InsertFeedEntry { entry, respond_to } => {
                 let result = feed::insert_feed_entry(entry)
+                    .await
+                    .map_err(DatabaseManagerError::from);
+                let _ = respond_to.send(result);
+            }
+            DatabaseManagerCommand::CreateMessage {
+                from_actor,
+                to_actor,
+                body,
+                respond_to,
+            } => {
+                let result = message_queue::enqueue_message(&from_actor, &to_actor, &body)
                     .await
                     .map_err(DatabaseManagerError::from);
                 let _ = respond_to.send(result);

@@ -157,7 +157,7 @@ pub enum ProcessEvent {
     Killed(ProcessKilled),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProcessOutputChunk {
     pub run_id: RunId,
     pub stream: ProcessStream,

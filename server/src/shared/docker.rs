@@ -1,4 +1,7 @@
+use once_cell::sync::Lazy;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use tracing::warn;
 
 #[derive(Debug, Default, Clone)]
 pub struct DockerRunBuilder {
@@ -125,4 +128,40 @@ impl DockerRunBuilder {
 
         args
     }
+}
+
+static DEFAULT_DOCKER_HOST: Lazy<String> = Lazy::new(resolve_default_docker_host);
+
+/// Determine the MCP URL that containers should use when talking to the host
+/// server. On macOS with OrbStack we must use `host.orb.internal`, otherwise
+/// Docker's default hostname works.
+pub fn ensure_default_mcp_url(port: u16) -> String {
+    format!("http://{}:{port}/mcp", DEFAULT_DOCKER_HOST.as_str())
+}
+
+fn resolve_default_docker_host() -> String {
+    if cfg!(target_os = "macos") {
+        match Command::new("docker").arg("context").arg("show").output() {
+            Ok(output) if output.status.success() => {
+                let context = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if context == "orbstack" {
+                    return "host.orb.internal".to_string();
+                }
+            }
+            Ok(output) => {
+                warn!(
+                    status = ?output.status.code(),
+                    "`docker context show` exited with non-zero status; using default hostname"
+                );
+            }
+            Err(err) => {
+                warn!(
+                    ?err,
+                    "failed to inspect docker context; using default hostname"
+                );
+            }
+        }
+    }
+
+    "host.docker.internal".to_string()
 }

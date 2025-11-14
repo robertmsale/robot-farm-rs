@@ -7,9 +7,9 @@ use serde_json::{Value, json};
 use crate::db::task as task_db;
 
 use super::{
-    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
-    parse_task_status, require_group_by_slug, require_task_by_slug, roles_coordination,
-    schema_for_type, serialize_json, summarize_task,
+    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse,
+    ensure_task_mutation_allowed, parse_params, parse_task_status, require_group_by_slug,
+    require_task_by_slug, roles_coordination, schema_for_type, serialize_json, summarize_task,
 };
 
 #[derive(Default)]
@@ -39,9 +39,10 @@ impl McpTool for TasksUpdateTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
+        ensure_task_mutation_allowed(ctx)?;
         let input: TasksUpdateInputPayload = parse_params(args)?;
         let existing = require_task_by_slug(&input.slug).await?;
         let mut payload = TaskUpdateInput::new();

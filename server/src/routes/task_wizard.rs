@@ -5,7 +5,10 @@ use crate::{
         KillReason, ProcessEvent, ProcessHandle, ProcessKillHandle, ProcessSpawnIntent,
         ProcessStream, RunId, RunMetadata, RunPriority,
     },
-    shared::{codex_exec::CodexExecBuilder, docker::DockerRunBuilder},
+    shared::{
+        codex_exec::CodexExecBuilder,
+        docker::{DockerRunBuilder, ensure_default_mcp_url},
+    },
     system::codex_config::{self, AgentKind as CodexAgentKind},
     threads,
 };
@@ -368,15 +371,15 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
             .join(",")
     );
 
+    let default_mcp_url = ensure_default_mcp_url(api_port);
+
     let codex_args = builder
         .change_dir("/workspace")
         .json(true)
         .config_override("mcp_servers.robot_farm.enabled=true")
         .config_override("mcp_servers.robot_farm.tool_timeout_sec=900")
         .config_override(tools_arg)
-        .config_override(format!(
-            "mcp_servers.robot_farm.url=\"http://host.orb.internal:{api_port}/mcp\""
-        ))
+        .config_override(format!("mcp_servers.robot_farm.url=\"{default_mcp_url}\""))
         .config_override(format!("model=\"{}\"", launch_settings.model))
         .config_override(format!(
             "model_reasoning_effort=\"{}\"",

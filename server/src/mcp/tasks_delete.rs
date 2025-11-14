@@ -6,8 +6,9 @@ use serde_json::{Value, json};
 use crate::db::task as task_db;
 
 use super::{
-    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
-    require_task_by_slug, roles_coordination, schema_for_type, serialize_json,
+    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse,
+    ensure_task_mutation_allowed, parse_params, require_task_by_slug, roles_coordination,
+    schema_for_type, serialize_json,
 };
 
 #[derive(Default)]
@@ -33,9 +34,10 @@ impl McpTool for TasksDeleteTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
+        ensure_task_mutation_allowed(ctx)?;
         let input: TasksDeleteInput = parse_params(args)?;
         let task = require_task_by_slug(&input.slug).await?;
         let deleted = task_db::delete_task(task.id)
