@@ -850,8 +850,10 @@ class OrchestratorPane extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text('Orchestrator Feed',
-                        style: theme.textTheme.titleLarge),
+                    Text(
+                      'Orchestrator Feed',
+                      style: theme.textTheme.titleLarge,
+                    ),
                     const Spacer(),
                     _FeedActionsMenu(
                       onRunCommand: onRunCommand,
@@ -1159,15 +1161,16 @@ class WorkerFeedPane extends StatelessWidget {
                               ),
                             ]
                           : workers
-                              .map(
-                                (worker) => _SystemFeed(
-                                  events:
-                                      controller.eventsForWorker(worker.id),
-                                  emptyMessage:
-                                      'No feed entries yet for worker ${worker.id}.',
-                                ),
-                              )
-                              .toList(),
+                                .map(
+                                  (worker) => _SystemFeed(
+                                    events: controller.eventsForWorker(
+                                      worker.id,
+                                    ),
+                                    emptyMessage:
+                                        'No feed entries yet for worker ${worker.id}.',
+                                  ),
+                                )
+                                .toList(),
                     ),
                   ),
                   Align(
@@ -1224,8 +1227,9 @@ class OrchestratorFeedController extends GetxController {
       final feed = await api.listFeed(target: 'Orchestrator');
       events
         ..clear()
-        ..addAll((feed ?? const <robot_farm_api.Feed>[])
-            .map(SystemFeedEvent.fromFeed));
+        ..addAll(
+          (feed ?? const <robot_farm_api.Feed>[]).map(SystemFeedEvent.fromFeed),
+        );
     } catch (error) {
       debugPrint('Failed to load orchestrator feed: $error');
     } finally {
@@ -1273,7 +1277,8 @@ class WorkerFeedController extends GetxController
   final ConnectionController connection;
   late TabController tabController;
   bool isReady = false;
-  final Map<int, List<SystemFeedEvent>> _workerEvents = <int, List<SystemFeedEvent>>{};
+  final Map<int, List<SystemFeedEvent>> _workerEvents =
+      <int, List<SystemFeedEvent>>{};
   StreamSubscription<robot_farm_api.Feed>? _feedSubscription;
 
   @override
@@ -1333,8 +1338,10 @@ class WorkerFeedController extends GetxController
         if (workerId == null) {
           continue;
         }
-        final bucket =
-            _workerEvents.putIfAbsent(workerId, () => <SystemFeedEvent>[]);
+        final bucket = _workerEvents.putIfAbsent(
+          workerId,
+          () => <SystemFeedEvent>[],
+        );
         bucket.add(SystemFeedEvent.fromFeed(entry));
       }
       for (final bucket in _workerEvents.values) {
@@ -1353,8 +1360,10 @@ class WorkerFeedController extends GetxController
     if (workerId == null) {
       return;
     }
-    final bucket =
-        _workerEvents.putIfAbsent(workerId, () => <SystemFeedEvent>[]);
+    final bucket = _workerEvents.putIfAbsent(
+      workerId,
+      () => <SystemFeedEvent>[],
+    );
     bucket.insert(0, SystemFeedEvent.fromFeed(feed));
     const maxEntries = 200;
     if (bucket.length > maxEntries) {
@@ -1787,17 +1796,13 @@ class SettingsController extends GetxController {
     return transformer.decode(value, allowNull: false)!;
   }
 
-  robot_farm_api.AgentModelOverridesWorkerEnum _parseWorkerModel(
-    String value,
-  ) {
+  robot_farm_api.AgentModelOverridesWorkerEnum _parseWorkerModel(String value) {
     final transformer =
         robot_farm_api.AgentModelOverridesWorkerEnumTypeTransformer();
     return transformer.decode(value, allowNull: false)!;
   }
 
-  robot_farm_api.AgentModelOverridesWizardEnum _parseWizardModel(
-    String value,
-  ) {
+  robot_farm_api.AgentModelOverridesWizardEnum _parseWizardModel(String value) {
     final transformer =
         robot_farm_api.AgentModelOverridesWizardEnumTypeTransformer();
     return transformer.decode(value, allowNull: false)!;
@@ -1805,10 +1810,7 @@ class SettingsController extends GetxController {
 
   robot_farm_api.ReasoningEffort _parseReasoning(String value) {
     final transformer = robot_farm_api.ReasoningEffortTypeTransformer();
-    return transformer.decode(
-      value,
-      allowNull: false,
-    )!;
+    return transformer.decode(value, allowNull: false)!;
   }
 
   bool _modelDisallowsLow(String model) => model == _modelCodexMini;

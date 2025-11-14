@@ -4,27 +4,41 @@ import 'package:my_api_client/api.dart' as robot_farm_api;
 
 import 'task_edit_payloads.dart';
 
+enum TaskGroupEditorAction { save, delete }
+
+class TaskGroupEditorResult {
+  const TaskGroupEditorResult._(this.action, this.payload);
+
+  const TaskGroupEditorResult.save(TaskGroupEditPayload payload)
+    : this._(TaskGroupEditorAction.save, payload);
+
+  const TaskGroupEditorResult.delete()
+    : this._(TaskGroupEditorAction.delete, null);
+
+  final TaskGroupEditorAction action;
+  final TaskGroupEditPayload? payload;
+}
+
 enum TaskEditorAction { save, delete }
 
 class TaskEditorResult {
   const TaskEditorResult._(this.action, this.payload);
 
   const TaskEditorResult.save(TaskEditPayload payload)
-      : this._(TaskEditorAction.save, payload);
+    : this._(TaskEditorAction.save, payload);
 
-  const TaskEditorResult.delete()
-      : this._(TaskEditorAction.delete, null);
+  const TaskEditorResult.delete() : this._(TaskEditorAction.delete, null);
 
   final TaskEditorAction action;
   final TaskEditPayload? payload;
 }
 
-Future<TaskGroupEditPayload?> showTaskGroupEditorSheet(
+Future<TaskGroupEditorResult?> showTaskGroupEditorSheet(
   BuildContext context, {
   robot_farm_api.TaskGroup? group,
   bool isCreate = false,
 }) {
-  return showModalBottomSheet<TaskGroupEditPayload>(
+  return showModalBottomSheet<TaskGroupEditorResult>(
     context: context,
     isScrollControlled: true,
     builder: (_) {
@@ -85,8 +99,34 @@ Future<TaskGroupEditPayload?> showTaskGroupEditorSheet(
                     ),
                     const Spacer(),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
+                        if (!isCreate)
+                          Tooltip(
+                            message: _canDeleteGroup(group)
+                                ? 'Delete this task group'
+                                : 'Built-in groups cannot be deleted',
+                            child: TextButton.icon(
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Delete'),
+                              onPressed: _canDeleteGroup(group)
+                                  ? () async {
+                                      final confirmed =
+                                          await _confirmDeletion(
+                                            context,
+                                            group?.title ?? 'this group',
+                                          ) ??
+                                          false;
+                                      if (!confirmed || !context.mounted) {
+                                        return;
+                                      }
+                                      Navigator.of(context).pop(
+                                        const TaskGroupEditorResult.delete(),
+                                      );
+                                    }
+                                  : null,
+                            ),
+                          ),
+                        const Spacer(),
                         TextButton(
                           onPressed: () => Navigator.of(context).maybePop(),
                           child: const Text('Cancel'),
@@ -94,9 +134,11 @@ Future<TaskGroupEditPayload?> showTaskGroupEditorSheet(
                         const SizedBox(width: 12),
                         FilledButton(
                           onPressed: form.isValid
-                              ? () => Navigator.of(
-                                  context,
-                                ).pop(form.buildPayload())
+                              ? () => Navigator.of(context).pop(
+                                  TaskGroupEditorResult.save(
+                                    form.buildPayload(),
+                                  ),
+                                )
                               : null,
                           child: Text(isCreate ? 'Create' : 'Save changes'),
                         ),
@@ -111,6 +153,34 @@ Future<TaskGroupEditPayload?> showTaskGroupEditorSheet(
       );
     },
   );
+}
+
+Future<bool?> _confirmDeletion(BuildContext context, String title) {
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete task group'),
+      content: Text('Delete $title permanently?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+}
+
+bool _canDeleteGroup(robot_farm_api.TaskGroup? group) {
+  if (group == null) {
+    return false;
+  }
+  final slug = group.slug.toLowerCase();
+  return slug != 'chores' && slug != 'bugs' && slug != 'hotfix';
 }
 
 Future<TaskEditorResult?> showTaskEditorSheet(
@@ -225,11 +295,13 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                             icon: const Icon(Icons.delete_outline),
                             label: const Text('Delete'),
                             style: TextButton.styleFrom(
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.error,
+                              foregroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
                             ),
                             onPressed: () async {
-                              final confirmed = await showDialog<bool>(
+                              final confirmed =
+                                  await showDialog<bool>(
                                     context: context,
                                     builder: (context) => AlertDialog(
                                       title: const Text('Delete task'),
@@ -238,7 +310,8 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                                       ),
                                       actions: [
                                         TextButton(
-                                          onPressed: () => Navigator.of(context).pop(false),
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(false),
                                           child: const Text('Cancel'),
                                         ),
                                         FilledButton(
@@ -253,8 +326,9 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                               if (!confirmed || !context.mounted) {
                                 return;
                               }
-                              Navigator.of(context)
-                                  .pop(const TaskEditorResult.delete());
+                              Navigator.of(
+                                context,
+                              ).pop(const TaskEditorResult.delete());
                             },
                           ),
                         const Spacer(),
@@ -265,8 +339,9 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                         const SizedBox(width: 12),
                         FilledButton(
                           onPressed: form.isValid
-                              ? () => Navigator.of(context)
-                                  .pop(TaskEditorResult.save(form.buildPayload()))
+                              ? () => Navigator.of(context).pop(
+                                  TaskEditorResult.save(form.buildPayload()),
+                                )
                               : null,
                           child: Text(isCreate ? 'Create' : 'Save changes'),
                         ),

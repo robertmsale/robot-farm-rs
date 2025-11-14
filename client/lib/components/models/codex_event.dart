@@ -381,8 +381,10 @@ class SystemFeedEvent {
       category: entry.category,
       summary: entry.text,
       details: _formatFeedDetails(entry.raw),
-      timestamp:
-          DateTime.fromMillisecondsSinceEpoch(entry.ts * 1000, isUtc: true),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        entry.ts * 1000,
+        isUtc: true,
+      ),
       feed: entry,
     );
   }

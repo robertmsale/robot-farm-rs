@@ -3,6 +3,8 @@ use axum::{Json, extract::Path, http::StatusCode};
 use openapi::models::{TaskGroup, TaskGroupCreateInput, TaskGroupUpdateInput};
 use tracing::error;
 
+const BUILTIN_GROUP_SLUGS: &[&str] = &["chores", "bugs", "hotfix"];
+
 pub async fn list_task_groups() -> Result<Json<Vec<TaskGroup>>, StatusCode> {
     let groups = db::task_group::list_task_groups().await.map_err(|err| {
         error!(?err, "failed to list task groups");
@@ -51,6 +53,22 @@ pub async fn update_task_group(
 }
 
 pub async fn delete_task_group(Path(task_group_id): Path<i64>) -> Result<StatusCode, StatusCode> {
+    let group = db::task_group::get_task_group(task_group_id)
+        .await
+        .map_err(|err| {
+            error!(
+                ?err,
+                task_group_id, "failed to load task group for deletion"
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let slug = group.slug.to_ascii_lowercase();
+    if BUILTIN_GROUP_SLUGS.contains(&slug.as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
     let deleted = db::task_group::delete_task_group(task_group_id)
         .await
         .map_err(|err| {

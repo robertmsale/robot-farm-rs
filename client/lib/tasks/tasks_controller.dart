@@ -126,6 +126,25 @@ class TasksController extends GetxController {
     }
   }
 
+  Future<void> deleteTaskGroup(int groupId) async {
+    final api = _apiOrThrow();
+    try {
+      await api.deleteTaskGroup(groupId);
+      taskGroups.removeWhere((group) => group.id == groupId);
+      if (activeGroupId.value == groupId) {
+        activeGroupId.value = null;
+        tasks.clear();
+      }
+      taskGroups.refresh();
+    } on robot_farm_api.ApiException catch (err) {
+      throw Exception(
+        err.message ?? 'Failed to delete task group (HTTP ${err.code}).',
+      );
+    } catch (err) {
+      throw Exception('Failed to delete task group: $err');
+    }
+  }
+
   Future<void> createTaskForActiveGroup(TaskEditPayload payload) async {
     final groupId = activeGroupId.value;
     if (groupId == null) {

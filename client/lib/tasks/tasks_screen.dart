@@ -20,17 +20,20 @@ class TasksScreen extends GetView<TasksController> {
     if (result == null) return;
 
     try {
-      await controller.applyGroupEdit(group.id, result);
-      Get.snackbar('Task group updated', '${group.title} saved.');
+      if (result.action == TaskGroupEditorAction.delete) {
+        await controller.deleteTaskGroup(group.id);
+        Get.snackbar('Task group deleted', '${group.title} removed.');
+      } else {
+        final payload = result.payload!;
+        await controller.applyGroupEdit(group.id, payload);
+        Get.snackbar('Task group updated', '${group.title} saved.');
+      }
     } catch (error) {
       Get.snackbar('Update failed', '$error');
     }
   }
 
-  Future<void> _editTask(
-    BuildContext context,
-    robot_farm_api.Task task,
-  ) async {
+  Future<void> _editTask(BuildContext context, robot_farm_api.Task task) async {
     final result = await showTaskEditorSheet(
       context,
       task: task,
@@ -53,13 +56,11 @@ class TasksScreen extends GetView<TasksController> {
   }
 
   Future<void> _createGroup(BuildContext context) async {
-    final payload = await showTaskGroupEditorSheet(
-      context,
-      isCreate: true,
-    );
-    if (payload == null) {
+    final result = await showTaskGroupEditorSheet(context, isCreate: true);
+    if (result == null || result.action != TaskGroupEditorAction.save) {
       return;
     }
+    final payload = result.payload!;
 
     try {
       await controller.createTaskGroup(payload);
@@ -77,10 +78,7 @@ class TasksScreen extends GetView<TasksController> {
       return;
     }
 
-    final result = await showTaskEditorSheet(
-      context,
-      isCreate: true,
-    );
+    final result = await showTaskEditorSheet(context, isCreate: true);
     if (result == null || result.action != TaskEditorAction.save) {
       return;
     }
@@ -135,21 +133,21 @@ class TasksScreen extends GetView<TasksController> {
             ? _buildGroupPane(context)
             : _buildTaskPane(context, theme),
       ),
-      floatingActionButton: Obx(
-        () {
-          final isGroups = controller.isViewingGroups;
-          final icon = isGroups ? Icons.add : Icons.add_task;
-          final tooltip =
-              isGroups ? 'Create task group' : 'Create task in this group';
-          final handler =
-              isGroups ? () => _createGroup(context) : () => _createTask(context);
-          return FloatingActionButton(
-            onPressed: handler,
-            tooltip: tooltip,
-            child: Icon(icon),
-          );
-        },
-      ),
+      floatingActionButton: Obx(() {
+        final isGroups = controller.isViewingGroups;
+        final icon = isGroups ? Icons.add : Icons.add_task;
+        final tooltip = isGroups
+            ? 'Create task group'
+            : 'Create task in this group';
+        final handler = isGroups
+            ? () => _createGroup(context)
+            : () => _createTask(context);
+        return FloatingActionButton(
+          onPressed: handler,
+          tooltip: tooltip,
+          child: Icon(icon),
+        );
+      }),
     );
   }
 
@@ -181,10 +179,7 @@ class TasksScreen extends GetView<TasksController> {
     return Column(
       children: [
         if (error != null)
-          _ErrorBanner(
-            message: error,
-            onRetry: controller.refreshTaskGroups,
-          ),
+          _ErrorBanner(message: error, onRetry: controller.refreshTaskGroups),
         Expanded(
           child: RefreshIndicator(
             onRefresh: controller.refreshTaskGroups,
@@ -265,9 +260,7 @@ class _TaskGroupList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (groups.isEmpty) {
-      return const Center(
-        child: Text('No task groups yet.'),
-      );
+      return const Center(child: Text('No task groups yet.'));
     }
 
     return ListView.separated(
@@ -330,10 +323,7 @@ class _TaskListView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              group.title,
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
+            Text(group.title, style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
               group.description,
@@ -416,10 +406,7 @@ class _StateMessage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton(
-            onPressed: onAction,
-            child: Text(actionLabel),
-          ),
+          FilledButton(onPressed: onAction, child: Text(actionLabel)),
         ],
       ),
     );
@@ -453,10 +440,7 @@ class _ErrorBanner extends StatelessWidget {
             ),
           ),
           if (onRetry != null)
-            TextButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );
