@@ -120,6 +120,8 @@ class ConnectionController extends GetxController {
   final RxList<String> pastLogins = <String>[].obs;
   final RxList<robot_farm_api.Worker> workers = <robot_farm_api.Worker>[].obs;
   final RxBool isPlaying = true.obs;
+  final StreamController<robot_farm_api.Feed> _feedController =
+      StreamController<robot_farm_api.Feed>.broadcast();
   ws.WebSocket? _webSocket;
   StreamSubscription<ws.WebSocketEvent>? _webSocketSubscription;
   SharedPreferences? _prefs;
@@ -248,11 +250,15 @@ class ConnectionController extends GetxController {
       final type = decoded['type'];
       if (type == 'workers_snapshot') {
         _updateWorkers(decoded['workers']);
+      } else if (type == 'feed_entry') {
+        _handleFeedEntry(decoded['entry']);
       }
     } catch (error) {
       debugPrint('Failed to parse WebSocket message: $error');
     }
   }
+
+  Stream<robot_farm_api.Feed> get feedEvents => _feedController.stream;
 
   void _updateWorkers(dynamic payload) {
     if (payload is! List) {
@@ -264,6 +270,16 @@ class ConnectionController extends GetxController {
         .whereType<robot_farm_api.Worker>()
         .toList();
     workers.assignAll(parsed);
+  }
+
+  void _handleFeedEntry(dynamic payload) {
+    if (payload is! Map<String, dynamic>) {
+      return;
+    }
+    final entry = robot_farm_api.Feed.fromJson(payload);
+    if (entry != null) {
+      _feedController.add(entry);
+    }
   }
 
   void togglePlayPause() {
@@ -434,6 +450,7 @@ class ConnectionController extends GetxController {
   void onClose() {
     urlController.dispose();
     _closeWebSocket();
+    _feedController.close();
     super.onClose();
   }
 }
@@ -656,10 +673,10 @@ class HomeScreen extends GetView<ConnectionController> {
   Widget build(BuildContext context) {
     final isPhone = context.isPhone;
     final orchestratorPane = OrchestratorPane(
+      connection: controller,
       onRunCommand: () => _openCommandSheet(context),
       onEnqueueMessage: () => _openMessageSheet(context),
       onEditQueue: () => _openQueueSheet(context),
-      systemEvents: mockSystemEvents,
     );
     final workerPane = WorkerFeedPane(
       connection: controller,
@@ -786,17 +803,17 @@ enum _HomeMenuAction {
 
 class OrchestratorPane extends StatelessWidget {
   const OrchestratorPane({
+    required this.connection,
     required this.onRunCommand,
     required this.onEnqueueMessage,
     required this.onEditQueue,
-    required this.systemEvents,
     super.key,
   });
 
+  final ConnectionController connection;
   final VoidCallback onRunCommand;
   final VoidCallback onEnqueueMessage;
   final VoidCallback onEditQueue;
-  final List<SystemFeedEvent> systemEvents;
 
   @override
   Widget build(BuildContext context) {
@@ -808,32 +825,46 @@ class OrchestratorPane extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Text('Orchestrator Feed', style: theme.textTheme.titleLarge),
-                const Spacer(),
-                _FeedActionsMenu(
-                  onRunCommand: onRunCommand,
-                  onEnqueueMessage: onEnqueueMessage,
-                  onEditQueue: onEditQueue,
+        child: GetBuilder<OrchestratorFeedController>(
+          init: OrchestratorFeedController(connection: connection),
+          global: false,
+          builder: (feedController) {
+            final events = feedController.events;
+            final Widget feedBody;
+            if (feedController.isLoading) {
+              feedBody = const Expanded(
+                child: Center(child: CircularProgressIndicator()),
+              );
+            } else {
+              feedBody = Expanded(
+                child: _SystemFeed(
+                  events: events,
+                  emptyMessage:
+                      'Turn-by-turn orchestrator output will appear here.',
                 ),
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Text('Orchestrator Feed',
+                        style: theme.textTheme.titleLarge),
+                    const Spacer(),
+                    _FeedActionsMenu(
+                      onRunCommand: onRunCommand,
+                      onEnqueueMessage: onEnqueueMessage,
+                      onEditQueue: onEditQueue,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                feedBody,
               ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: systemEvents.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Turn-by-turn orchestrator output will appear here.',
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : _SystemFeed(events: systemEvents),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -841,12 +872,21 @@ class OrchestratorPane extends StatelessWidget {
 }
 
 class _SystemFeed extends StatelessWidget {
-  const _SystemFeed({required this.events});
+  const _SystemFeed({required this.events, this.emptyMessage});
 
   final List<SystemFeedEvent> events;
+  final String? emptyMessage;
 
   @override
   Widget build(BuildContext context) {
+    if (events.isEmpty) {
+      return Center(
+        child: Text(
+          emptyMessage ?? 'No feed entries yet.',
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
     final radius = BorderRadius.circular(12);
     return ListView.separated(
       itemCount: events.length,
@@ -1114,19 +1154,20 @@ class WorkerFeedPane extends StatelessWidget {
                               Center(
                                 child: Text(
                                   'No workers detected. Add a git worktree to see it here.',
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
                             ]
                           : workers
-                                .map(
-                                  (worker) => Center(
-                                    child: Text(
-                                      'Feed for worker ${worker.id} (stub).',
-                                      style: theme.textTheme.bodyLarge,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
+                              .map(
+                                (worker) => _SystemFeed(
+                                  events:
+                                      controller.eventsForWorker(worker.id),
+                                  emptyMessage:
+                                      'No feed entries yet for worker ${worker.id}.',
+                                ),
+                              )
+                              .toList(),
                     ),
                   ),
                   Align(
@@ -1155,6 +1196,76 @@ class WorkerFeedPane extends StatelessWidget {
   }
 }
 
+class OrchestratorFeedController extends GetxController {
+  OrchestratorFeedController({required this.connection});
+
+  final ConnectionController connection;
+  final List<SystemFeedEvent> events = <SystemFeedEvent>[];
+  bool isLoading = true;
+  StreamSubscription<robot_farm_api.Feed>? _subscription;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _loadInitial();
+    _subscription = connection.feedEvents.listen(_handleFeedEntry);
+  }
+
+  Future<void> _loadInitial() async {
+    isLoading = true;
+    update();
+    final api = _buildApi();
+    if (api == null) {
+      isLoading = false;
+      update();
+      return;
+    }
+    try {
+      final feed = await api.listFeed(target: 'Orchestrator');
+      events
+        ..clear()
+        ..addAll((feed ?? const <robot_farm_api.Feed>[])
+            .map(SystemFeedEvent.fromFeed));
+    } catch (error) {
+      debugPrint('Failed to load orchestrator feed: $error');
+    } finally {
+      isLoading = false;
+      update();
+    }
+  }
+
+  void _handleFeedEntry(robot_farm_api.Feed feed) {
+    if (feed.target.toLowerCase() != 'orchestrator') {
+      return;
+    }
+    events.insert(0, SystemFeedEvent.fromFeed(feed));
+    _trim();
+    update();
+  }
+
+  void _trim() {
+    const maxEntries = 200;
+    if (events.length > maxEntries) {
+      events.removeRange(maxEntries, events.length);
+    }
+  }
+
+  robot_farm_api.DefaultApi? _buildApi() {
+    final baseUrl = connection.currentBaseUrl;
+    if (baseUrl == null) {
+      return null;
+    }
+    final client = robot_farm_api.ApiClient(basePath: baseUrl);
+    return robot_farm_api.DefaultApi(client);
+  }
+
+  @override
+  void onClose() {
+    _subscription?.cancel();
+    super.onClose();
+  }
+}
+
 class WorkerFeedController extends GetxController
     with GetTickerProviderStateMixin {
   WorkerFeedController({required this.connection});
@@ -1162,18 +1273,16 @@ class WorkerFeedController extends GetxController
   final ConnectionController connection;
   late TabController tabController;
   bool isReady = false;
+  final Map<int, List<SystemFeedEvent>> _workerEvents = <int, List<SystemFeedEvent>>{};
+  StreamSubscription<robot_farm_api.Feed>? _feedSubscription;
 
   @override
   void onInit() {
     super.onInit();
     tabController = TabController(length: _length, vsync: this);
     ever(connection.workers, (_) => _syncTabs());
-    ever(connection.workers, (_) {
-      if (!isReady) {
-        isReady = true;
-        update();
-      }
-    });
+    _loadInitialFeeds();
+    _feedSubscription = connection.feedEvents.listen(_handleFeedEntry);
   }
 
   int get _length => connection.workers.isEmpty ? 1 : connection.workers.length;
@@ -1201,9 +1310,71 @@ class WorkerFeedController extends GetxController
     update();
   }
 
+  List<SystemFeedEvent> eventsForWorker(int workerId) {
+    return _workerEvents[workerId] ?? const <SystemFeedEvent>[];
+  }
+
+  Future<void> _loadInitialFeeds() async {
+    isReady = false;
+    update();
+    final baseUrl = connection.currentBaseUrl;
+    if (baseUrl == null) {
+      isReady = true;
+      update();
+      return;
+    }
+    try {
+      final client = robot_farm_api.ApiClient(basePath: baseUrl);
+      final api = robot_farm_api.DefaultApi(client);
+      final feed = await api.listFeed();
+      _workerEvents.clear();
+      for (final entry in feed ?? const <robot_farm_api.Feed>[]) {
+        final workerId = _workerIdFromTarget(entry.target);
+        if (workerId == null) {
+          continue;
+        }
+        final bucket =
+            _workerEvents.putIfAbsent(workerId, () => <SystemFeedEvent>[]);
+        bucket.add(SystemFeedEvent.fromFeed(entry));
+      }
+      for (final bucket in _workerEvents.values) {
+        bucket.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      }
+    } catch (error) {
+      debugPrint('Failed to load worker feeds: $error');
+    } finally {
+      isReady = true;
+      update();
+    }
+  }
+
+  void _handleFeedEntry(robot_farm_api.Feed feed) {
+    final workerId = _workerIdFromTarget(feed.target);
+    if (workerId == null) {
+      return;
+    }
+    final bucket =
+        _workerEvents.putIfAbsent(workerId, () => <SystemFeedEvent>[]);
+    bucket.insert(0, SystemFeedEvent.fromFeed(feed));
+    const maxEntries = 200;
+    if (bucket.length > maxEntries) {
+      bucket.removeRange(maxEntries, bucket.length);
+    }
+    update();
+  }
+
+  int? _workerIdFromTarget(String target) {
+    final lower = target.toLowerCase();
+    if (!lower.startsWith('ws')) {
+      return null;
+    }
+    return int.tryParse(lower.substring(2));
+  }
+
   @override
   void onClose() {
     tabController.dispose();
+    _feedSubscription?.cancel();
     super.onClose();
   }
 }

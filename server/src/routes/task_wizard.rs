@@ -5,6 +5,7 @@ use crate::{
         KillReason, ProcessEvent, ProcessHandle, ProcessKillHandle, ProcessSpawnIntent,
         ProcessStream, RunId, RunMetadata, RunPriority,
     },
+    realtime::{self, RealtimeEvent},
     shared::{
         codex_exec::CodexExecBuilder,
         docker::{DockerRunBuilder, ensure_default_mcp_url},
@@ -638,7 +639,10 @@ async fn persist_feed_entry(
     };
 
     match feed::insert_feed_entry(entry).await {
-        Ok(feed_entry) => serde_json::to_value(feed_entry).ok(),
+        Ok(feed_entry) => {
+            realtime::publish(RealtimeEvent::FeedEntry(feed_entry.clone()));
+            serde_json::to_value(feed_entry).ok()
+        }
         Err(err) => {
             warn!(?err, "failed to insert task wizard feed entry");
             None

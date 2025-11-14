@@ -39,8 +39,14 @@ class TasksScreen extends GetView<TasksController> {
     if (result == null) return;
 
     try {
-      await controller.applyTaskEdit(task.id, result);
-      Get.snackbar('Task updated', '${task.title} saved.');
+      if (result.action == TaskEditorAction.delete) {
+        await controller.deleteTask(task.id);
+        Get.snackbar('Task deleted', '${task.title} removed.');
+      } else {
+        final payload = result.payload!;
+        await controller.applyTaskEdit(task.id, payload);
+        Get.snackbar('Task updated', '${task.title} saved.');
+      }
     } catch (error) {
       Get.snackbar('Update failed', '$error');
     }
@@ -71,13 +77,14 @@ class TasksScreen extends GetView<TasksController> {
       return;
     }
 
-    final payload = await showTaskEditorSheet(
+    final result = await showTaskEditorSheet(
       context,
       isCreate: true,
     );
-    if (payload == null) {
+    if (result == null || result.action != TaskEditorAction.save) {
       return;
     }
+    final payload = result.payload!;
 
     try {
       await controller.createTaskForActiveGroup(payload);

@@ -4,6 +4,21 @@ import 'package:my_api_client/api.dart' as robot_farm_api;
 
 import 'task_edit_payloads.dart';
 
+enum TaskEditorAction { save, delete }
+
+class TaskEditorResult {
+  const TaskEditorResult._(this.action, this.payload);
+
+  const TaskEditorResult.save(TaskEditPayload payload)
+      : this._(TaskEditorAction.save, payload);
+
+  const TaskEditorResult.delete()
+      : this._(TaskEditorAction.delete, null);
+
+  final TaskEditorAction action;
+  final TaskEditPayload? payload;
+}
+
 Future<TaskGroupEditPayload?> showTaskGroupEditorSheet(
   BuildContext context, {
   robot_farm_api.TaskGroup? group,
@@ -98,12 +113,12 @@ Future<TaskGroupEditPayload?> showTaskGroupEditorSheet(
   );
 }
 
-Future<TaskEditPayload?> showTaskEditorSheet(
+Future<TaskEditorResult?> showTaskEditorSheet(
   BuildContext context, {
   robot_farm_api.Task? task,
   bool isCreate = false,
 }) {
-  return showModalBottomSheet<TaskEditPayload>(
+  return showModalBottomSheet<TaskEditorResult>(
     context: context,
     isScrollControlled: true,
     builder: (_) {
@@ -205,6 +220,44 @@ Future<TaskEditPayload?> showTaskEditorSheet(
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
+                        if (!isCreate)
+                          TextButton.icon(
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('Delete'),
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.error,
+                            ),
+                            onPressed: () async {
+                              final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Delete task'),
+                                      content: Text(
+                                        'Delete ${task?.title ?? 'this task'} permanently?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(true),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  ) ??
+                                  false;
+                              if (!confirmed || !context.mounted) {
+                                return;
+                              }
+                              Navigator.of(context)
+                                  .pop(const TaskEditorResult.delete());
+                            },
+                          ),
+                        const Spacer(),
                         TextButton(
                           onPressed: () => Navigator.of(context).maybePop(),
                           child: const Text('Cancel'),
@@ -212,9 +265,8 @@ Future<TaskEditPayload?> showTaskEditorSheet(
                         const SizedBox(width: 12),
                         FilledButton(
                           onPressed: form.isValid
-                              ? () => Navigator.of(
-                                  context,
-                                ).pop(form.buildPayload())
+                              ? () => Navigator.of(context)
+                                  .pop(TaskEditorResult.save(form.buildPayload()))
                               : null,
                           child: Text(isCreate ? 'Create' : 'Save changes'),
                         ),

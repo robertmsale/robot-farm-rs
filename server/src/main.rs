@@ -18,6 +18,7 @@ mod globals;
 mod mcp;
 mod models;
 mod post_turn_checks;
+mod realtime;
 #[path = "routes/lib.rs"]
 mod routes;
 mod shared;
@@ -53,6 +54,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     compliance::init();
     system::init_system_state();
+    realtime::init();
 
     make_worker_image();
     threads::init_background_threads();

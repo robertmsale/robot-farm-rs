@@ -173,6 +173,21 @@ class TasksController extends GetxController {
     }
   }
 
+  Future<void> deleteTask(int taskId) async {
+    final api = _apiOrThrow();
+    try {
+      await api.deleteTask(taskId);
+      tasks.removeWhere((task) => task.id == taskId);
+      tasks.refresh();
+    } on robot_farm_api.ApiException catch (err) {
+      throw Exception(
+        err.message ?? 'Failed to delete task (HTTP ${err.code}).',
+      );
+    } catch (err) {
+      throw Exception('Failed to delete task: $err');
+    }
+  }
+
   Future<void> applyGroupEdit(int groupId, TaskGroupEditPayload payload) async {
     final api = _apiOrThrow();
     final input = robot_farm_api.TaskGroupUpdateInput(

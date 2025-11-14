@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:my_api_client/api.dart' as robot_farm_api;
 
 enum CodexEventType {
   threadStarted,
@@ -349,7 +352,6 @@ class CodexTodo {
   }
 }
 
-/// Mock system events (non-Codex) so the feed can preview the system payload style.
 class SystemFeedEvent {
   const SystemFeedEvent({
     required this.level,
@@ -358,76 +360,72 @@ class SystemFeedEvent {
     required this.category,
     required this.summary,
     required this.details,
+    required this.timestamp,
+    this.feed,
   });
 
-  final FeedLevel level;
+  final SystemFeedLevel level;
   final String source;
   final String target;
   final String category;
   final String summary;
   final String details;
+  final DateTime timestamp;
+  final robot_farm_api.Feed? feed;
+
+  factory SystemFeedEvent.fromFeed(robot_farm_api.Feed entry) {
+    return SystemFeedEvent(
+      level: _mapFeedLevel(entry.level),
+      source: entry.source_,
+      target: entry.target,
+      category: entry.category,
+      summary: entry.text,
+      details: _formatFeedDetails(entry.raw),
+      timestamp:
+          DateTime.fromMillisecondsSinceEpoch(entry.ts * 1000, isUtc: true),
+      feed: entry,
+    );
+  }
 
   Color badgeColor(ColorScheme scheme) {
     switch (level) {
-      case FeedLevel.error:
+      case SystemFeedLevel.error:
         return scheme.error;
-      case FeedLevel.warning:
+      case SystemFeedLevel.warning:
         return scheme.tertiary;
-      case FeedLevel.info:
+      case SystemFeedLevel.info:
         return scheme.primary;
     }
   }
 }
 
-enum FeedLevel { info, warning, error }
+enum SystemFeedLevel { info, warning, error }
 
-final List<SystemFeedEvent> mockSystemEvents = [
-  SystemFeedEvent(
-    level: FeedLevel.info,
-    source: 'System',
-    target: 'Orchestrator',
-    category: 'strategy',
-    summary: 'ws2 is idle — assign a task from `chores` or `bugs`.',
-    details:
-        'Strategy Planner (Planning) detected idle workers: ws2. Focus groups: chores, bugs.',
-  ),
-  SystemFeedEvent(
-    level: FeedLevel.warning,
-    source: 'System',
-    target: 'ws3',
-    category: 'validation',
-    summary: 'Post-turn validation failed.',
-    details:
-        'Tests failed: `cargo test` exited with code 101. The worktree was not merged into staging.',
-  ),
-  SystemFeedEvent(
-    level: FeedLevel.info,
-    source: 'User',
-    target: 'Orchestrator',
-    category: 'user',
-    summary: '“Remember to keep worker ws1 focused on CLI improvements.”',
-    details:
-        'Manual message injected into orchestrator feed via system message endpoint.',
-  ),
-  SystemFeedEvent(
-    level: FeedLevel.error,
-    source: 'System',
-    target: 'Orchestrator',
-    category: 'merge',
-    summary: 'Merge conflict detected while merging ws4 → staging.',
-    details:
-        'Conflict files: server/src/routes/task.rs, client/lib/main.dart. Worker notified to resolve and re-run COMPLETE_TASK.',
-  ),
-  SystemFeedEvent(
-    level: FeedLevel.info,
-    source: 'System',
-    target: 'Orchestrator',
-    category: 'queue',
-    summary: 'HotfixSwarm: four workers activated.',
-    details:
-        'Workers ws1 (frontend), ws2 (backend), ws3 (database), ws4 (deps) are now assigned per strategy.',
-  ),
-];
+SystemFeedLevel _mapFeedLevel(robot_farm_api.FeedLevel level) {
+  switch (level) {
+    case robot_farm_api.FeedLevel.info:
+      return SystemFeedLevel.info;
+    case robot_farm_api.FeedLevel.warning:
+      return SystemFeedLevel.warning;
+    case robot_farm_api.FeedLevel.error:
+      return SystemFeedLevel.error;
+  }
+  return SystemFeedLevel.info;
+}
+
+String _formatFeedDetails(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) {
+    return 'No additional details.';
+  }
+  try {
+    final decoded = jsonDecode(trimmed);
+    const encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(decoded);
+  } catch (_) {
+    return raw;
+  }
+}
 
 IconData iconForEvent(CodexEvent event) {
   switch (event.type) {

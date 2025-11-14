@@ -8,6 +8,7 @@ use crate::models::process::{
     RunPriority,
 };
 use crate::post_turn_checks::PostTurnCheckRegistry;
+use crate::realtime::{self, RealtimeEvent};
 use crate::shared::git::MergeConflict;
 use crate::shared::{git, shell};
 use crate::system::{
@@ -601,8 +602,9 @@ impl QueueManagerRuntime {
         let events = coordinator.drain_events();
         for event in events {
             let entry = event_to_feed_entry(event);
-            if let Err(err) = self.db.insert_feed_entry(entry).await {
-                warn!(?err, "failed to persist system event");
+            match self.db.insert_feed_entry(entry).await {
+                Ok(feed_entry) => realtime::publish(RealtimeEvent::FeedEntry(feed_entry)),
+                Err(err) => warn!(?err, "failed to persist system event"),
             }
         }
     }
