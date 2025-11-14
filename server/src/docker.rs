@@ -32,6 +32,18 @@ impl ImageType {
 /// Creates 3 docker images, one for each Codex executor
 pub fn make_worker_image() {
     let p = PathBuf::from(format!("{}/Dockerfile", CONFIG_DIR.as_str()));
+    if !p.exists() {
+        if let Some(parent) = p.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        fs::File::create(&p).unwrap_or_else(|err| {
+            panic!(
+                "failed to create Dockerfile fragment at {}: {}",
+                p.display(),
+                err
+            );
+        });
+    }
     let concatenated = combine_dockerfiles(p.to_str().unwrap());
     let p = PathBuf::from(PROJECT_DIR.as_str());
     let dir = fs::canonicalize(p).unwrap_or_else(|_| panic!("project doesn't exist"));

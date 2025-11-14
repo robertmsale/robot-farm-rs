@@ -152,97 +152,213 @@ class TasksScreen extends GetView<TasksController> {
   }
 
   Widget _buildGroupPane(BuildContext context) {
-    final groups = controller.taskGroups;
-    final isLoading = controller.isLoadingGroups.value;
-    final error = controller.error.value;
+    return Obx(() {
+      final filteredGroups = controller.filteredTaskGroups;
+      final hasAnyGroups = controller.taskGroups.isNotEmpty;
+      final isLoading = controller.isLoadingGroups.value;
+      final error = controller.error.value;
 
-    if (groups.isEmpty) {
-      if (isLoading) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (error != null) {
-        return _StateMessage(
-          icon: Icons.error_outline,
-          message: error,
-          actionLabel: 'Try again',
-          onAction: controller.refreshTaskGroups,
+      Widget content;
+      if (!hasAnyGroups) {
+        if (isLoading) {
+          content = const Center(child: CircularProgressIndicator());
+        } else if (error != null) {
+          content = _StateMessage(
+            icon: Icons.error_outline,
+            message: error,
+            actionLabel: 'Try again',
+            onAction: controller.refreshTaskGroups,
+          );
+        } else {
+          content = _StateMessage(
+            icon: Icons.list_alt,
+            message: 'No task groups found yet.',
+            actionLabel: 'Refresh',
+            onAction: controller.refreshTaskGroups,
+          );
+        }
+      } else if (filteredGroups.isEmpty) {
+        content = const _EmptyFilterResultMessage(
+          icon: Icons.search_off,
+          message: 'No task groups match your filters.',
+        );
+      } else {
+        content = RefreshIndicator(
+          onRefresh: controller.refreshTaskGroups,
+          child: _TaskGroupList(
+            groups: filteredGroups,
+            onEdit: (group) => _editGroup(context, group),
+            onOpen: controller.selectGroup,
+          ),
         );
       }
-      return _StateMessage(
-        icon: Icons.list_alt,
-        message: 'No task groups found yet.',
-        actionLabel: 'Refresh',
-        onAction: controller.refreshTaskGroups,
-      );
-    }
 
-    return Column(
-      children: [
-        if (error != null)
-          _ErrorBanner(message: error, onRetry: controller.refreshTaskGroups),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: controller.refreshTaskGroups,
-            child: _TaskGroupList(
-              groups: groups,
-              onEdit: (group) => _editGroup(context, group),
-              onOpen: controller.selectGroup,
+      return Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              children: [
+                TextField(
+                  onChanged: controller.updateGroupSearch,
+                  decoration: const InputDecoration(
+                    labelText: 'Filter by name or slug',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<robot_farm_api.TaskGroupStatus?>(
+                  initialValue: controller.groupStatusFilter.value,
+                  items: [
+                    const DropdownMenuItem<robot_farm_api.TaskGroupStatus?>(
+                      value: null,
+                      child: Text('All statuses'),
+                    ),
+                    ...robot_farm_api.TaskGroupStatus.values.map(
+                      (status) => DropdownMenuItem(
+                        value: status,
+                        child: Text(status.value),
+                      ),
+                    ),
+                  ],
+                  onChanged: controller.updateGroupStatusFilter,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
-    );
+          if (error != null && hasAnyGroups)
+            _ErrorBanner(message: error, onRetry: controller.refreshTaskGroups),
+          Expanded(child: content),
+        ],
+      );
+    });
   }
 
   Widget _buildTaskPane(BuildContext context, ThemeData theme) {
-    final group = controller.activeGroup;
-    final tasks = controller.activeGroupTasks;
-    final isLoading = controller.isLoadingTasks.value;
-    final error = controller.taskError.value;
+    return Obx(() {
+      final group = controller.activeGroup;
+      final filteredTasks = controller.activeGroupTasks;
+      final hasAnyTasks = controller.tasks.isNotEmpty;
+      final isLoading = controller.isLoadingTasks.value;
+      final error = controller.taskError.value;
 
-    if (group == null) {
-      return const Center(child: Text('Select a task group to view tasks.'));
-    }
-
-    if (tasks.isEmpty) {
-      if (isLoading) {
-        return const Center(child: CircularProgressIndicator());
+      if (group == null) {
+        return const Center(child: Text('Select a task group to view tasks.'));
       }
-      if (error != null) {
-        return _StateMessage(
-          icon: Icons.error_outline,
-          message: error,
-          actionLabel: 'Try again',
-          onAction: controller.refreshActiveGroupTasks,
+
+      Widget content;
+      if (!hasAnyTasks) {
+        if (isLoading) {
+          content = const Center(child: CircularProgressIndicator());
+        } else if (error != null) {
+          content = _StateMessage(
+            icon: Icons.error_outline,
+            message: error,
+            actionLabel: 'Try again',
+            onAction: controller.refreshActiveGroupTasks,
+          );
+        } else {
+          content = _StateMessage(
+            icon: Icons.task_alt,
+            message: 'No tasks in ${group.title} yet.',
+            actionLabel: 'Refresh',
+            onAction: controller.refreshActiveGroupTasks,
+          );
+        }
+      } else if (filteredTasks.isEmpty) {
+        content = const _EmptyFilterResultMessage(
+          icon: Icons.search_off,
+          message: 'No tasks match your filters.',
+        );
+      } else {
+        content = RefreshIndicator(
+          onRefresh: controller.refreshActiveGroupTasks,
+          child: _TaskListView(
+            group: group,
+            tasks: filteredTasks,
+            onEdit: (task) => _editTask(context, task),
+          ),
         );
       }
-      return _StateMessage(
-        icon: Icons.task_alt,
-        message: 'No tasks in ${group.title} yet.',
-        actionLabel: 'Refresh',
-        onAction: controller.refreshActiveGroupTasks,
-      );
-    }
 
-    return Column(
-      children: [
-        if (error != null)
-          _ErrorBanner(
-            message: error,
-            onRetry: controller.refreshActiveGroupTasks,
-          ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: controller.refreshActiveGroupTasks,
-            child: _TaskListView(
-              group: group,
-              tasks: tasks,
-              onEdit: (task) => _editTask(context, task),
+      final ownerFilterItems = <DropdownMenuItem<String?>>[
+        const DropdownMenuItem<String?>(value: null, child: Text('All owners')),
+        ...controller.ownerFilterOptions.map(
+          (owner) =>
+              DropdownMenuItem<String?>(value: owner, child: Text(owner)),
+        ),
+      ];
+
+      return Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              children: [
+                TextField(
+                  onChanged: controller.updateTaskSearch,
+                  decoration: const InputDecoration(
+                    labelText: 'Filter by title or slug',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child:
+                          DropdownButtonFormField<robot_farm_api.TaskStatus?>(
+                            initialValue: controller.taskStatusFilter.value,
+                            items: [
+                              const DropdownMenuItem<
+                                robot_farm_api.TaskStatus?
+                              >(value: null, child: Text('All statuses')),
+                              ...robot_farm_api.TaskStatus.values.map(
+                                (status) => DropdownMenuItem(
+                                  value: status,
+                                  child: Text(status.value),
+                                ),
+                              ),
+                            ],
+                            onChanged: controller.updateTaskStatusFilter,
+                            decoration: const InputDecoration(
+                              labelText: 'Status',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String?>(
+                        initialValue: controller.taskOwnerFilter.value,
+                        items: ownerFilterItems,
+                        onChanged: controller.updateTaskOwnerFilter,
+                        decoration: const InputDecoration(
+                          labelText: 'Owner',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ),
-      ],
-    );
+          if (error != null && hasAnyTasks)
+            _ErrorBanner(
+              message: error,
+              onRetry: controller.refreshActiveGroupTasks,
+            ),
+          Expanded(child: content),
+        ],
+      );
+    });
   }
 }
 
@@ -371,6 +487,38 @@ class _TaskListView extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _EmptyFilterResultMessage extends StatelessWidget {
+  const _EmptyFilterResultMessage({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 64, color: theme.colorScheme.secondary),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            style: theme.textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Adjust your filters to see more results.',
+            style: theme.textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

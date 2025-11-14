@@ -91,10 +91,22 @@ Future<TaskGroupEditorResult?> showTaskGroupEditorSheet(
                     const SizedBox(height: 12),
                     TextField(
                       controller: form.descriptionController,
-                      maxLines: 4,
+                      maxLines: 8,
+                      textAlignVertical: TextAlignVertical.top,
                       decoration: const InputDecoration(
                         labelText: 'Description',
                         border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Status',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Text(
+                        group?.status.value ??
+                            robot_farm_api.TaskGroupStatus.ready.value,
                       ),
                     ),
                     const Spacer(),
@@ -264,8 +276,17 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: form.ownerController,
+                    DropdownButtonFormField<String>(
+                      initialValue: form.selectedOwner,
+                      items: form.ownerOptions
+                          .map(
+                            (owner) => DropdownMenuItem(
+                              value: owner,
+                              child: Text(owner),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: form.updateOwner,
                       decoration: const InputDecoration(
                         labelText: 'Owner',
                         border: OutlineInputBorder(),
@@ -407,9 +428,11 @@ class TaskEditorController extends GetxController {
   late final TextEditingController slugController;
   late final TextEditingController titleController;
   late final TextEditingController commitController;
-  late final TextEditingController ownerController;
   late final TextEditingController descriptionController;
   late robot_farm_api.TaskStatus selectedStatus;
+  late final List<String> ownerOptions;
+  late String selectedOwner;
+  static const int _workerHandleCount = 50;
 
   @override
   void onInit() {
@@ -420,11 +443,17 @@ class TaskEditorController extends GetxController {
       ..addListener(_invalidate);
     commitController = TextEditingController(text: task?.commitHash ?? '')
       ..addListener(_invalidate);
-    ownerController = TextEditingController(text: task?.owner ?? '')
-      ..addListener(_invalidate);
     descriptionController = TextEditingController(text: task?.description ?? '')
       ..addListener(_invalidate);
     selectedStatus = task?.status ?? robot_farm_api.TaskStatus.ready;
+    ownerOptions = _buildOwnerOptions();
+    final normalizedOwner = (task?.owner ?? '').trim();
+    selectedOwner = normalizedOwner.isNotEmpty
+        ? normalizedOwner
+        : 'Orchestrator';
+    if (!ownerOptions.contains(selectedOwner)) {
+      ownerOptions.add(selectedOwner);
+    }
   }
 
   void updateStatus(robot_farm_api.TaskStatus? status) {
@@ -435,12 +464,20 @@ class TaskEditorController extends GetxController {
     update();
   }
 
+  void updateOwner(String? owner) {
+    if (owner == null) {
+      return;
+    }
+    selectedOwner = owner;
+    update();
+  }
+
   void _invalidate() => update();
 
   bool get isValid =>
       slugController.text.trim().isNotEmpty &&
       titleController.text.trim().isNotEmpty &&
-      ownerController.text.trim().isNotEmpty &&
+      selectedOwner.trim().isNotEmpty &&
       descriptionController.text.trim().isNotEmpty;
 
   TaskEditPayload buildPayload() => TaskEditPayload(
@@ -450,7 +487,7 @@ class TaskEditorController extends GetxController {
         ? null
         : commitController.text.trim(),
     status: selectedStatus,
-    owner: ownerController.text.trim(),
+    owner: selectedOwner.trim(),
     description: descriptionController.text.trim(),
   );
 
@@ -459,8 +496,15 @@ class TaskEditorController extends GetxController {
     slugController.dispose();
     titleController.dispose();
     commitController.dispose();
-    ownerController.dispose();
     descriptionController.dispose();
     super.onClose();
+  }
+
+  List<String> _buildOwnerOptions() {
+    final handles = List<String>.generate(
+      _workerHandleCount,
+      (index) => 'ws${index + 1}',
+    );
+    return <String>['Orchestrator', ...handles, 'Quality Assurance'];
   }
 }

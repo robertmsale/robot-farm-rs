@@ -13,6 +13,15 @@ class TasksController extends GetxController {
   final RxList<robot_farm_api.Task> tasks = <robot_farm_api.Task>[].obs;
   final RxnInt activeGroupId = RxnInt();
 
+  final RxString groupSearchQuery = ''.obs;
+  final Rx<robot_farm_api.TaskGroupStatus?> groupStatusFilter =
+      Rx<robot_farm_api.TaskGroupStatus?>(robot_farm_api.TaskGroupStatus.ready);
+
+  final RxString taskSearchQuery = ''.obs;
+  final Rx<robot_farm_api.TaskStatus?> taskStatusFilter =
+      Rx<robot_farm_api.TaskStatus?>(robot_farm_api.TaskStatus.ready);
+  final RxnString taskOwnerFilter = RxnString('Orchestrator');
+
   final RxBool isLoadingGroups = false.obs;
   final RxBool isLoadingTasks = false.obs;
   final RxnString error = RxnString();
@@ -41,12 +50,112 @@ class TasksController extends GetxController {
     }
   }
 
+  List<robot_farm_api.TaskGroup> get filteredTaskGroups {
+    final query = groupSearchQuery.value.toLowerCase().trim();
+    final status = groupStatusFilter.value;
+
+    return taskGroups.where((group) {
+      final matchesQuery =
+          query.isEmpty ||
+          group.title.toLowerCase().contains(query) ||
+          group.slug.toLowerCase().contains(query);
+      final matchesStatus = status == null || group.status == status;
+      return matchesQuery && matchesStatus;
+    }).toList();
+  }
+
   List<robot_farm_api.Task> get activeGroupTasks {
     final id = activeGroupId.value;
     if (id == null) {
       return const <robot_farm_api.Task>[];
     }
-    return tasks.where((task) => task.groupId == id).toList();
+    final query = taskSearchQuery.value.toLowerCase().trim();
+    final statusFilter = taskStatusFilter.value;
+    final ownerFilterValue = taskOwnerFilter.value?.trim();
+
+    return tasks.where((task) {
+      if (task.groupId != id) {
+        return false;
+      }
+      final matchesQuery =
+          query.isEmpty ||
+          task.title.toLowerCase().contains(query) ||
+          task.slug.toLowerCase().contains(query);
+      final matchesStatus = statusFilter == null || task.status == statusFilter;
+      final matchesOwner =
+          ownerFilterValue == null ||
+          ownerFilterValue.isEmpty ||
+          _ownerMatches(task.owner, ownerFilterValue);
+      return matchesQuery && matchesStatus && matchesOwner;
+    }).toList();
+  }
+
+  List<String> get ownerFilterOptions {
+    final workerHandles = <String>{};
+    for (final task in tasks) {
+      final owner = task.owner.trim();
+      if (_isWorkerHandle(owner)) {
+        workerHandles.add(owner.toLowerCase());
+      }
+    }
+
+    if (workerHandles.isEmpty) {
+      for (var i = 1; i <= 6; i++) {
+        workerHandles.add('ws$i');
+      }
+    }
+
+    final sortedHandles = workerHandles.toList()
+      ..sort((a, b) {
+        final numA = int.tryParse(a.substring(2)) ?? 0;
+        final numB = int.tryParse(b.substring(2)) ?? 0;
+        return numA.compareTo(numB);
+      });
+
+    final extras =
+        tasks
+            .map((task) => task.owner.trim())
+            .where(
+              (owner) =>
+                  owner.isNotEmpty &&
+                  !_isWorkerHandle(owner) &&
+                  !_isOrchestrator(owner) &&
+                  !_isQa(owner),
+            )
+            .toSet()
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+    final result = <String>[];
+    result.add('Orchestrator');
+    result.addAll(sortedHandles);
+    result.add('Quality Assurance');
+    result.addAll(extras);
+    return result;
+  }
+
+  void updateGroupSearch(String value) {
+    groupSearchQuery.value = value;
+  }
+
+  void updateGroupStatusFilter(robot_farm_api.TaskGroupStatus? status) {
+    groupStatusFilter.value = status;
+  }
+
+  void updateTaskSearch(String value) {
+    taskSearchQuery.value = value;
+  }
+
+  void updateTaskStatusFilter(robot_farm_api.TaskStatus? status) {
+    taskStatusFilter.value = status;
+  }
+
+  void updateTaskOwnerFilter(String? owner) {
+    if (owner == null || owner.isEmpty) {
+      taskOwnerFilter.value = null;
+      return;
+    }
+    taskOwnerFilter.value = owner;
   }
 
   Future<void> refreshTaskGroups() async {
@@ -328,5 +437,29 @@ class TasksController extends GetxController {
     } finally {
       isLoadingTasks.value = false;
     }
+  }
+
+  static bool _ownerMatches(String owner, String filter) {
+    final normalizedOwner = owner.trim().toLowerCase();
+    final normalizedFilter = filter.trim().toLowerCase();
+    if (normalizedFilter == 'qa' || normalizedFilter == 'quality assurance') {
+      return normalizedOwner == 'qa' || normalizedOwner == 'quality assurance';
+    }
+    if (normalizedFilter == 'orchestrator') {
+      return normalizedOwner == 'orchestrator';
+    }
+    return normalizedOwner == normalizedFilter;
+  }
+
+  static bool _isWorkerHandle(String owner) {
+    return RegExp(r'^ws\d+$', caseSensitive: false).hasMatch(owner.trim());
+  }
+
+  static bool _isOrchestrator(String owner) =>
+      owner.trim().toLowerCase() == 'orchestrator';
+
+  static bool _isQa(String owner) {
+    final lower = owner.trim().toLowerCase();
+    return lower == 'qa' || lower == 'quality assurance';
   }
 }
