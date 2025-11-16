@@ -1,12 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:my_api_client/api.dart' as robot_farm_api;
 
 import 'task_edit_payloads.dart';
 
 class TasksController extends GetxController {
-  TasksController(this._baseUrlProvider);
+  TasksController(this._baseUrlProvider, this._workerHandlesProvider);
 
   final String? Function() _baseUrlProvider;
+  final List<String> Function()? _workerHandlesProvider;
 
   final RxList<robot_farm_api.TaskGroup> taskGroups =
       <robot_farm_api.TaskGroup>[].obs;
@@ -279,6 +281,10 @@ class TasksController extends GetxController {
     );
 
     try {
+      debugPrint(
+        'Creating task in group $groupId with payload: '
+        '${payload.toStringForLog()}',
+      );
       final created = await api.createTask(input);
       if (created == null) {
         throw Exception('Server returned an empty response.');
@@ -356,6 +362,10 @@ class TasksController extends GetxController {
     );
 
     try {
+      debugPrint(
+        'Updating task $taskId with payload: '
+        '${payload.toStringForLog()}',
+      );
       final updated = await api.updateTask(taskId, input);
       if (updated == null) {
         throw Exception('Server returned an empty response.');
@@ -462,4 +472,7 @@ class TasksController extends GetxController {
     final lower = owner.trim().toLowerCase();
     return lower == 'qa' || lower == 'quality assurance';
   }
+
+  List<String> get availableWorkerHandles =>
+      _workerHandlesProvider?.call() ?? const <String>[];
 }

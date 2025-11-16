@@ -1,4 +1,5 @@
 use crate::db;
+use crate::system::{events::SystemActor, queue::QueueCoordinator};
 use crate::threads;
 use crate::threads::database_manager::DatabaseManagerError;
 use crate::threads::queue_manager::QueueManagerError;
@@ -18,6 +19,13 @@ pub struct MessageQueueQuery {
     pub to: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct EnqueueMessageInput {
+    pub from: String,
+    pub to: String,
+    pub message: String,
+}
+
 pub async fn list_messages(
     Query(query): Query<MessageQueueQuery>,
 ) -> Result<Json<Vec<Message>>, StatusCode> {
@@ -31,6 +39,36 @@ pub async fn list_messages(
         Ok(messages) => Ok(Json(messages)),
         Err(err) => {
             error!(?err, "failed to list queue messages");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn enqueue_message(
+    Json(payload): Json<EnqueueMessageInput>,
+) -> Result<(StatusCode, Json<Message>), StatusCode> {
+    if payload.from.trim().is_empty()
+        || payload.to.trim().is_empty()
+        || payload.message.trim().is_empty()
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let from_actor = parse_actor(&payload.from).ok_or(StatusCode::BAD_REQUEST)?;
+    let to_actor = parse_actor(&payload.to).ok_or(StatusCode::BAD_REQUEST)?;
+
+    let handles = threads::thread_handles();
+    match handles
+        .queue
+        .enqueue_manual_message(from_actor, to_actor, payload.message.trim().to_string())
+        .await
+    {
+        Ok(message) => {
+            QueueCoordinator::global().user_message(from_actor, to_actor, &payload.message);
+            Ok((StatusCode::CREATED, Json(message)))
+        }
+        Err(err) => {
+            error!(?err, "failed to enqueue message");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -111,4 +149,8 @@ fn is_message_missing(error: &QueueManagerError) -> bool {
         ),
         _ => false,
     }
+}
+
+fn parse_actor(value: &str) -> Option<SystemActor> {
+    SystemActor::from_label(value)
 }

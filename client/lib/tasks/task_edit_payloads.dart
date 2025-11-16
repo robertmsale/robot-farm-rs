@@ -28,4 +28,10 @@ class TaskEditPayload {
   final robot_farm_api.TaskStatus status;
   final String owner;
   final String description;
+
+  String toStringForLog() {
+    return '{slug: $slug, title: $title, commit: ${commitHash ?? '—'}, '
+        'status: ${status.value}, owner: $owner, '
+        'descriptionLength: ${description.length}}';
+  }
 }

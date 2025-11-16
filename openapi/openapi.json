@@ -389,6 +389,32 @@
           }
         }
       },
+      "post": {
+        "summary": "Enqueue message",
+        "operationId": "enqueueMessage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageEnqueueInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "summary": "Clear all messages",
         "operationId": "deleteAllMessages",
@@ -493,6 +519,50 @@
         }
       }
     },
+    "/queue": {
+      "get": {
+        "summary": "Get queue state",
+        "operationId": "getQueueState",
+        "responses": {
+          "200": {
+            "description": "Queue paused/resumed state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueState"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update queue state",
+        "operationId": "updateQueueState",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueState"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated queue state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueState"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/feed": {
       "get": {
         "summary": "List feed events",
@@ -553,6 +623,39 @@
         "responses": {
           "204": {
             "description": "Feed cleared."
+          }
+        }
+      }
+    },
+    "/feed/{feedId}": {
+      "get": {
+        "summary": "Get feed entry",
+        "operationId": "getFeedEntry",
+        "parameters": [
+          {
+            "name": "feedId",
+            "in": "path",
+            "required": true,
+            "description": "Feed entry identifier.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feed entry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Feed entry not found."
           }
         }
       }
@@ -1251,6 +1354,38 @@
           "to",
           "message",
           "inserted_at"
+        ],
+        "additionalProperties": false
+      },
+      "MessageEnqueueInput": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/MessageSender"
+          },
+          "to": {
+            "$ref": "#/components/schemas/MessageSender"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "QueueState": {
+        "type": "object",
+        "properties": {
+          "paused": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "paused"
         ],
         "additionalProperties": false
       },

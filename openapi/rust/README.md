@@ -51,6 +51,8 @@ Class | Method | HTTP request | Description
  - [InsertMessageOneOf](docs/InsertMessageOneOf.md)
  - [InsertMessageOneOf1](docs/InsertMessageOneOf1.md)
  - [Message](docs/Message.md)
+ - [MessageEnqueueInput](docs/MessageEnqueueInput.md)
+ - [QueueState](docs/QueueState.md)
  - [ReasoningEffort](docs/ReasoningEffort.md)
  - [Strategy](docs/Strategy.md)
  - [Task](docs/Task.md)

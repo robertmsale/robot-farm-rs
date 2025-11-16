@@ -1,5 +1,9 @@
 use crate::db;
-use axum::{Json, extract::Query, http::StatusCode};
+use axum::{
+    Json,
+    extract::{Path, Query},
+    http::StatusCode,
+};
 use openapi::models::{Feed, FeedLevel, FeedOrderField};
 use serde::Deserialize;
 use tracing::error;
@@ -21,12 +25,24 @@ pub async fn list_feed(
         target: query.target,
         level: query.status,
         order_by: query.order_by,
+        include_raw: false,
     };
 
     match db::feed::list_feed(filters).await {
         Ok(feed) => Ok(Json(feed)),
         Err(err) => {
             error!(?err, "failed to fetch feed entries");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn get_feed_entry(Path(feed_id): Path<i64>) -> Result<Json<Feed>, StatusCode> {
+    match db::feed::get_feed_entry(feed_id).await {
+        Ok(Some(feed)) => Ok(Json(feed)),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(err) => {
+            error!(?err, feed_id, "failed to fetch feed entry");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::{Mutex, mpsc};
 use tokio::task::JoinHandle;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 pub struct ProcessManagerConfig {
     pub event_buffer: usize,
@@ -67,16 +67,18 @@ async fn run_manager(mut runtime: ProcessManagerRuntime) {
     let (cleanup_tx, mut cleanup_rx) = mpsc::channel(64);
     let mut active: HashMap<RunId, ActiveProcess> = HashMap::new();
     let mut directives_closed = false;
+    info!("process manager loop started");
 
     loop {
         tokio::select! {
             Some(run_id) = cleanup_rx.recv() => {
-                debug!(%run_id, "process completed, removing from active map");
+                info!(%run_id, "process completed, removing from active map");
                 active.remove(&run_id);
             }
             directive = runtime.directives_rx.recv(), if !directives_closed => {
                 match directive {
                     Some(directive) => {
+                        info!(?directive, "process manager received directive");
                         handle_directive(
                             directive,
                             &runtime.config,
@@ -120,6 +122,7 @@ async fn handle_directive(
 ) {
     match directive {
         ProcessDirective::Launch(launch) => {
+            info!(run_id = %launch.request.metadata.run_id, persona = ?launch.request.metadata.persona, "process manager launching worker run");
             launch_process(
                 launch,
                 config,
@@ -131,6 +134,7 @@ async fn handle_directive(
             .await;
         }
         ProcessDirective::Kill(kill) => {
+            info!(run_id = %kill.run_id, "process manager received kill directive");
             kill_process(kill, active).await;
         }
         ProcessDirective::UpdatePriority(update) => {

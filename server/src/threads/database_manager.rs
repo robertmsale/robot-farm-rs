@@ -2,7 +2,7 @@ use crate::db::feed::{self, NewFeedEntry};
 use crate::db::message_queue::{self, MessageFilters, MessageQueueError, RelativePosition};
 use openapi::models::{Feed, Message};
 use tokio::sync::{mpsc, oneshot};
-use tracing::error;
+use tracing::{error, info};
 
 /// Configuration for the database manager loop.
 pub struct DatabaseManagerConfig {
@@ -157,6 +157,7 @@ pub fn spawn_database_manager(config: DatabaseManagerConfig) -> DatabaseManagerH
 }
 
 async fn run_manager(mut rx: mpsc::Receiver<DatabaseManagerCommand>) {
+    info!("database manager loop started");
     while let Some(command) = rx.recv().await {
         // Each operation owns the connection work so the rest of the system can
         // keep sending intents without blocking on SQLx calls.
@@ -171,6 +172,7 @@ async fn run_manager(mut rx: mpsc::Receiver<DatabaseManagerCommand>) {
                 let _ = respond_to.send(result);
             }
             DatabaseManagerCommand::DeleteAllMessages { respond_to } => {
+                info!("database manager: delete_all_messages");
                 let result = message_queue::delete_all_messages()
                     .await
                     .map_err(DatabaseManagerError::from);
@@ -180,6 +182,7 @@ async fn run_manager(mut rx: mpsc::Receiver<DatabaseManagerCommand>) {
                 message_id,
                 respond_to,
             } => {
+                info!(message_id, "database manager: delete_message_by_id");
                 let result = message_queue::delete_message_by_id(message_id)
                     .await
                     .map_err(DatabaseManagerError::from);
@@ -189,6 +192,7 @@ async fn run_manager(mut rx: mpsc::Receiver<DatabaseManagerCommand>) {
                 recipient,
                 respond_to,
             } => {
+                info!(recipient, "database manager: delete_messages_for_recipient");
                 let result = message_queue::delete_messages_for_recipient(&recipient)
                     .await
                     .map_err(DatabaseManagerError::from);
@@ -199,12 +203,18 @@ async fn run_manager(mut rx: mpsc::Receiver<DatabaseManagerCommand>) {
                 directive,
                 respond_to,
             } => {
+                info!(
+                    message_id,
+                    ?directive,
+                    "database manager: insert_message_relative"
+                );
                 let result = message_queue::insert_message_relative(message_id, directive)
                     .await
                     .map_err(DatabaseManagerError::from);
                 let _ = respond_to.send(result);
             }
             DatabaseManagerCommand::InsertFeedEntry { entry, respond_to } => {
+                info!(target = entry.target, category = %entry.category, "database manager: insert_feed_entry");
                 let result = feed::insert_feed_entry(entry)
                     .await
                     .map_err(DatabaseManagerError::from);
@@ -216,6 +226,7 @@ async fn run_manager(mut rx: mpsc::Receiver<DatabaseManagerCommand>) {
                 body,
                 respond_to,
             } => {
+                info!(from = %from_actor, to = %to_actor, "database manager: enqueue_message");
                 let result = message_queue::enqueue_message(&from_actor, &to_actor, &body)
                     .await
                     .map_err(DatabaseManagerError::from);

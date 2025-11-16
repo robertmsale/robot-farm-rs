@@ -224,6 +224,10 @@ class ApiClient {
           return InsertMessageOneOf1.fromJson(value);
         case 'Message':
           return Message.fromJson(value);
+        case 'MessageEnqueueInput':
+          return MessageEnqueueInput.fromJson(value);
+        case 'QueueState':
+          return QueueState.fromJson(value);
         case 'ReasoningEffort':
           return ReasoningEffortTypeTransformer().decode(value);
         case 'Strategy':

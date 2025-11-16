@@ -1,6 +1,7 @@
 use crate::db::{self, DbResult};
 use openapi::models::{Task, TaskCreateInput, TaskStatus, TaskUpdateInput};
-use sqlx::{QueryBuilder, Row, Sqlite};
+use sqlx::Row;
+use tracing::debug;
 
 fn parse_status(raw: &str) -> TaskStatus {
     match raw {
@@ -108,37 +109,35 @@ pub async fn update_task(task_id: i64, payload: TaskUpdateInput) -> DbResult<Opt
         return get_task(task_id).await;
     }
 
-    let mut builder = QueryBuilder::<Sqlite>::new("UPDATE task SET ");
-    let mut assignments = builder.separated(", ");
+    debug!(task_id, ?group_id, ?slug, ?title, ?status, owner = ?owner, "Applying task update");
 
-    if let Some(group_id) = group_id {
-        assignments.push("group_id = ").push_bind(group_id);
-    }
-    if let Some(slug) = slug {
-        assignments.push("slug = ").push_bind(slug);
-    }
-    if let Some(title) = title {
-        assignments.push("title = ").push_bind(title);
-    }
-    if let Some(commit_hash) = commit_hash {
-        assignments.push("commit_hash = ").push_bind(commit_hash);
-    }
-    if let Some(status) = status {
-        assignments.push("status = ").push_bind(status.to_string());
-    }
-    if let Some(owner) = owner {
-        assignments.push("owner = ").push_bind(owner);
-    }
-    if let Some(description) = description {
-        assignments.push("description = ").push_bind(description);
-    }
+    let status = status.map(|s| s.to_string());
 
-    builder
-        .push(" WHERE id = ")
-        .push_bind(task_id)
-        .push(" RETURNING id, group_id, slug, title, commit_hash, status, owner, description");
+    let row = sqlx::query(
+        r#"
+        UPDATE task SET
+            group_id = COALESCE(?1, group_id),
+            slug = COALESCE(?2, slug),
+            title = COALESCE(?3, title),
+            commit_hash = COALESCE(?4, commit_hash),
+            status = COALESCE(?5, status),
+            owner = COALESCE(?6, owner),
+            description = COALESCE(?7, description)
+        WHERE id = ?8
+        RETURNING id, group_id, slug, title, commit_hash, status, owner, description
+        "#,
+    )
+    .bind(group_id)
+    .bind(slug)
+    .bind(title)
+    .bind(commit_hash)
+    .bind(status)
+    .bind(owner)
+    .bind(description)
+    .bind(task_id)
+    .fetch_optional(db::pool())
+    .await?;
 
-    let row = builder.build().fetch_optional(db::pool()).await?;
     Ok(row.map(row_to_task))
 }
 

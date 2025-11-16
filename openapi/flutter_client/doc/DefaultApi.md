@@ -25,6 +25,7 @@ Method | HTTP request | Description
 [**deleteTaskGroup**](DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 [**deleteWorker**](DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
 [**deleteWorkerSession**](DefaultApi.md#deleteworkersession) | **DELETE** /workers/{workerId}/session | Clear worker session state
+[**enqueueMessage**](DefaultApi.md#enqueuemessage) | **POST** /message_queue | Enqueue message
 [**execOrchestratorCommand**](DefaultApi.md#execorchestratorcommand) | **POST** /orchestrator/exec | Execute a shell command for the orchestrator
 [**execWorkerCommand**](DefaultApi.md#execworkercommand) | **POST** /workers/{workerId}/exec | Execute a shell command within a worker workspace
 [**getActiveStrategy**](DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
@@ -32,6 +33,7 @@ Method | HTTP request | Description
 [**getGitStatusForWorktree**](DefaultApi.md#getgitstatusforworktree) | **GET** /git/status/{worktreeId} | Get full git status for a specific worktree, including diff hunks.
 [**getGitStatusSummary**](DefaultApi.md#getgitstatussummary) | **GET** /git/status | List git status information for all worktrees.
 [**getHealthz**](DefaultApi.md#gethealthz) | **GET** /healthz | Health check
+[**getQueueState**](DefaultApi.md#getqueuestate) | **GET** /queue | Get queue state
 [**getTask**](DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
 [**getTaskCommitDiff**](DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
 [**getTaskCommitInfo**](DefaultApi.md#gettaskcommitinfo) | **GET** /tasks/{taskId}/commit | Get task commit info
@@ -45,6 +47,7 @@ Method | HTTP request | Description
 [**listWorkers**](DefaultApi.md#listworkers) | **GET** /workers | List workers
 [**updateActiveStrategy**](DefaultApi.md#updateactivestrategy) | **PUT** /strategy | Update active strategy
 [**updateConfig**](DefaultApi.md#updateconfig) | **PUT** /config | Update workspace config
+[**updateQueueState**](DefaultApi.md#updatequeuestate) | **PUT** /queue | Update queue state
 [**updateTask**](DefaultApi.md#updatetask) | **PUT** /tasks/{taskId} | Update task
 [**updateTaskGroup**](DefaultApi.md#updatetaskgroup) | **PUT** /task-groups/{taskGroupId} | Update task group
 
@@ -676,6 +679,47 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **enqueueMessage**
+> Message enqueueMessage(messageEnqueueInput)
+
+Enqueue message
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final messageEnqueueInput = MessageEnqueueInput(); // MessageEnqueueInput | 
+
+try {
+    final result = api_instance.enqueueMessage(messageEnqueueInput);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->enqueueMessage: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **messageEnqueueInput** | [**MessageEnqueueInput**](MessageEnqueueInput.md)|  | 
+
+### Return type
+
+[**Message**](Message.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **execOrchestratorCommand**
 > ExecResult execOrchestratorCommand(execCommandInput)
 
@@ -937,6 +981,43 @@ This endpoint does not need any parameter.
 ### Return type
 
 [**GetHealthz200Response**](GetHealthz200Response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getQueueState**
+> QueueState getQueueState()
+
+Get queue state
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+
+try {
+    final result = api_instance.getQueueState();
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getQueueState: $e\n');
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+
+### Return type
+
+[**QueueState**](QueueState.md)
 
 ### Authorization
 
@@ -1484,6 +1565,47 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**Config**](Config.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateQueueState**
+> QueueState updateQueueState(queueState)
+
+Update queue state
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final queueState = QueueState(); // QueueState | 
+
+try {
+    final result = api_instance.updateQueueState(queueState);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->updateQueueState: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **queueState** | [**QueueState**](QueueState.md)|  | 
+
+### Return type
+
+[**QueueState**](QueueState.md)
 
 ### Authorization
 

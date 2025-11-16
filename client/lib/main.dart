@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'dart:math' as math;
 
@@ -14,7 +15,6 @@ import 'git_status/git_status_controller.dart';
 import 'git_status/git_status_screen.dart';
 import 'sheets/command_sheet.dart';
 import 'sheets/message/message_sheet.dart';
-import 'sheets/queue/models.dart';
 import 'sheets/queue/queue_sheet.dart';
 import 'sheets/strategy/strategy_sheet.dart';
 import 'task_wizard/task_wizard_controller.dart';
@@ -25,30 +25,6 @@ import 'tasks/tasks_screen.dart';
 const int kDefaultApiPort = 8080;
 const String kWebsocketPath = '/ws';
 const String kPastLoginsKey = 'past_logins';
-
-final List<QueueMessageViewModel> kMockQueueMessages = <robot_farm_api.Message>[
-  robot_farm_api.Message(
-    id: 1,
-    from: 'System',
-    to: 'Orchestrator',
-    message: 'Auto-assign ws2 as soon as possible.',
-    insertedAt: 0,
-  ),
-  robot_farm_api.Message(
-    id: 2,
-    from: 'Quality Assurance',
-    to: 'Orchestrator',
-    message: 'Requesting status update before next sync.',
-    insertedAt: 1,
-  ),
-  robot_farm_api.Message(
-    id: 3,
-    from: 'System',
-    to: 'ws3',
-    message: 'Reminder: run COMPLETE_TASK when tests pass.',
-    insertedAt: 2,
-  ),
-].map(QueueMessageViewModel.new).toList();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,6 +56,9 @@ class RobotFarmApp extends StatelessWidget {
             Get.put(
               TasksController(
                 () => Get.find<ConnectionController>().currentBaseUrl,
+                () => Get.find<ConnectionController>().workers
+                    .map((worker) => 'ws${worker.id}')
+                    .toList(),
               ),
             );
           }),
@@ -120,6 +99,7 @@ class ConnectionController extends GetxController {
   final RxList<String> pastLogins = <String>[].obs;
   final RxList<robot_farm_api.Worker> workers = <robot_farm_api.Worker>[].obs;
   final RxBool isPlaying = true.obs;
+  final Rxn<robot_farm_api.ActiveStrategy> activeStrategy = Rxn(null);
   final StreamController<robot_farm_api.Feed> _feedController =
       StreamController<robot_farm_api.Feed>.broadcast();
   ws.WebSocket? _webSocket;
@@ -173,6 +153,8 @@ class ConnectionController extends GetxController {
     await _recordLogin(hostPort);
 
     _currentBaseUrl = baseUrl;
+    await refreshQueueState();
+    await refreshStrategy();
     Get.offAllNamed('/home');
   }
 
@@ -252,6 +234,10 @@ class ConnectionController extends GetxController {
         _updateWorkers(decoded['workers']);
       } else if (type == 'feed_entry') {
         _handleFeedEntry(decoded['entry']);
+      } else if (type == 'queue_state') {
+        _applyQueueState(decoded['paused']);
+      } else if (type == 'strategy_state') {
+        _applyStrategyState(decoded['strategy']);
       }
     } catch (error) {
       debugPrint('Failed to parse WebSocket message: $error');
@@ -282,13 +268,121 @@ class ConnectionController extends GetxController {
     }
   }
 
-  void togglePlayPause() {
-    isPlaying.toggle();
-    Get.snackbar(
-      isPlaying.value ? 'Resumed' : 'Paused',
-      isPlaying.value ? 'Automation continues running.' : 'Automation paused.',
-      snackPosition: SnackPosition.BOTTOM,
+  void _applyQueueState(dynamic rawPaused) {
+    if (rawPaused is bool) {
+      isPlaying.value = !rawPaused;
+    }
+  }
+
+  void _applyStrategyState(dynamic payload) {
+    if (payload is Map<String, dynamic>) {
+      final strategy = robot_farm_api.ActiveStrategy.fromJson(payload);
+      if (strategy != null) {
+        activeStrategy.value = strategy;
+      }
+    }
+  }
+
+  Future<void> togglePlayPause() async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      Get.snackbar(
+        'Not connected',
+        'Connect to a server before toggling the queue.',
+      );
+      return;
+    }
+
+    final targetPaused = isPlaying.value;
+    try {
+      final updatedPaused = await _sendQueueStateRequest(
+        baseUrl,
+        method: 'PUT',
+        body: {'paused': targetPaused},
+      );
+      isPlaying.value = !(updatedPaused ?? targetPaused);
+      Get.snackbar(
+        targetPaused ? 'Paused' : 'Resumed',
+        targetPaused ? 'Automation paused.' : 'Automation continues running.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } on robot_farm_api.ApiException catch (error) {
+      Get.snackbar(
+        'Failed to update queue',
+        error.message ?? 'Status ${error.code}',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      Get.snackbar(
+        'Failed to update queue',
+        '$error',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Future<void> refreshQueueState() async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      return;
+    }
+    try {
+      final paused = await _sendQueueStateRequest(baseUrl, method: 'GET');
+      if (paused != null) {
+        isPlaying.value = !paused;
+      }
+    } catch (error) {
+      debugPrint('Failed to refresh queue state: $error');
+    }
+  }
+
+  Future<void> refreshStrategy() async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      return;
+    }
+    try {
+      final api = robot_farm_api.DefaultApi(
+        robot_farm_api.ApiClient(basePath: baseUrl),
+      );
+      final state = await api.getActiveStrategy();
+      if (state != null) {
+        activeStrategy.value = state;
+      }
+    } catch (error) {
+      debugPrint('Failed to refresh strategy: $error');
+    }
+  }
+
+  Future<bool?> _sendQueueStateRequest(
+    String baseUrl, {
+    required String method,
+    Map<String, dynamic>? body,
+  }) async {
+    final client = robot_farm_api.ApiClient(basePath: baseUrl);
+    final response = await client.invokeAPI(
+      '/queue',
+      method,
+      const <robot_farm_api.QueryParam>[],
+      body,
+      <String, String>{},
+      <String, String>{},
+      body == null ? null : 'application/json',
     );
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw robot_farm_api.ApiException(response.statusCode, response.body);
+    }
+    if (response.body.isEmpty) {
+      return null;
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map<String, dynamic>) {
+      final paused = decoded['paused'];
+      if (paused is bool) {
+        return paused;
+      }
+    }
+    return null;
   }
 
   Future<void> clearFeeds() async {
@@ -311,6 +405,34 @@ class ConnectionController extends GetxController {
     } catch (err) {
       Get.snackbar('Failed to clear feeds', '$err');
     }
+  }
+
+  Future<robot_farm_api.Feed?> fetchFeedEntry(int feedId) async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      throw StateError('Not connected to server');
+    }
+    final client = robot_farm_api.ApiClient(basePath: baseUrl);
+    final response = await client.invokeAPI(
+      '/feed/$feedId',
+      'GET',
+      const <robot_farm_api.QueryParam>[],
+      null,
+      <String, String>{},
+      <String, String>{},
+      null,
+    );
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw robot_farm_api.ApiException(response.statusCode, response.body);
+    }
+    if (response.body.isEmpty) {
+      return null;
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map<String, dynamic>) {
+      return robot_farm_api.Feed.fromJson(decoded);
+    }
+    return null;
   }
 
   String? get currentBaseUrl => _currentBaseUrl;
@@ -624,31 +746,11 @@ class HomeScreen extends GetView<ConnectionController> {
   }
 
   void _openStrategySheet(BuildContext context) {
-    final taskGroups = <robot_farm_api.TaskGroup>[
-      robot_farm_api.TaskGroup(
-        id: 1,
-        slug: 'bootstrap',
-        title: 'Bootstrap Robot Farm',
-        description: '',
-        status: robot_farm_api.TaskGroupStatus.ready,
-      ),
-      robot_farm_api.TaskGroup(
-        id: 2,
-        slug: 'chores',
-        title: 'Chores',
-        description: '',
-        status: robot_farm_api.TaskGroupStatus.ready,
-      ),
-    ];
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => StrategySheet(
-        availableStrategies: robot_farm_api.Strategy.values,
-        currentStrategy: robot_farm_api.Strategy.PLANNING,
-        taskGroups: taskGroups,
-      ),
+      builder: (_) =>
+          StrategySheet(baseUrlProvider: () => controller.currentBaseUrl),
     );
   }
 
@@ -656,16 +758,24 @@ class HomeScreen extends GetView<ConnectionController> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => QueueSheet(messages: kMockQueueMessages),
+      builder: (_) =>
+          QueueSheet(baseUrlProvider: () => controller.currentBaseUrl),
     );
   }
 
   void _openMessageSheet(BuildContext context, {int? workerId}) {
     final target = workerId == null ? 'Orchestrator' : 'ws$workerId';
+    final defaultSender = workerId == null
+        ? 'Quality Assurance'
+        : 'Orchestrator';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => EnqueueMessageSheet(initialTarget: target),
+      builder: (_) => EnqueueMessageSheet(
+        baseUrlProvider: () => controller.currentBaseUrl,
+        initialTarget: target,
+        initialSender: defaultSender,
+      ),
     );
   }
 
@@ -788,7 +898,14 @@ class HomeScreen extends GetView<ConnectionController> {
           ),
         ],
       ),
-      body: Padding(padding: const EdgeInsets.all(24), child: child),
+      body: Column(
+        children: [
+          Expanded(
+            child: Padding(padding: const EdgeInsets.all(24), child: child),
+          ),
+          _HomeStatusBar(controller: controller),
+        ],
+      ),
     );
   }
 }
@@ -838,6 +955,7 @@ class OrchestratorPane extends StatelessWidget {
             } else {
               feedBody = Expanded(
                 child: _SystemFeed(
+                  connection: connection,
                   events: events,
                   emptyMessage:
                       'Turn-by-turn orchestrator output will appear here.',
@@ -874,8 +992,13 @@ class OrchestratorPane extends StatelessWidget {
 }
 
 class _SystemFeed extends StatelessWidget {
-  const _SystemFeed({required this.events, this.emptyMessage});
+  const _SystemFeed({
+    required this.connection,
+    required this.events,
+    this.emptyMessage,
+  });
 
+  final ConnectionController connection;
   final List<SystemFeedEvent> events;
   final String? emptyMessage;
 
@@ -960,71 +1083,147 @@ class _SystemFeed extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) {
-        final viewModel = _SystemEventViewModel.fromEvent(
-          ctx,
-          event,
-          fullDetail: true,
-        );
-        return FractionallySizedBox(
-          heightFactor: 0.85,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.85,
+        child: _FeedDetailSheet(connection: connection, event: event),
+      ),
+    );
+  }
+}
+
+class _FeedDetailSheet extends StatefulWidget {
+  const _FeedDetailSheet({required this.connection, required this.event});
+
+  final ConnectionController connection;
+  final SystemFeedEvent event;
+
+  @override
+  State<_FeedDetailSheet> createState() => _FeedDetailSheetState();
+}
+
+class _FeedDetailSheetState extends State<_FeedDetailSheet> {
+  late String _details;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _details = widget.event.details;
+    if (_shouldFetchDetails()) {
+      _loadDetails();
+    }
+  }
+
+  bool _shouldFetchDetails() {
+    final feed = widget.event.feed;
+    if (feed == null) {
+      return false;
+    }
+    final trimmed = _details.trim();
+    return trimmed.isEmpty || trimmed == SystemFeedEvent.noDetailsLabel;
+  }
+
+  Future<void> _loadDetails() async {
+    final feed = widget.event.feed;
+    if (feed == null) {
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final entry = await widget.connection.fetchFeedEntry(feed.id);
+      if (entry != null) {
+        final formatted = SystemFeedEvent.formatDetails(entry.raw);
+        setState(() {
+          _details = formatted;
+        });
+      } else {
+        setState(() {
+          _error = 'Feed entry not found.';
+        });
+      }
+    } on robot_farm_api.ApiException catch (err) {
+      setState(() {
+        _error = err.message ?? 'Failed to load feed entry (${err.code}).';
+      });
+    } catch (err) {
+      setState(() {
+        _error = 'Failed to load feed entry: $err';
+      });
+    } finally {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = _SystemEventViewModel.fromEvent(
+      context,
+      widget.event,
+      fullDetail: true,
+    );
+    Widget body;
+    if (_loading) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_error != null) {
+      body = Center(child: Text(_error!));
+    } else if (_details.trim().isEmpty ||
+        _details == SystemFeedEvent.noDetailsLabel) {
+      body = const Center(child: Text('No additional details for this event.'));
+    } else {
+      body = SingleChildScrollView(child: _OutputBubble(text: _details));
+    }
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: viewModel.color.withValues(alpha: 0.15),
+                  child: Icon(viewModel.icon, color: viewModel.color),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: viewModel.color.withValues(
-                          alpha: 0.15,
-                        ),
-                        child: Icon(viewModel.icon, color: viewModel.color),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              viewModel.title,
-                              style: Theme.of(ctx).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            if (viewModel.subtitle != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                viewModel.subtitle!,
-                                style: Theme.of(ctx).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ],
+                      Text(
+                        viewModel.title,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(ctx).maybePop(),
-                      ),
+                      if (viewModel.subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          viewModel.subtitle!,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: viewModel.body != null
-                        ? SingleChildScrollView(child: viewModel.body!)
-                        : const Center(
-                            child: Text(
-                              'No additional details for this event.',
-                            ),
-                          ),
-                  ),
-                ],
-              ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ],
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 16),
+            Expanded(child: body),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1122,6 +1321,16 @@ class WorkerFeedPane extends StatelessWidget {
       init: WorkerFeedController(connection: connection),
       global: false,
       builder: (controller) {
+        final onWorkerRun = controller.activeWorkerId == null
+            ? null
+            : () => onRunCommand(controller.activeWorkerId!);
+        final onWorkerMessage = controller.activeWorkerId == null
+            ? null
+            : () => onEnqueueMessage(controller.activeWorkerId!);
+        final onWorkerQueue = controller.activeWorkerId == null
+            ? null
+            : () => onEditQueue(controller.activeWorkerId!);
+
         final workers = controller.connection.workers.toList();
         final tabs = workers.isEmpty
             ? const [Tab(text: 'Workers')]
@@ -1137,59 +1346,62 @@ class WorkerFeedPane extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Row(
+                  children: [
+                    Text('Worker Feeds', style: theme.textTheme.titleLarge),
+                    const Spacer(),
+                    _FeedActionsMenu(
+                      onRunCommand: onWorkerRun,
+                      onEnqueueMessage: onWorkerMessage,
+                      onEditQueue: onWorkerQueue,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 if (!controller.isReady)
                   const Expanded(
                     child: Center(child: CircularProgressIndicator()),
                   )
-                else ...[
-                  TabBar(
-                    controller: controller.tabController,
-                    isScrollable: true,
-                    tabs: tabs,
-                  ),
-                  const SizedBox(height: 12),
+                else
                   Expanded(
-                    child: TabBarView(
-                      controller: controller.tabController,
-                      children: workers.isEmpty
-                          ? const [
-                              Center(
-                                child: Text(
-                                  'No workers detected. Add a git worktree to see it here.',
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ]
-                          : workers
-                                .map(
-                                  (worker) => _SystemFeed(
-                                    events: controller.eventsForWorker(
-                                      worker.id,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TabBar(
+                          controller: controller.tabController,
+                          isScrollable: true,
+                          tabs: tabs,
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: TabBarView(
+                            controller: controller.tabController,
+                            children: workers.isEmpty
+                                ? const [
+                                    Center(
+                                      child: Text(
+                                        'No workers detected. Add a git worktree to see it here.',
+                                        textAlign: TextAlign.center,
+                                      ),
                                     ),
-                                    emptyMessage:
-                                        'No feed entries yet for worker ${worker.id}.',
-                                  ),
-                                )
-                                .toList(),
+                                  ]
+                                : workers
+                                      .map(
+                                        (worker) => _SystemFeed(
+                                          connection: controller.connection,
+                                          events: controller.eventsForWorker(
+                                            worker.id,
+                                          ),
+                                          emptyMessage:
+                                              'No feed entries yet for worker ${worker.id}.',
+                                        ),
+                                      )
+                                      .toList(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: _FeedActionsMenu(
-                      onRunCommand: controller.activeWorkerId == null
-                          ? null
-                          : () => onRunCommand(controller.activeWorkerId!),
-                      onEnqueueMessage: controller.activeWorkerId == null
-                          ? null
-                          : () => onEnqueueMessage(controller.activeWorkerId!),
-                      onEditQueue: controller.activeWorkerId == null
-                          ? null
-                          : () => onEditQueue(controller.activeWorkerId!),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -2300,54 +2512,114 @@ class _FeedActionsMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FloatingActionButton.extended(
-      heroTag: null,
-      elevation: 0,
-      extendedPadding: const EdgeInsets.symmetric(horizontal: 16),
-      label: const Text('Actions'),
-      icon: const Icon(Icons.add),
-      onPressed: () {
-        showModalBottomSheet(
-          context: context,
-          builder: (ctx) => SafeArea(
-            child: Wrap(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.terminal),
-                  title: const Text('Run command'),
-                  onTap: onRunCommand == null
-                      ? null
-                      : () {
-                          Navigator.of(ctx).pop();
-                          onRunCommand!();
-                        },
+    final entries = <_FeedActionItem>[
+      _FeedActionItem(
+        action: _FeedMenuAction.runCommand,
+        label: 'Run command',
+        icon: Icons.terminal,
+        handler: onRunCommand,
+      ),
+      _FeedActionItem(
+        action: _FeedMenuAction.enqueueMessage,
+        label: 'Enqueue message',
+        icon: Icons.mail,
+        handler: onEnqueueMessage,
+      ),
+      _FeedActionItem(
+        action: _FeedMenuAction.editQueue,
+        label: 'Modify queue',
+        icon: Icons.list_alt,
+        handler: onEditQueue,
+      ),
+    ];
+
+    if (entries.every((item) => item.handler == null)) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    return PopupMenuButton<_FeedMenuAction>(
+      tooltip: 'Feed actions',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (action) {
+        switch (action) {
+          case _FeedMenuAction.runCommand:
+            onRunCommand?.call();
+            break;
+          case _FeedMenuAction.enqueueMessage:
+            onEnqueueMessage?.call();
+            break;
+          case _FeedMenuAction.editQueue:
+            onEditQueue?.call();
+            break;
+        }
+      },
+      itemBuilder: (context) {
+        return entries
+            .map(
+              (entry) => PopupMenuItem<_FeedMenuAction>(
+                value: entry.action,
+                enabled: entry.handler != null,
+                child: Row(
+                  children: [
+                    Icon(
+                      entry.icon,
+                      color: entry.handler != null
+                          ? theme.colorScheme.onSurface
+                          : theme.disabledColor,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(entry.label),
+                  ],
                 ),
-                ListTile(
-                  leading: const Icon(Icons.mail),
-                  title: const Text('Enqueue message'),
-                  onTap: onEnqueueMessage == null
-                      ? null
-                      : () {
-                          Navigator.of(ctx).pop();
-                          onEnqueueMessage!();
-                        },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.list_alt),
-                  title: const Text('Modify queue'),
-                  subtitle: const Text('Reorder, delete, or clear messages'),
-                  onTap: onEditQueue == null
-                      ? null
-                      : () {
-                          Navigator.of(ctx).pop();
-                          onEditQueue!();
-                        },
-                ),
-              ],
-            ),
-          ),
-        );
+              ),
+            )
+            .toList();
       },
     );
+  }
+}
+
+enum _FeedMenuAction { runCommand, enqueueMessage, editQueue }
+
+class _FeedActionItem {
+  const _FeedActionItem({
+    required this.action,
+    required this.label,
+    required this.icon,
+    this.handler,
+  });
+
+  final _FeedMenuAction action;
+  final String label;
+  final IconData icon;
+  final VoidCallback? handler;
+}
+
+class _HomeStatusBar extends StatelessWidget {
+  const _HomeStatusBar({required this.controller});
+
+  final ConnectionController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Obx(() {
+      final strategy = controller.activeStrategy.value;
+      final name = strategy?.id.value ?? 'Unknown';
+      final focusList = strategy?.focus ?? const <int>[];
+      final focus = focusList.isEmpty
+          ? 'none'
+          : focusList.map((id) => id.toString()).join(', ');
+      return Container(
+        width: double.infinity,
+        color: theme.colorScheme.surfaceContainerHighest,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Text(
+          'Active Strategy: $name | Focus: [$focus]',
+          style: theme.textTheme.labelSmall,
+        ),
+      );
+    });
   }
 }

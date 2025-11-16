@@ -14,6 +14,7 @@ use crate::shared::{git, shell};
 use crate::system::{
     events::{SystemActor, SystemEvent},
     queue::QueueCoordinator,
+    runner::{self, Persona, RunnerConfig},
 };
 use crate::threads::database_manager::{DatabaseManagerError, DatabaseManagerHandle};
 use crate::threads::middleware::MiddlewareHandle;
@@ -22,12 +23,17 @@ use chrono::Utc;
 use openapi::models::{CommandConfig, Message};
 use serde_json;
 use std::{
-    collections::VecDeque,
+    collections::{HashSet, VecDeque},
     path::{Path, PathBuf},
+    time::Duration,
 };
 use thiserror::Error;
-use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, warn};
+use tokio::{
+    spawn,
+    sync::{mpsc, oneshot},
+    time::{MissedTickBehavior, interval},
+};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 /// Queue manager intents describe the high-level operations that should be
@@ -53,6 +59,12 @@ pub enum QueueManagerCommand {
         message_id: i64,
         directive: RelativePosition,
         respond_to: oneshot::Sender<Result<Vec<Message>, QueueManagerError>>,
+    },
+    EnqueueMessage {
+        from: SystemActor,
+        to: SystemActor,
+        body: String,
+        respond_to: oneshot::Sender<Result<Message, QueueManagerError>>,
     },
     Pause {
         respond_to: oneshot::Sender<Result<(), QueueManagerError>>,
@@ -118,6 +130,21 @@ impl QueueManagerHandle {
         self.request(|respond_to| QueueManagerCommand::InsertMessageRelative {
             message_id,
             directive,
+            respond_to,
+        })
+        .await
+    }
+
+    pub async fn enqueue_manual_message(
+        &self,
+        from: SystemActor,
+        to: SystemActor,
+        body: String,
+    ) -> Result<Message, QueueManagerError> {
+        self.request(|respond_to| QueueManagerCommand::EnqueueMessage {
+            from,
+            to,
+            body,
             respond_to,
         })
         .await
@@ -215,6 +242,7 @@ impl QueueManagerRuntime {
                 let _ = respond_to.send(result);
             }
             QueueManagerCommand::DeleteAllMessages { respond_to } => {
+                info!("queue command: delete_all_messages");
                 let result = self
                     .db
                     .delete_all_messages()
@@ -226,6 +254,7 @@ impl QueueManagerRuntime {
                 message_id,
                 respond_to,
             } => {
+                info!(message_id, "queue command: delete_message_by_id");
                 let result = self
                     .db
                     .delete_message_by_id(message_id)
@@ -237,6 +266,7 @@ impl QueueManagerRuntime {
                 recipient,
                 respond_to,
             } => {
+                info!(recipient, "queue command: delete_messages_for_recipient");
                 let result = self
                     .db
                     .delete_messages_for_recipient(recipient)
@@ -249,6 +279,11 @@ impl QueueManagerRuntime {
                 directive,
                 respond_to,
             } => {
+                info!(
+                    message_id,
+                    ?directive,
+                    "queue command: insert_message_relative"
+                );
                 let result = self
                     .db
                     .insert_message_relative(message_id, directive)
@@ -256,14 +291,24 @@ impl QueueManagerRuntime {
                     .map_err(QueueManagerError::from);
                 let _ = respond_to.send(result);
             }
+            QueueManagerCommand::EnqueueMessage {
+                from,
+                to,
+                body,
+                respond_to,
+            } => {
+                info!(from = %from.label(), to = %to.label(), "queue command: enqueue_manual_message");
+                let result = self.enqueue_message(from, to, &body).await;
+                let _ = respond_to.send(result);
+            }
             QueueManagerCommand::Pause { respond_to } => {
                 self.state.paused = true;
-                debug!("queue manager paused");
+                info!("queue manager paused");
                 let _ = respond_to.send(Ok(()));
             }
             QueueManagerCommand::Resume { respond_to } => {
                 self.state.paused = false;
-                debug!("queue manager resumed");
+                info!("queue manager resumed");
                 if let Err(err) = self.flush_pending().await {
                     let _ = respond_to.send(Err(err));
                 } else {
@@ -271,6 +316,7 @@ impl QueueManagerRuntime {
                 }
             }
             QueueManagerCommand::EnqueueProcessIntent { intent, respond_to } => {
+                info!("queue command: enqueue_process_intent");
                 let result = self.enqueue_intent(intent).await;
                 let _ = respond_to.send(result);
             }
@@ -289,7 +335,7 @@ impl QueueManagerRuntime {
                 metadata,
                 turn,
             } => {
-                debug!(%run_id, worker_id, "worker turn completed");
+                info!(%run_id, worker_id, intent = ?turn.intent, "worker turn notification");
                 self.process_worker_turn(worker_id, metadata, turn).await?;
             }
         }
@@ -303,6 +349,8 @@ impl QueueManagerRuntime {
         turn: WorkerTurn,
     ) -> Result<(), QueueManagerError> {
         QueueCoordinator::global().clear_assignment(worker_id);
+        self.state.active_workers.remove(&worker_id);
+        info!(worker_id, intent = ?turn.intent, "processing worker turn");
 
         match turn.intent {
             WorkerIntent::CompleteTask => {
@@ -567,10 +615,179 @@ impl QueueManagerRuntime {
         to: SystemActor,
         body: &str,
     ) -> Result<Message, QueueManagerError> {
+        info!(from = %from.label(), to = %to.label(), "queue manager enqueueing message");
         self.db
             .enqueue_message(from.label(), to.label(), body.to_string())
             .await
             .map_err(QueueManagerError::from)
+    }
+
+    async fn drive_queue(&mut self) -> Result<(), QueueManagerError> {
+        if self.state.paused {
+            return Ok(());
+        }
+
+        let queue = self
+            .db
+            .list_messages(MessageFilters::default())
+            .await
+            .map_err(QueueManagerError::from)?;
+
+        for entry in queue {
+            match SystemActor::from_label(&entry.to) {
+                Some(SystemActor::Worker(worker_id)) => {
+                    if self.state.active_workers.contains(&worker_id) {
+                        continue;
+                    }
+                    match self.dispatch_worker_message(worker_id, &entry).await {
+                        Ok(true) => {
+                            if let Err(err) = self.db.delete_message_by_id(entry.id).await {
+                                warn!(
+                                    ?err,
+                                    message_id = entry.id,
+                                    "failed to delete message after dispatch"
+                                );
+                            }
+                        }
+                        Ok(false) => continue,
+                        Err(err) => {
+                            warn!(
+                                ?err,
+                                worker_id,
+                                message_id = entry.id,
+                                "failed to dispatch worker message"
+                            );
+                        }
+                    }
+                }
+                _ => continue,
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn dispatch_worker_message(
+        &mut self,
+        worker_id: i64,
+        message: &Message,
+    ) -> Result<bool, QueueManagerError> {
+        let worktree = worker_worktree_path(worker_id);
+        if !worktree.exists() {
+            warn!(worker_id, path = %worktree.display(), "worker worktree missing; skipping queue entry");
+            return Ok(false);
+        }
+
+        let plan =
+            runner::plan_codex_run(Persona::Worker(worker_id), None, RunnerConfig::default());
+        let mut docker_args = plan.docker_args;
+        if docker_args.is_empty() {
+            warn!(worker_id, "docker run command missing for worker persona");
+            return Ok(false);
+        }
+        let program = docker_args.remove(0);
+        docker_args.extend(plan.codex_args);
+
+        let metadata = RunMetadata {
+            run_id: Uuid::new_v4(),
+            persona: format!("worker:ws{worker_id}"),
+            workspace_root: PathBuf::from(PROJECT_DIR.as_str()),
+            tags: vec![format!("worker:{worker_id}")],
+            priority: RunPriority::Normal,
+            issued_at: Utc::now(),
+        };
+
+        let intent = ProcessSpawnIntent {
+            metadata,
+            program,
+            args: docker_args,
+            env: Vec::new(),
+            working_dir: PathBuf::from(PROJECT_DIR.as_str()),
+            stream_stdout: true,
+            stream_stderr: true,
+            stdin: Some(Self::format_worker_prompt(message).into_bytes()),
+        };
+
+        let handle_rx = self
+            .middleware
+            .enqueue_spawn(intent)
+            .await
+            .map_err(|err| QueueManagerError::MiddlewareSend(err.to_string()))?;
+        let handle = handle_rx
+            .await
+            .map_err(|_| QueueManagerError::ResponseDropped)?;
+
+        Self::spawn_process_event_drain(worker_id, handle.events);
+        self.state.active_workers.insert(worker_id);
+        info!(
+            worker_id,
+            message_id = message.id,
+            "dispatched worker turn from queue"
+        );
+        Ok(true)
+    }
+
+    fn spawn_process_event_drain(worker_id: i64, mut events: mpsc::Receiver<ProcessEvent>) {
+        spawn(async move {
+            const MAX_CAPTURE: usize = 8 * 1024;
+            let mut stdout_buf = Vec::with_capacity(MAX_CAPTURE);
+            let mut stderr_buf = Vec::with_capacity(MAX_CAPTURE);
+
+            while let Some(event) = events.recv().await {
+                match event {
+                    ProcessEvent::Output(chunk) => {
+                        let target = match chunk.stream {
+                            ProcessStream::Stdout => &mut stdout_buf,
+                            ProcessStream::Stderr => &mut stderr_buf,
+                        };
+                        if target.len() < MAX_CAPTURE {
+                            let remaining = MAX_CAPTURE - target.len();
+                            let take = remaining.min(chunk.bytes.len());
+                            target.extend_from_slice(&chunk.bytes[..take]);
+                        }
+                    }
+                    ProcessEvent::Exit(exit) => {
+                        if !exit.status.success() {
+                            error!(
+                                worker_id,
+                                code = exit.status.code(),
+                                stdout = %String::from_utf8_lossy(&stdout_buf).trim(),
+                                stderr = %String::from_utf8_lossy(&stderr_buf).trim(),
+                                "worker process exited with failure"
+                            );
+                        } else {
+                            info!(worker_id, "worker process completed");
+                        }
+                        break;
+                    }
+                    ProcessEvent::SpawnFailed(err) => {
+                        error!(
+                            worker_id,
+                            message = err.message,
+                            "worker process failed to spawn"
+                        );
+                        break;
+                    }
+                    ProcessEvent::Killed(killed) => {
+                        warn!(worker_id, reason = ?killed.reason, "worker process killed");
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            debug!(worker_id, "worker process event channel closed");
+        });
+    }
+
+    fn format_worker_prompt(message: &Message) -> String {
+        let summary = message.message.trim();
+        format!(
+            "Queue message #{id} from {from} to {to}:\n\n{summary}\n\nRespond with a JSON object matching the Robot Farm worker turn schema.\n",
+            id = message.id,
+            from = message.from.trim(),
+            to = message.to.trim(),
+            summary = summary,
+        )
     }
 
     async fn enqueue_intent(&mut self, intent: ProcessIntent) -> Result<(), QueueManagerError> {
@@ -600,6 +817,9 @@ impl QueueManagerRuntime {
     async fn flush_system_events(&self) {
         let coordinator = QueueCoordinator::global();
         let events = coordinator.drain_events();
+        if !events.is_empty() {
+            info!(count = events.len(), "flushing system events to feed");
+        }
         for event in events {
             let entry = event_to_feed_entry(event);
             match self.db.insert_feed_entry(entry).await {
@@ -613,6 +833,7 @@ impl QueueManagerRuntime {
 struct QueueRuntimeState {
     paused: bool,
     buffered: VecDeque<ProcessIntent>,
+    active_workers: HashSet<i64>,
 }
 
 impl Default for QueueRuntimeState {
@@ -620,11 +841,15 @@ impl Default for QueueRuntimeState {
         Self {
             paused: true,
             buffered: VecDeque::new(),
+            active_workers: HashSet::new(),
         }
     }
 }
 
 async fn run_queue_manager(mut runtime: QueueManagerRuntime) {
+    info!("queue manager loop started");
+    let mut tick = interval(Duration::from_millis(500));
+    tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
     loop {
         tokio::select! {
             Some(command) = runtime.rx.recv() => {
@@ -635,6 +860,11 @@ async fn run_queue_manager(mut runtime: QueueManagerRuntime) {
             Some(notification) = runtime.notifications_rx.recv() => {
                 if let Err(err) = runtime.handle_notification(notification).await {
                     warn!(?err, "queue manager notification handling failed");
+                }
+            }
+            _ = tick.tick() => {
+                if let Err(err) = runtime.drive_queue().await {
+                    warn!(?err, "queue manager drive tick failed");
                 }
             }
             else => break,

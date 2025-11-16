@@ -373,6 +373,22 @@ class SystemFeedEvent {
   final DateTime timestamp;
   final robot_farm_api.Feed? feed;
 
+  static const String noDetailsLabel = 'No additional details.';
+
+  static String formatDetails(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return noDetailsLabel;
+    }
+    try {
+      final decoded = jsonDecode(trimmed);
+      const encoder = JsonEncoder.withIndent('  ');
+      return encoder.convert(decoded);
+    } catch (_) {
+      return raw;
+    }
+  }
+
   factory SystemFeedEvent.fromFeed(robot_farm_api.Feed entry) {
     return SystemFeedEvent(
       level: _mapFeedLevel(entry.level),
@@ -380,7 +396,7 @@ class SystemFeedEvent {
       target: entry.target,
       category: entry.category,
       summary: entry.text,
-      details: _formatFeedDetails(entry.raw),
+      details: formatDetails(entry.raw),
       timestamp: DateTime.fromMillisecondsSinceEpoch(
         entry.ts * 1000,
         isUtc: true,
@@ -413,20 +429,6 @@ SystemFeedLevel _mapFeedLevel(robot_farm_api.FeedLevel level) {
       return SystemFeedLevel.error;
   }
   return SystemFeedLevel.info;
-}
-
-String _formatFeedDetails(String raw) {
-  final trimmed = raw.trim();
-  if (trimmed.isEmpty) {
-    return 'No additional details.';
-  }
-  try {
-    final decoded = jsonDecode(trimmed);
-    const encoder = JsonEncoder.withIndent('  ');
-    return encoder.convert(decoded);
-  } catch (_) {
-    return raw;
-  }
 }
 
 IconData iconForEvent(CodexEvent event) {

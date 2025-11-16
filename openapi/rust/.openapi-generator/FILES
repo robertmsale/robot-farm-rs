@@ -27,7 +27,9 @@ src/models/insert_message.rs
 src/models/insert_message_one_of.rs
 src/models/insert_message_one_of_1.rs
 src/models/message.rs
+src/models/message_enqueue_input.rs
 src/models/mod.rs
+src/models/queue_state.rs
 src/models/reasoning_effort.rs
 src/models/strategy.rs
 src/models/task.rs

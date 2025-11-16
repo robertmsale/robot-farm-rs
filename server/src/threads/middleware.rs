@@ -10,7 +10,7 @@ use tokio::sync::{
     oneshot,
 };
 use tokio::time::{Instant, timeout};
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 pub struct MiddlewareConfig {
     pub batch_window: Duration,
@@ -100,6 +100,7 @@ async fn run_middleware_loop(
     mut lifecycle_rx: Receiver<ProcessLifecycleEvent>,
     directives_tx: mpsc::Sender<ProcessDirective>,
 ) {
+    info!("middleware loop started");
     let mut state = MiddlewareState::default();
     let mut batch = Vec::with_capacity(config.max_batch);
     let mut intents_closed = false;
@@ -144,12 +145,13 @@ async fn run_middleware_loop(
             continue;
         }
 
-        debug!(
+        info!(
             batch_size = batch.len(),
             "middleware reducing batch of intents"
         );
 
         let directives = state.reduce_batch(std::mem::take(&mut batch));
+        info!(count = directives.len(), "middleware produced directives");
 
         for directive in directives {
             if directives_tx.send(directive).await.is_err() {

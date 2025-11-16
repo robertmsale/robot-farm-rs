@@ -51,6 +51,8 @@ part 'model/insert_message.dart';
 part 'model/insert_message_one_of.dart';
 part 'model/insert_message_one_of1.dart';
 part 'model/message.dart';
+part 'model/message_enqueue_input.dart';
+part 'model/queue_state.dart';
 part 'model/reasoning_effort.dart';
 part 'model/strategy.dart';
 part 'model/task.dart';

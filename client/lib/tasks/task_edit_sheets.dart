@@ -199,13 +199,14 @@ Future<TaskEditorResult?> showTaskEditorSheet(
   BuildContext context, {
   robot_farm_api.Task? task,
   bool isCreate = false,
+  List<String> workerHandles = const <String>[],
 }) {
   return showModalBottomSheet<TaskEditorResult>(
     context: context,
     isScrollControlled: true,
     builder: (_) {
       return GetBuilder<TaskEditorController>(
-        init: TaskEditorController(task: task),
+        init: TaskEditorController(task: task, workerHandles: workerHandles),
         builder: (form) {
           final padding = EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -422,9 +423,10 @@ class TaskGroupEditorController extends GetxController {
 }
 
 class TaskEditorController extends GetxController {
-  TaskEditorController({this.task});
+  TaskEditorController({this.task, required this.workerHandles});
 
   final robot_farm_api.Task? task;
+  final List<String> workerHandles;
   late final TextEditingController slugController;
   late final TextEditingController titleController;
   late final TextEditingController commitController;
@@ -501,10 +503,38 @@ class TaskEditorController extends GetxController {
   }
 
   List<String> _buildOwnerOptions() {
-    final handles = List<String>.generate(
-      _workerHandleCount,
-      (index) => 'ws${index + 1}',
-    );
+    final normalized = workerHandles
+        .map((handle) => handle.trim())
+        .where((handle) => handle.isNotEmpty)
+        .toSet()
+        .toList();
+
+    List<String> handles;
+    if (normalized.isEmpty) {
+      handles = List<String>.generate(
+        _workerHandleCount,
+        (index) => 'ws${index + 1}',
+      );
+    } else {
+      final wsHandles = <String>[];
+      final otherHandles = <String>[];
+      for (final handle in normalized) {
+        final lower = handle.toLowerCase();
+        if (lower.startsWith('ws')) {
+          wsHandles.add(handle);
+        } else {
+          otherHandles.add(handle);
+        }
+      }
+      wsHandles.sort((a, b) {
+        final numA = int.tryParse(a.toLowerCase().substring(2)) ?? 0;
+        final numB = int.tryParse(b.toLowerCase().substring(2)) ?? 0;
+        return numA.compareTo(numB);
+      });
+      otherHandles.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      handles = <String>[...wsHandles, ...otherHandles];
+    }
+
     return <String>['Orchestrator', ...handles, 'Quality Assurance'];
   }
 }

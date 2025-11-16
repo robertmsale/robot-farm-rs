@@ -1,10 +1,11 @@
 use crate::ai::schemas::{OrchestratorTurn, WorkerTurn, generated_schema_for};
-use crate::globals::PROJECT_DIR;
+use crate::globals::{PROJECT_DIR, PROJECT_NAME};
 use crate::routes::config::CONFIG_DIR;
 use schemars::JsonSchema;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::LazyLock;
 use tempfile::TempDir;
 use tracing::info;
 
@@ -13,6 +14,16 @@ pub const DOCKER_SUFFIX: &str = include_str!("../../images/Dockerfile.cleanup");
 pub const DOCKER_WIZARD: &str = include_str!("../../images/Dockerfile.wizard");
 pub const DOCKER_IMAGE_PREFIX: &str = "robot-farm-rs";
 pub const DOCKER_IMAGE_WIZARD: &str = "robot-farm-rs-wizard";
+pub static DOCKER_IMAGE_WORKER: LazyLock<String> =
+    LazyLock::new(|| {
+        let proj_name = PROJECT_NAME.as_str();
+        format!("{DOCKER_IMAGE_PREFIX}-worker_{proj_name}")
+    });
+pub static DOCKER_IMAGE_ORCHESTRATOR: LazyLock<String> =
+    LazyLock::new(|| {
+        let proj_name = PROJECT_NAME.as_str();
+        format!("{DOCKER_IMAGE_PREFIX}-orchestrator_{proj_name}")
+    });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageType {
@@ -45,24 +56,22 @@ pub fn make_worker_image() {
         });
     }
     let concatenated = combine_dockerfiles(p.to_str().unwrap());
-    let p = PathBuf::from(PROJECT_DIR.as_str());
-    let dir = fs::canonicalize(p).unwrap_or_else(|_| panic!("project doesn't exist"));
-    let proj_name = dir.file_name().unwrap().to_str().unwrap();
-    let worker_img = combine_image_name(proj_name, &ImageType::Worker);
+    let orch_image = DOCKER_IMAGE_ORCHESTRATOR.as_str();
+    let work_image = DOCKER_IMAGE_WORKER.as_str();
     let tmp = TempDir::new().unwrap_or_else(|_| panic!("failed to create temporary directory"));
     info!("Creating Orchestrator image");
     generate_response_schema::<OrchestratorTurn>(&tmp);
     run_docker_build(
         tmp.path(),
         &concatenated,
-        &format!("{DOCKER_IMAGE_PREFIX}-orchestrator_{proj_name}"),
+        orch_image,
     );
     info!("Creating Worker image");
     generate_response_schema::<WorkerTurn>(&tmp);
     run_docker_build(
         tmp.path(),
         &concatenated,
-        &format!("{DOCKER_IMAGE_PREFIX}-worker_{proj_name}"),
+        work_image,
     );
     info!("Creating Wizard image");
     run_docker_build(tmp.path(), DOCKER_WIZARD, DOCKER_IMAGE_WIZARD);

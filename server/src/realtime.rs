@@ -1,9 +1,12 @@
 use once_cell::sync::OnceCell;
+use openapi::models::Strategy;
 use tokio::sync::broadcast;
 
 #[derive(Debug, Clone)]
 pub enum RealtimeEvent {
     FeedEntry(openapi::models::Feed),
+    QueueState { paused: bool },
+    StrategyState { id: Strategy, focus: Vec<i64> },
 }
 
 static CHANNEL: OnceCell<broadcast::Sender<RealtimeEvent>> = OnceCell::new();

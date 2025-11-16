@@ -748,6 +748,58 @@ class DefaultApi {
     }
   }
 
+  /// Enqueue message
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [MessageEnqueueInput] messageEnqueueInput (required):
+  Future<Response> enqueueMessageWithHttpInfo(MessageEnqueueInput messageEnqueueInput,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/message_queue';
+
+    // ignore: prefer_final_locals
+    Object? postBody = messageEnqueueInput;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Enqueue message
+  ///
+  /// Parameters:
+  ///
+  /// * [MessageEnqueueInput] messageEnqueueInput (required):
+  Future<Message?> enqueueMessage(MessageEnqueueInput messageEnqueueInput,) async {
+    final response = await enqueueMessageWithHttpInfo(messageEnqueueInput,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Message',) as Message;
+    
+    }
+    return null;
+  }
+
   /// Execute a shell command for the orchestrator
   ///
   /// Note: This method returns the HTTP [Response].
@@ -1085,6 +1137,50 @@ class DefaultApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'GetHealthz200Response',) as GetHealthz200Response;
+    
+    }
+    return null;
+  }
+
+  /// Get queue state
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> getQueueStateWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/queue';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Get queue state
+  Future<QueueState?> getQueueState() async {
+    final response = await getQueueStateWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'QueueState',) as QueueState;
     
     }
     return null;
@@ -1896,6 +1992,58 @@ class DefaultApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Config',) as Config;
+    
+    }
+    return null;
+  }
+
+  /// Update queue state
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [QueueState] queueState (required):
+  Future<Response> updateQueueStateWithHttpInfo(QueueState queueState,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/queue';
+
+    // ignore: prefer_final_locals
+    Object? postBody = queueState;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PUT',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Update queue state
+  ///
+  /// Parameters:
+  ///
+  /// * [QueueState] queueState (required):
+  Future<QueueState?> updateQueueState(QueueState queueState,) async {
+    final response = await updateQueueStateWithHttpInfo(queueState,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'QueueState',) as QueueState;
     
     }
     return null;

@@ -168,7 +168,7 @@ impl CodexExecBuilder {
 
         for kv in self.config_overrides {
             args.push("-c".to_string());
-            args.push(kv);
+            args.push(Self::quote_toml_if_needed(&kv));
         }
 
         for feature in self.features_enabled {
@@ -260,6 +260,15 @@ impl CodexExecBuilder {
         }
 
         args
+    }
+
+    fn quote_toml_if_needed(value: &str) -> String {
+        let needs_quotes = value.contains('[') || value.contains('{');
+        if needs_quotes && !(value.starts_with('\'') && value.ends_with('\'')) {
+            format!("'{value}'")
+        } else {
+            value.to_string()
+        }
     }
 }
 

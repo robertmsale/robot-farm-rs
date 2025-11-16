@@ -24,6 +24,8 @@ doc/InsertMessage.md
 doc/InsertMessageOneOf.md
 doc/InsertMessageOneOf1.md
 doc/Message.md
+doc/MessageEnqueueInput.md
+doc/QueueState.md
 doc/ReasoningEffort.md
 doc/Strategy.md
 doc/Task.md
@@ -70,6 +72,8 @@ lib/model/insert_message.dart
 lib/model/insert_message_one_of.dart
 lib/model/insert_message_one_of1.dart
 lib/model/message.dart
+lib/model/message_enqueue_input.dart
+lib/model/queue_state.dart
 lib/model/reasoning_effort.dart
 lib/model/strategy.dart
 lib/model/task.dart
@@ -85,6 +89,3 @@ lib/model/task_update_input.dart
 lib/model/worker.dart
 lib/model/worker_state.dart
 pubspec.yaml
-test/agent_model_overrides_test.dart
-test/agent_reasoning_overrides_test.dart
-test/reasoning_effort_test.dart

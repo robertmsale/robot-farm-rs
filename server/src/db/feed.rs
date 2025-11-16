@@ -18,6 +18,7 @@ pub struct FeedFilters {
     pub target: Option<String>,
     pub level: Option<FeedLevel>,
     pub order_by: Option<FeedOrderField>,
+    pub include_raw: bool,
 }
 
 pub async fn list_feed(filters: FeedFilters) -> DbResult<Vec<Feed>> {
@@ -59,7 +60,16 @@ pub async fn list_feed(filters: FeedFilters) -> DbResult<Vec<Feed>> {
     }
 
     let rows = builder.build().fetch_all(db::pool()).await?;
-    let feed = rows.into_iter().filter_map(row_to_feed).collect();
+    let feed = rows
+        .into_iter()
+        .filter_map(row_to_feed)
+        .map(|mut entry| {
+            if !filters.include_raw {
+                entry.raw.clear();
+            }
+            entry
+        })
+        .collect();
     Ok(feed)
 }
 
@@ -133,4 +143,19 @@ fn row_to_feed(row: sqlx::sqlite::SqliteRow) -> Option<Feed> {
         raw: row.get("raw"),
         category: row.get("category"),
     })
+}
+
+pub async fn get_feed_entry(feed_id: i64) -> DbResult<Option<Feed>> {
+    let row = sqlx::query(
+        r#"
+        SELECT id, source, target, ts, level, text, raw, category
+        FROM feed
+        WHERE id = ?1
+        "#,
+    )
+    .bind(feed_id)
+    .fetch_optional(db::pool())
+    .await?;
+
+    Ok(row.and_then(row_to_feed))
 }

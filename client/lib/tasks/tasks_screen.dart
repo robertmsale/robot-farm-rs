@@ -38,6 +38,7 @@ class TasksScreen extends GetView<TasksController> {
       context,
       task: task,
       isCreate: false,
+      workerHandles: controller.availableWorkerHandles,
     );
     if (result == null) return;
 
@@ -78,7 +79,11 @@ class TasksScreen extends GetView<TasksController> {
       return;
     }
 
-    final result = await showTaskEditorSheet(context, isCreate: true);
+    final result = await showTaskEditorSheet(
+      context,
+      isCreate: true,
+      workerHandles: controller.availableWorkerHandles,
+    );
     if (result == null || result.action != TaskEditorAction.save) {
       return;
     }

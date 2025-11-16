@@ -6,6 +6,7 @@ use std::{
 
 use openapi::models::{AppendFilesConfig, Config as WorkspaceConfig};
 use thiserror::Error;
+use tracing::debug;
 
 use crate::{
     globals::PROJECT_DIR,
@@ -124,11 +125,43 @@ fn worktree_paths() -> Result<Vec<PathBuf>, ConfigSyncError> {
     let project_root = Path::new(PROJECT_DIR.as_str());
     let staging = project_root.join("staging");
     let mut set: HashSet<PathBuf> = HashSet::new();
-    if staging.exists() {
+    if staging.exists() && is_robot_farm_worktree(&staging, project_root) {
         set.insert(staging.clone());
+    }
+    if staging.exists() {
         for path in git::list_worktrees(&staging)? {
-            set.insert(path);
+            if is_robot_farm_worktree(&path, project_root) {
+                set.insert(path);
+            } else {
+                debug!(
+                    ?path,
+                    "Skipping non-Robot Farm worktree for agent overrides"
+                );
+            }
         }
     }
     Ok(set.into_iter().collect())
+}
+
+fn is_robot_farm_worktree(path: &Path, project_root: &Path) -> bool {
+    if !path.starts_with(project_root) {
+        return false;
+    }
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    if name == "staging" {
+        return path == project_root.join("staging");
+    }
+    if path
+        .parent()
+        .map(|parent| parent != project_root)
+        .unwrap_or(true)
+    {
+        return false;
+    }
+    if !name.starts_with("ws") {
+        return false;
+    }
+    name[2..].chars().all(|c| c.is_ascii_digit())
 }

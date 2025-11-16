@@ -50,6 +50,26 @@ impl SystemActor {
             SystemActor::Worker(id) => format!("ws{id}"),
         }
     }
+
+    pub fn from_label(value: &str) -> Option<Self> {
+        let trimmed = value.trim();
+        if trimmed.eq_ignore_ascii_case("system") {
+            return Some(SystemActor::System);
+        }
+        if trimmed.eq_ignore_ascii_case("orchestrator") {
+            return Some(SystemActor::Orchestrator);
+        }
+        if trimmed.eq_ignore_ascii_case("quality assurance") || trimmed.eq_ignore_ascii_case("qa") {
+            return Some(SystemActor::QualityAssurance);
+        }
+        let lower = trimmed.to_ascii_lowercase();
+        if let Some(rest) = lower.strip_prefix("ws") {
+            if let Ok(id) = rest.parse::<i64>() {
+                return Some(SystemActor::Worker(id));
+            }
+        }
+        None
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

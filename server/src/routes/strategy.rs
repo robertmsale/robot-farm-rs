@@ -1,3 +1,4 @@
+use crate::realtime::{self, RealtimeEvent};
 use crate::system::{queue::QueueCoordinator, strategy::StrategyState};
 use axum::Json;
 use openapi::models::ActiveStrategy;
@@ -15,5 +16,9 @@ pub async fn update_active_strategy(Json(payload): Json<ActiveStrategy>) -> Json
         info!("recording {} orchestrator hints", hints.len());
         coordinator.record_assignment_hint(&hints);
     }
+    realtime::publish(RealtimeEvent::StrategyState {
+        id: strategy.id.clone(),
+        focus: strategy.focus.clone().unwrap_or_default(),
+    });
     Json(strategy)
 }

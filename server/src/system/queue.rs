@@ -6,6 +6,7 @@ use parking_lot::RwLock;
 use serde_json::json;
 
 use crate::models::strategy::OrchestratorHint;
+use crate::realtime::{self, RealtimeEvent};
 
 use super::events::{SystemActor, SystemEvent, SystemEventCategory};
 
@@ -97,11 +98,23 @@ impl QueueCoordinator {
     }
 
     pub fn pause(&self) {
-        self.inner.write().paused = true;
+        let mut guard = self.inner.write();
+        if guard.paused {
+            return;
+        }
+        guard.paused = true;
+        drop(guard);
+        realtime::publish(RealtimeEvent::QueueState { paused: true });
     }
 
     pub fn resume(&self) {
-        self.inner.write().paused = false;
+        let mut guard = self.inner.write();
+        if !guard.paused {
+            return;
+        }
+        guard.paused = false;
+        drop(guard);
+        realtime::publish(RealtimeEvent::QueueState { paused: false });
     }
 
     pub fn is_paused(&self) -> bool {

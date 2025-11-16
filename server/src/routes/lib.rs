@@ -5,6 +5,7 @@ mod healthz;
 mod mcp;
 mod message_queue;
 mod orchestrator;
+mod queue;
 mod strategy;
 mod task;
 mod task_dependency;
@@ -81,7 +82,9 @@ pub fn build_routes() -> Router {
         )
         .route(
             "/message_queue",
-            get(message_queue::list_messages).delete(message_queue::delete_all_messages),
+            get(message_queue::list_messages)
+                .post(message_queue::enqueue_message)
+                .delete(message_queue::delete_all_messages),
         )
         .route(
             "/message_queue/{messageId}",
@@ -95,7 +98,12 @@ pub fn build_routes() -> Router {
             "/message_queue/to/{sender}",
             delete(message_queue::delete_messages_for_recipient),
         )
+        .route(
+            "/queue",
+            get(queue::get_queue_state).put(queue::update_queue_state),
+        )
         .route("/feed", get(feed::list_feed).delete(feed::delete_feed))
+        .route("/feed/{feedId}", get(feed::get_feed_entry))
         .route(
             "/workers",
             get(worker::list_workers).post(worker::create_worker),

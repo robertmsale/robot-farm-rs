@@ -75,6 +75,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**deleteTaskGroup**](doc//DefaultApi.md#deletetaskgroup) | **DELETE** /task-groups/{taskGroupId} | Delete task group
 *DefaultApi* | [**deleteWorker**](doc//DefaultApi.md#deleteworker) | **DELETE** /workers/{workerId} | Delete worker
 *DefaultApi* | [**deleteWorkerSession**](doc//DefaultApi.md#deleteworkersession) | **DELETE** /workers/{workerId}/session | Clear worker session state
+*DefaultApi* | [**enqueueMessage**](doc//DefaultApi.md#enqueuemessage) | **POST** /message_queue | Enqueue message
 *DefaultApi* | [**execOrchestratorCommand**](doc//DefaultApi.md#execorchestratorcommand) | **POST** /orchestrator/exec | Execute a shell command for the orchestrator
 *DefaultApi* | [**execWorkerCommand**](doc//DefaultApi.md#execworkercommand) | **POST** /workers/{workerId}/exec | Execute a shell command within a worker workspace
 *DefaultApi* | [**getActiveStrategy**](doc//DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
@@ -82,6 +83,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**getGitStatusForWorktree**](doc//DefaultApi.md#getgitstatusforworktree) | **GET** /git/status/{worktreeId} | Get full git status for a specific worktree, including diff hunks.
 *DefaultApi* | [**getGitStatusSummary**](doc//DefaultApi.md#getgitstatussummary) | **GET** /git/status | List git status information for all worktrees.
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check
+*DefaultApi* | [**getQueueState**](doc//DefaultApi.md#getqueuestate) | **GET** /queue | Get queue state
 *DefaultApi* | [**getTask**](doc//DefaultApi.md#gettask) | **GET** /tasks/{taskId} | Get task
 *DefaultApi* | [**getTaskCommitDiff**](doc//DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
 *DefaultApi* | [**getTaskCommitInfo**](doc//DefaultApi.md#gettaskcommitinfo) | **GET** /tasks/{taskId}/commit | Get task commit info
@@ -95,6 +97,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**listWorkers**](doc//DefaultApi.md#listworkers) | **GET** /workers | List workers
 *DefaultApi* | [**updateActiveStrategy**](doc//DefaultApi.md#updateactivestrategy) | **PUT** /strategy | Update active strategy
 *DefaultApi* | [**updateConfig**](doc//DefaultApi.md#updateconfig) | **PUT** /config | Update workspace config
+*DefaultApi* | [**updateQueueState**](doc//DefaultApi.md#updatequeuestate) | **PUT** /queue | Update queue state
 *DefaultApi* | [**updateTask**](doc//DefaultApi.md#updatetask) | **PUT** /tasks/{taskId} | Update task
 *DefaultApi* | [**updateTaskGroup**](doc//DefaultApi.md#updatetaskgroup) | **PUT** /task-groups/{taskGroupId} | Update task group
 
@@ -122,6 +125,8 @@ Class | Method | HTTP request | Description
  - [InsertMessageOneOf](doc//InsertMessageOneOf.md)
  - [InsertMessageOneOf1](doc//InsertMessageOneOf1.md)
  - [Message](doc//Message.md)
+ - [MessageEnqueueInput](doc//MessageEnqueueInput.md)
+ - [QueueState](doc//QueueState.md)
  - [ReasoningEffort](doc//ReasoningEffort.md)
  - [Strategy](doc//Strategy.md)
  - [Task](doc//Task.md)
