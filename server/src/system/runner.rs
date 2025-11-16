@@ -1,4 +1,5 @@
 use crate::{
+    docker::{DOCKER_IMAGE_ORCHESTRATOR, DOCKER_IMAGE_WORKER},
     globals::PROJECT_DIR,
     shared::{
         codex_exec::CodexExecBuilder,
@@ -84,8 +85,8 @@ pub fn plan_codex_run(
     let host_codex_home = resolve_codex_home();
 
     let image = match persona {
-        Persona::Orchestrator => format!("robot-farm-orchestrator_{}", project_name()),
-        Persona::Worker(_) => format!("robot-farm-worker_{}", project_name()),
+        Persona::Orchestrator => DOCKER_IMAGE_ORCHESTRATOR.as_str(),
+        Persona::Worker(_) => DOCKER_IMAGE_WORKER.as_str(),
     };
 
     let docker = DockerRunBuilder::new(image)
@@ -112,12 +113,4 @@ fn resolve_codex_home() -> PathBuf {
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("."))
         .join(".codex")
-}
-
-fn project_name() -> String {
-    PathBuf::from(PROJECT_DIR.as_str())
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("project")
-        .to_string()
 }

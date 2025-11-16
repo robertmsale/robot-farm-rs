@@ -1,5 +1,6 @@
 use crate::{
     db::feed::{self, NewFeedEntry},
+    docker::DOCKER_IMAGE_WIZARD,
     globals::PROJECT_DIR,
     models::process::{
         KillReason, ProcessEvent, ProcessHandle, ProcessKillHandle, ProcessSpawnIntent,
@@ -388,7 +389,7 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
         ))
         .build();
 
-    DockerRunBuilder::new("robot-farm-rs-wizard")
+    DockerRunBuilder::new(DOCKER_IMAGE_WIZARD)
         .remove_container(true)
         .interactive(true)
         .attach("STDOUT")
