@@ -1,4 +1,5 @@
 use crate::ai::schemas::{WorkerCompletion, WorkerIntent, WorkerTurn};
+use crate::db;
 use crate::db::feed::NewFeedEntry;
 use crate::db::message_queue::{MessageFilters, RelativePosition};
 use crate::globals::PROJECT_DIR;
@@ -20,7 +21,7 @@ use crate::threads::database_manager::{DatabaseManagerError, DatabaseManagerHand
 use crate::threads::middleware::MiddlewareHandle;
 use crate::threads::process_manager::ProcessNotification;
 use chrono::Utc;
-use openapi::models::{CommandConfig, Message};
+use openapi::models::{CommandConfig, Feed, FeedLevel, Message};
 use serde_json;
 use std::{
     collections::{HashSet, VecDeque},
@@ -338,6 +339,13 @@ impl QueueManagerRuntime {
                 info!(%run_id, worker_id, intent = ?turn.intent, "worker turn notification");
                 self.process_worker_turn(worker_id, metadata, turn).await?;
             }
+            ProcessNotification::WorkerFeed {
+                worker_id,
+                message,
+                raw,
+            } => {
+                self.record_worker_feed(worker_id, &message, &raw).await?;
+            }
         }
         Ok(())
     }
@@ -391,13 +399,24 @@ impl QueueManagerRuntime {
         match self.run_post_turn_pipeline(worker_id, &completed).await {
             Ok(_) => {
                 self.notify_orchestrator_completion(worker_id, &completed)
-                    .await?
+                    .await?;
+                self.clear_worker_session(worker_id).await;
             }
             Err(err) => {
                 self.notify_worker_failure(worker_id, &err).await?;
             }
         }
         Ok(())
+    }
+
+    async fn clear_worker_session(&self, worker_id: i64) {
+        let owner = format!("ws{worker_id}");
+        if let Err(err) = db::session::delete_session(&owner).await {
+            warn!(
+                ?err,
+                worker_id, "failed to clear worker session after completion"
+            );
+        }
     }
 
     async fn run_post_turn_pipeline(
@@ -606,6 +625,29 @@ impl QueueManagerRuntime {
         QueueCoordinator::global().validation_failed(worker_id, reason);
         self.enqueue_message(SystemActor::System, SystemActor::Worker(worker_id), reason)
             .await?;
+        Ok(())
+    }
+
+    async fn record_worker_feed(
+        &self,
+        worker_id: i64,
+        message: &str,
+        raw: &str,
+    ) -> Result<(), QueueManagerError> {
+        let entry = NewFeedEntry {
+            source: format!("ws{worker_id}"),
+            target: format!("ws{worker_id}"),
+            level: FeedLevel::Info,
+            text: message.to_string(),
+            raw: raw.to_string(),
+            category: "worker".to_string(),
+        };
+        let feed_entry = self
+            .db
+            .insert_feed_entry(entry)
+            .await
+            .map_err(QueueManagerError::from)?;
+        realtime::publish(RealtimeEvent::FeedEntry(sanitize_feed_entry(&feed_entry)));
         Ok(())
     }
 
@@ -823,7 +865,9 @@ impl QueueManagerRuntime {
         for event in events {
             let entry = event_to_feed_entry(event);
             match self.db.insert_feed_entry(entry).await {
-                Ok(feed_entry) => realtime::publish(RealtimeEvent::FeedEntry(feed_entry)),
+                Ok(feed_entry) => {
+                    realtime::publish(RealtimeEvent::FeedEntry(sanitize_feed_entry(&feed_entry)));
+                }
                 Err(err) => warn!(?err, "failed to persist system event"),
             }
         }
@@ -903,6 +947,11 @@ struct ProcessRunResult {
     stderr: String,
 }
 
+fn sanitize_feed_entry(entry: &Feed) -> Feed {
+    let mut sanitized = entry.clone();
+    sanitized.raw.clear();
+    sanitized
+}
 #[derive(Debug, Error)]
 pub enum QueueManagerError {
     #[error(transparent)]

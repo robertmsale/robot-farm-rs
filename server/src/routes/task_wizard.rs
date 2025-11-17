@@ -641,7 +641,9 @@ async fn persist_feed_entry(
 
     match feed::insert_feed_entry(entry).await {
         Ok(feed_entry) => {
-            realtime::publish(RealtimeEvent::FeedEntry(feed_entry.clone()));
+            let mut realtime_entry = feed_entry.clone();
+            realtime_entry.raw.clear();
+            realtime::publish(RealtimeEvent::FeedEntry(realtime_entry));
             serde_json::to_value(feed_entry).ok()
         }
         Err(err) => {

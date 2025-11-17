@@ -45,6 +45,11 @@ pub enum ProcessNotification {
         metadata: RunMetadata,
         turn: WorkerTurn,
     },
+    WorkerFeed {
+        worker_id: i64,
+        message: String,
+        raw: String,
+    },
 }
 
 struct ActiveProcess {
@@ -55,6 +60,12 @@ struct WorkerObserver {
     worker_id: i64,
     metadata: RunMetadata,
     collector: Arc<Mutex<StructuredOutputCollector>>,
+}
+
+#[derive(Clone)]
+struct WorkerFeedContext {
+    worker_id: i64,
+    notifications_tx: mpsc::Sender<ProcessNotification>,
 }
 
 pub fn spawn_process_manager(runtime: ProcessManagerRuntime) -> JoinHandle<()> {
@@ -227,6 +238,10 @@ async fn run_child(
     let worker_id = parse_worker_id(&request.metadata);
     let worker_collector =
         worker_id.map(|_| Arc::new(Mutex::new(StructuredOutputCollector::default())));
+    let worker_feed_ctx = worker_id.map(|id| WorkerFeedContext {
+        worker_id: id,
+        notifications_tx: notifications_tx.clone(),
+    });
 
     match command.spawn() {
         Ok(mut child) => {
@@ -249,12 +264,14 @@ async fn run_child(
                 if let Some(stdout) = child.stdout.take() {
                     let tx = events_tx.clone();
                     let collector = worker_collector.clone();
+                    let feed_ctx = worker_feed_ctx.clone();
                     tokio::spawn(forward_output(
                         stdout,
                         tx,
                         run_id,
                         ProcessStream::Stdout,
                         collector,
+                        feed_ctx,
                     ));
                 }
             }
@@ -267,6 +284,7 @@ async fn run_child(
                         tx,
                         run_id,
                         ProcessStream::Stderr,
+                        None,
                         None,
                     ));
                 }
@@ -434,7 +452,8 @@ struct StructuredOutputCollector {
 }
 
 impl StructuredOutputCollector {
-    fn ingest(&mut self, bytes: &[u8]) {
+    fn ingest(&mut self, bytes: &[u8]) -> Vec<WorkerFeedFragment> {
+        let mut fragments = Vec::new();
         self.buffer.extend_from_slice(bytes);
         while let Some(pos) = self.buffer.iter().position(|b| *b == b'\n') {
             let mut line = self.buffer.drain(..=pos).collect::<Vec<_>>();
@@ -447,34 +466,113 @@ impl StructuredOutputCollector {
             if text.is_empty() {
                 continue;
             }
-            self.process_line(&text);
+            if let Some(fragment) = self.process_line(&text) {
+                fragments.push(fragment);
+            }
         }
+        fragments
     }
 
     fn take_turn(&mut self) -> Option<WorkerTurn> {
         if !self.buffer.is_empty() {
             let text = String::from_utf8_lossy(&self.buffer).trim().to_string();
             if !text.is_empty() {
-                self.process_line(&text);
+                let _ = self.process_line(&text);
             }
             self.buffer.clear();
         }
         self.turn.take()
     }
 
-    fn process_line(&mut self, line: &str) {
+    fn process_line(&mut self, line: &str) -> Option<WorkerFeedFragment> {
         let event: CodexEvent = match serde_json::from_str(line) {
             Ok(event) => event,
-            Err(_) => return,
+            Err(_) => return None,
         };
         if let CodexEvent::ItemCompleted { item } = event {
-            if let TurnItemDetail::AgentMessage { text } = item.detail {
+            return self.fragment_for_detail(item.detail, line);
+        }
+        None
+    }
+
+    fn fragment_for_detail(
+        &mut self,
+        detail: TurnItemDetail,
+        raw: &str,
+    ) -> Option<WorkerFeedFragment> {
+        match detail {
+            TurnItemDetail::AgentMessage { text } => {
                 if let Ok(turn) = serde_json::from_str::<WorkerTurn>(&text) {
                     self.turn = Some(turn);
                 }
+                Some(WorkerFeedFragment {
+                    text,
+                    raw: raw.to_string(),
+                })
             }
+            TurnItemDetail::Reasoning { text } => Some(WorkerFeedFragment {
+                text: format!("Reasoning:\n{text}"),
+                raw: raw.to_string(),
+            }),
+            TurnItemDetail::CommandExecution(cmd) => {
+                let mut summary = format!("Command `{}` {:?}", cmd.command, cmd.status);
+                if !cmd.aggregated_output.trim().is_empty() {
+                    summary.push_str("\n");
+                    summary.push_str(cmd.aggregated_output.trim());
+                }
+                Some(WorkerFeedFragment {
+                    text: summary,
+                    raw: raw.to_string(),
+                })
+            }
+            TurnItemDetail::ItemError { message } => Some(WorkerFeedFragment {
+                text: format!("Error: {message}"),
+                raw: raw.to_string(),
+            }),
+            TurnItemDetail::TodoList { items } => {
+                let list = items
+                    .into_iter()
+                    .map(|item| {
+                        format!(
+                            "- [{}] {}",
+                            if item.completed { "x" } else { " " },
+                            item.text
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                Some(WorkerFeedFragment {
+                    text: format!("TODO List:\n{list}"),
+                    raw: raw.to_string(),
+                })
+            }
+            TurnItemDetail::FileChange(file_change) => {
+                let files = file_change
+                    .changes
+                    .into_iter()
+                    .map(|entry| format!("{:?}: {}", entry.kind, entry.path))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                Some(WorkerFeedFragment {
+                    text: format!("File changes:\n{files}"),
+                    raw: raw.to_string(),
+                })
+            }
+            TurnItemDetail::McpToolCall(call) => Some(WorkerFeedFragment {
+                text: format!(
+                    "MCP tool call {}::{}, status {:?}",
+                    call.server, call.tool, call.status
+                ),
+                raw: raw.to_string(),
+            }),
+            _ => None,
         }
     }
+}
+
+struct WorkerFeedFragment {
+    text: String,
+    raw: String,
 }
 
 async fn forward_output<R>(
@@ -483,6 +581,7 @@ async fn forward_output<R>(
     run_id: RunId,
     stream: ProcessStream,
     collector: Option<Arc<Mutex<StructuredOutputCollector>>>,
+    feed_ctx: Option<WorkerFeedContext>,
 ) where
     R: AsyncRead + Unpin + Send + 'static,
 {
@@ -511,8 +610,29 @@ async fn forward_output<R>(
 
                 if let Some(tap) = &collector {
                     if stream == ProcessStream::Stdout {
-                        let mut guard = tap.lock().await;
-                        guard.ingest(&chunk.bytes);
+                        let fragments = {
+                            let mut guard = tap.lock().await;
+                            guard.ingest(&chunk.bytes)
+                        };
+                        if let Some(ctx) = feed_ctx.as_ref() {
+                            for fragment in fragments {
+                                if fragment.text.trim().is_empty() {
+                                    continue;
+                                }
+                                if ctx
+                                    .notifications_tx
+                                    .send(ProcessNotification::WorkerFeed {
+                                        worker_id: ctx.worker_id,
+                                        message: fragment.text,
+                                        raw: fragment.raw,
+                                    })
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
 

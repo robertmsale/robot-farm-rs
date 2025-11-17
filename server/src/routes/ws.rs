@@ -59,6 +59,16 @@ async fn handle_socket(mut socket: WebSocket) {
                             break;
                         }
                     }
+                    Ok(RealtimeEvent::FeedCleared) => {
+                        let payload = json!({"type": "feed_cleared"});
+                        if sender
+                            .send(Message::Text(payload.to_string().into()))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
                     Ok(RealtimeEvent::QueueState { paused }) => {
                         let payload = json!({"type": "queue_state", "paused": paused});
                         if sender

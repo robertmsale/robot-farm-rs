@@ -5,6 +5,7 @@ use tokio::sync::broadcast;
 #[derive(Debug, Clone)]
 pub enum RealtimeEvent {
     FeedEntry(openapi::models::Feed),
+    FeedCleared,
     QueueState { paused: bool },
     StrategyState { id: Strategy, focus: Vec<i64> },
 }

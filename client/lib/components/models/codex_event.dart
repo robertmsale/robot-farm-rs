@@ -415,6 +415,38 @@ class SystemFeedEvent {
         return scheme.primary;
     }
   }
+
+  IconData iconForCategory() {
+    final normalized = category.toLowerCase();
+    switch (normalized) {
+      case 'worker':
+        return Icons.smart_toy;
+      case 'strategy':
+        return Icons.flag;
+      case 'queue':
+        return Icons.playlist_add_check;
+      case 'validation':
+        return Icons.fact_check;
+      case 'user':
+        return Icons.person;
+      case 'merge':
+        return Icons.merge_type;
+      case 'routing':
+        return Icons.alt_route;
+      case 'task_wizard':
+        return Icons.auto_fix_high;
+      default:
+        switch (level) {
+          case SystemFeedLevel.error:
+            return Icons.error;
+          case SystemFeedLevel.warning:
+            return Icons.warning;
+          case SystemFeedLevel.info:
+          default:
+            return Icons.info;
+        }
+    }
+  }
 }
 
 enum SystemFeedLevel { info, warning, error }

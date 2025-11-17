@@ -102,6 +102,8 @@ class ConnectionController extends GetxController {
   final Rxn<robot_farm_api.ActiveStrategy> activeStrategy = Rxn(null);
   final StreamController<robot_farm_api.Feed> _feedController =
       StreamController<robot_farm_api.Feed>.broadcast();
+  final StreamController<void> _feedClearedController =
+      StreamController<void>.broadcast();
   ws.WebSocket? _webSocket;
   StreamSubscription<ws.WebSocketEvent>? _webSocketSubscription;
   SharedPreferences? _prefs;
@@ -234,6 +236,8 @@ class ConnectionController extends GetxController {
         _updateWorkers(decoded['workers']);
       } else if (type == 'feed_entry') {
         _handleFeedEntry(decoded['entry']);
+      } else if (type == 'feed_cleared') {
+        _handleFeedCleared();
       } else if (type == 'queue_state') {
         _applyQueueState(decoded['paused']);
       } else if (type == 'strategy_state') {
@@ -245,6 +249,7 @@ class ConnectionController extends GetxController {
   }
 
   Stream<robot_farm_api.Feed> get feedEvents => _feedController.stream;
+  Stream<void> get feedCleared => _feedClearedController.stream;
 
   void _updateWorkers(dynamic payload) {
     if (payload is! List) {
@@ -266,6 +271,10 @@ class ConnectionController extends GetxController {
     if (entry != null) {
       _feedController.add(entry);
     }
+  }
+
+  void _handleFeedCleared() {
+    _feedClearedController.add(null);
   }
 
   void _applyQueueState(dynamic rawPaused) {
@@ -573,6 +582,7 @@ class ConnectionController extends GetxController {
     urlController.dispose();
     _closeWebSocket();
     _feedController.close();
+    _feedClearedController.close();
     super.onClose();
   }
 }
@@ -1006,9 +1016,11 @@ class _SystemFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     if (events.isEmpty) {
       return Center(
-        child: Text(
-          emptyMessage ?? 'No feed entries yet.',
-          textAlign: TextAlign.center,
+        child: SelectionArea(
+          child: Text(
+            emptyMessage ?? 'No feed entries yet.',
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -1029,48 +1041,50 @@ class _SystemFeed extends StatelessWidget {
           onTap: () => _showEventDetails(context, event),
           child: Card(
             margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: viewModel.color.withValues(
-                          alpha: 0.15,
+            child: SelectionArea(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: viewModel.color.withValues(
+                            alpha: 0.15,
+                          ),
+                          child: Icon(viewModel.icon, color: viewModel.color),
                         ),
-                        child: Icon(viewModel.icon, color: viewModel.color),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              viewModel.title,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            if (viewModel.subtitle != null) ...[
-                              const SizedBox(height: 4),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                viewModel.subtitle!,
-                                style: Theme.of(context).textTheme.bodyMedium,
+                                viewModel.title,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
+                              if (viewModel.subtitle != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  viewModel.subtitle!,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                    if (viewModel.body != null) ...[
+                      const SizedBox(height: 8),
+                      viewModel.body!,
                     ],
-                  ),
-                  if (viewModel.body != null) ...[
-                    const SizedBox(height: 8),
-                    viewModel.body!,
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -1171,12 +1185,18 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
     if (_loading) {
       body = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
-      body = Center(child: Text(_error!));
+      body = Center(child: SelectionArea(child: Text(_error!)));
     } else if (_details.trim().isEmpty ||
         _details == SystemFeedEvent.noDetailsLabel) {
-      body = const Center(child: Text('No additional details for this event.'));
+      body = const Center(
+        child: SelectionArea(
+          child: Text('No additional details for this event.'),
+        ),
+      );
     } else {
-      body = SingleChildScrollView(child: _OutputBubble(text: _details));
+      body = SingleChildScrollView(
+        child: SelectionArea(child: _OutputBubble(text: _details)),
+      );
     }
 
     return SafeArea(
@@ -1194,23 +1214,24 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        viewModel.title,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (viewModel.subtitle != null) ...[
-                        const SizedBox(height: 4),
+                  child: SelectionArea(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          viewModel.subtitle!,
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          viewModel.title,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
+                        if (viewModel.subtitle != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            viewModel.subtitle!,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
                 IconButton(
@@ -1250,6 +1271,7 @@ class _SystemEventViewModel {
   }) {
     final scheme = Theme.of(context).colorScheme;
     final color = event.badgeColor(scheme);
+    final icon = event.iconForCategory();
 
     Widget? body;
     final subtitle =
@@ -1265,7 +1287,7 @@ class _SystemEventViewModel {
       title: event.summary,
       subtitle: subtitle,
       body: body,
-      icon: Icons.auto_awesome,
+      icon: icon,
       color: color,
     );
   }
@@ -1418,12 +1440,16 @@ class OrchestratorFeedController extends GetxController {
   final List<SystemFeedEvent> events = <SystemFeedEvent>[];
   bool isLoading = true;
   StreamSubscription<robot_farm_api.Feed>? _subscription;
+  StreamSubscription<void>? _clearedSubscription;
 
   @override
   void onInit() {
     super.onInit();
     _loadInitial();
     _subscription = connection.feedEvents.listen(_handleFeedEntry);
+    _clearedSubscription = connection.feedCleared.listen(
+      (_) => _handleFeedCleared(),
+    );
   }
 
   Future<void> _loadInitial() async {
@@ -1478,7 +1504,13 @@ class OrchestratorFeedController extends GetxController {
   @override
   void onClose() {
     _subscription?.cancel();
+    _clearedSubscription?.cancel();
     super.onClose();
+  }
+
+  void _handleFeedCleared() {
+    events.clear();
+    update();
   }
 }
 
@@ -1492,6 +1524,7 @@ class WorkerFeedController extends GetxController
   final Map<int, List<SystemFeedEvent>> _workerEvents =
       <int, List<SystemFeedEvent>>{};
   StreamSubscription<robot_farm_api.Feed>? _feedSubscription;
+  StreamSubscription<void>? _feedClearedSubscription;
 
   @override
   void onInit() {
@@ -1500,6 +1533,9 @@ class WorkerFeedController extends GetxController
     ever(connection.workers, (_) => _syncTabs());
     _loadInitialFeeds();
     _feedSubscription = connection.feedEvents.listen(_handleFeedEntry);
+    _feedClearedSubscription = connection.feedCleared.listen(
+      (_) => _handleFeedCleared(),
+    );
   }
 
   int get _length => connection.workers.isEmpty ? 1 : connection.workers.length;
@@ -1596,7 +1632,15 @@ class WorkerFeedController extends GetxController
   void onClose() {
     tabController.dispose();
     _feedSubscription?.cancel();
+    _feedClearedSubscription?.cancel();
     super.onClose();
+  }
+
+  void _handleFeedCleared() {
+    for (final bucket in _workerEvents.values) {
+      bucket.clear();
+    }
+    update();
   }
 }
 

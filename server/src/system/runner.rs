@@ -91,6 +91,7 @@ pub fn plan_codex_run(
 
     let docker = DockerRunBuilder::new(image)
         .remove_container(true)
+        .interactive(true)
         .attach("STDOUT")
         .attach("STDERR")
         .user("1000:1000")

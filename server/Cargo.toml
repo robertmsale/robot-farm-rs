@@ -55,6 +55,7 @@ oai_strict_schema = { path = "../oai_strict_schema" }
 path-clean = "1.0.1"
 tempfile = "3.23.0"
 gix = { version = "0.60.0", features = ["blob-diff", "revparse-regex"] }
+tera = "1.19.1"
 
 
 [build-dependencies]

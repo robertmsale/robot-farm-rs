@@ -1,4 +1,7 @@
-use crate::db;
+use crate::{
+    db,
+    realtime::{self, RealtimeEvent},
+};
 use axum::{
     Json,
     extract::{Path, Query},
@@ -50,7 +53,10 @@ pub async fn get_feed_entry(Path(feed_id): Path<i64>) -> Result<Json<Feed>, Stat
 
 pub async fn delete_feed() -> StatusCode {
     match db::feed::delete_feed().await {
-        Ok(_) => StatusCode::NO_CONTENT,
+        Ok(_) => {
+            realtime::publish(RealtimeEvent::FeedCleared);
+            StatusCode::NO_CONTENT
+        }
         Err(err) => {
             error!(?err, "failed to clear feed");
             StatusCode::INTERNAL_SERVER_ERROR
