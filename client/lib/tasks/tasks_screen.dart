@@ -22,11 +22,9 @@ class TasksScreen extends GetView<TasksController> {
     try {
       if (result.action == TaskGroupEditorAction.delete) {
         await controller.deleteTaskGroup(group.id);
-        Get.snackbar('Task group deleted', '${group.title} removed.');
       } else {
         final payload = result.payload!;
         await controller.applyGroupEdit(group.id, payload);
-        Get.snackbar('Task group updated', '${group.title} saved.');
       }
     } catch (error) {
       Get.snackbar('Update failed', '$error');
@@ -45,11 +43,9 @@ class TasksScreen extends GetView<TasksController> {
     try {
       if (result.action == TaskEditorAction.delete) {
         await controller.deleteTask(task.id);
-        Get.snackbar('Task deleted', '${task.title} removed.');
       } else {
         final payload = result.payload!;
         await controller.applyTaskEdit(task.id, payload);
-        Get.snackbar('Task updated', '${task.title} saved.');
       }
     } catch (error) {
       Get.snackbar('Update failed', '$error');
@@ -66,7 +62,6 @@ class TasksScreen extends GetView<TasksController> {
     try {
       await controller.createTaskGroup(payload);
       await controller.refreshTaskGroups();
-      Get.snackbar('Task group created', '${payload.title} added.');
     } catch (error) {
       Get.snackbar('Creation failed', '$error');
     }
@@ -91,7 +86,6 @@ class TasksScreen extends GetView<TasksController> {
 
     try {
       await controller.createTaskForActiveGroup(payload);
-      Get.snackbar('Task created', '${payload.title} added to ${group.title}.');
     } catch (error) {
       Get.snackbar('Creation failed', '$error');
     }

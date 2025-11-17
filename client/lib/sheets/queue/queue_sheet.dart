@@ -87,7 +87,6 @@ class _QueueSheetState extends State<QueueSheet> {
       setState(() {
         _messages = const <robot_farm_api.Message>[];
       });
-      Get.snackbar('Queue cleared', 'All queued messages were removed.');
     } catch (error) {
       Get.snackbar('Failed to clear queue', '$error');
     } finally {
@@ -110,7 +109,6 @@ class _QueueSheetState extends State<QueueSheet> {
       setState(() {
         _messages = List.of(_messages)..removeWhere((m) => m.id == id);
       });
-      Get.snackbar('Message deleted', 'Removed message ${message.id}.');
     } catch (error) {
       Get.snackbar('Deletion failed', '$error');
     } finally {

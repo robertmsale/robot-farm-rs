@@ -343,7 +343,15 @@ impl QueueManagerRuntime {
                 worker_id,
                 message,
                 raw,
+                thread_id,
             } => {
+                if let Some(thread_id) = thread_id {
+                    if let Err(err) =
+                        db::session::upsert_session(&format!("ws{worker_id}"), &thread_id).await
+                    {
+                        warn!(?err, worker_id, "failed to store thread id");
+                    }
+                }
                 self.record_worker_feed(worker_id, &message, &raw).await?;
             }
         }
@@ -383,9 +391,17 @@ impl QueueManagerRuntime {
                     .await?;
                 }
             }
-            WorkerIntent::StatusUpdate | WorkerIntent::AckPause => {
-                // Future: pipe summaries to orchestrator feed.
+            WorkerIntent::StatusUpdate => {
+                if let Some(message) = Self::format_status_update(worker_id, &turn) {
+                    self.enqueue_message(
+                        SystemActor::Worker(worker_id),
+                        SystemActor::Orchestrator,
+                        &message,
+                    )
+                    .await?;
+                }
             }
+            WorkerIntent::AckPause => {}
         }
 
         Ok(())
@@ -396,224 +412,12 @@ impl QueueManagerRuntime {
         worker_id: i64,
         completed: WorkerCompletion,
     ) -> Result<(), QueueManagerError> {
-        match self.run_post_turn_pipeline(worker_id, &completed).await {
-            Ok(_) => {
-                self.notify_orchestrator_completion(worker_id, &completed)
-                    .await?;
-                self.clear_worker_session(worker_id).await;
-            }
-            Err(err) => {
-                self.notify_worker_failure(worker_id, &err).await?;
-            }
-        }
-        Ok(())
-    }
-
-    async fn clear_worker_session(&self, worker_id: i64) {
-        let owner = format!("ws{worker_id}");
-        if let Err(err) = db::session::delete_session(&owner).await {
-            warn!(
-                ?err,
-                worker_id, "failed to clear worker session after completion"
-            );
-        }
-    }
-
-    async fn run_post_turn_pipeline(
-        &mut self,
-        worker_id: i64,
-        completed: &WorkerCompletion,
-    ) -> Result<(), PostTurnError> {
-        self.run_post_turn_checks(worker_id).await?;
-        self.auto_commit_and_merge(worker_id, completed).await?;
-        Ok(())
-    }
-
-    async fn run_post_turn_checks(&mut self, worker_id: i64) -> Result<(), PostTurnError> {
-        let plan = PostTurnCheckRegistry::global().list();
-        if plan.is_empty() {
-            return Ok(());
-        }
-        let registry = ProjectCommandRegistry::global();
-        for check_id in plan {
-            let command = registry
-                .get(&check_id)
-                .ok_or_else(|| PostTurnError::UnknownCheck(check_id.clone()))?;
-            let result = self
-                .run_check_command(worker_id, &check_id, &command)
-                .await?;
-            if !result.success {
-                return Err(PostTurnError::CheckFailed {
-                    id: check_id,
-                    stdout: result.stdout,
-                    stderr: result.stderr,
-                    exit_code: result.exit_code,
-                });
-            }
-        }
-        Ok(())
-    }
-
-    async fn run_check_command(
-        &mut self,
-        worker_id: i64,
-        check_id: &str,
-        command: &CommandConfig,
-    ) -> Result<ProcessRunResult, PostTurnError> {
-        if command.exec.is_empty() {
-            return Err(PostTurnError::InvalidCommand(check_id.to_string()));
-        }
-
-        let workspace_root = Path::new(PROJECT_DIR.as_str());
-        let working_dir = shell::resolve_working_dir(workspace_root, command.cwd.as_deref())
-            .map_err(|err| PostTurnError::InvalidWorkingDir(err.to_string()))?;
-
-        let metadata = RunMetadata {
-            run_id: Uuid::new_v4(),
-            persona: format!("post_turn_check:{check_id}"),
-            workspace_root: workspace_root.to_path_buf(),
-            tags: vec![
-                "post_turn_check".to_string(),
-                format!("worker:{worker_id}"),
-                format!("check:{check_id}"),
-            ],
-            priority: RunPriority::High,
-            issued_at: Utc::now(),
-        };
-
-        let intent = ProcessSpawnIntent {
-            metadata,
-            program: command.exec[0].clone(),
-            args: command.exec.iter().skip(1).cloned().collect(),
-            env: Vec::new(),
-            working_dir,
-            stream_stdout: true,
-            stream_stderr: true,
-            stdin: None,
-        };
-
-        let handle_rx = self
-            .middleware
-            .enqueue_spawn(intent)
-            .await
-            .map_err(|err| PostTurnError::Spawn(err.to_string()))?;
-
-        let handle = handle_rx.await.map_err(|_| PostTurnError::HandleDropped)?;
-
-        self.await_process(handle).await
-    }
-
-    async fn await_process(
-        &self,
-        mut handle: ProcessHandle,
-    ) -> Result<ProcessRunResult, PostTurnError> {
-        let mut stdout = Vec::new();
-        let mut stderr = Vec::new();
-        let mut exit_code: Option<i32> = None;
-
-        while let Some(event) = handle.events.recv().await {
-            match event {
-                ProcessEvent::Output(chunk) => match chunk.stream {
-                    ProcessStream::Stdout => stdout.extend_from_slice(&chunk.bytes),
-                    ProcessStream::Stderr => stderr.extend_from_slice(&chunk.bytes),
-                },
-                ProcessEvent::OutputError(err) => {
-                    stderr.extend_from_slice(err.message.as_bytes());
-                }
-                ProcessEvent::Exit(exit) => {
-                    exit_code = exit.status.code();
-                    break;
-                }
-                ProcessEvent::Killed(_) => {
-                    return Err(PostTurnError::ProcessTerminated);
-                }
-                ProcessEvent::SpawnFailed(err) => {
-                    return Err(PostTurnError::Spawn(err.message));
-                }
-            }
-        }
-
-        let stdout = String::from_utf8_lossy(&stdout).to_string();
-        let stderr = String::from_utf8_lossy(&stderr).to_string();
-        let success = exit_code.map(|code| code == 0).unwrap_or(false);
-
-        Ok(ProcessRunResult {
-            success,
-            exit_code,
-            stdout,
-            stderr,
-        })
-    }
-
-    async fn auto_commit_and_merge(
-        &self,
-        worker_id: i64,
-        completed: &WorkerCompletion,
-    ) -> Result<(), PostTurnError> {
-        let worker_root = worker_worktree_path(worker_id);
-        if !worker_root.exists() {
-            return Err(PostTurnError::MissingWorktree(worker_root));
-        }
-
-        git::stage_all(&worker_root).map_err(PostTurnError::Git)?;
-
-        match git::commit(&worker_root, &completed.commit_summary) {
-            Ok(_) => {}
-            Err(git::GitError::CommandFailure { stderr })
-                if stderr.contains("nothing to commit") =>
-            {
-                return Err(PostTurnError::NothingToCommit);
-            }
-            Err(err) => return Err(PostTurnError::Git(err)),
-        }
-
-        let staging = staging_path();
-        let branch = format!("ws{worker_id}");
-        if let Err(err) = git::merge_ff_only(&staging, &branch) {
-            debug!(
-                ?err,
-                worker_id, "fast-forward merge failed, attempting regular merge"
-            );
-            if let Err(err) = git::merge(&staging, &branch) {
-                error!(?err, worker_id, "merge failed");
-                let conflicts =
-                    git::collect_merge_conflicts(&staging).map_err(PostTurnError::Git)?;
-                let _ = git::abort_merge(&staging);
-                return Err(PostTurnError::MergeConflict(conflicts));
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn notify_worker_failure(
-        &self,
-        worker_id: i64,
-        error: &PostTurnError,
-    ) -> Result<(), QueueManagerError> {
-        let message = error.render(worker_id);
-        self.enqueue_message(
-            SystemActor::System,
-            SystemActor::Worker(worker_id),
-            &message,
-        )
-        .await?;
-        QueueCoordinator::global().validation_failed(worker_id, &message);
-        Ok(())
-    }
-
-    async fn notify_orchestrator_completion(
-        &self,
-        worker_id: i64,
-        completed: &WorkerCompletion,
-    ) -> Result<(), QueueManagerError> {
-        let mut message = format!("ws{worker_id} completed {}", completed.task_slug);
-        if let Some(notes) = completed.notes.as_ref().filter(|v| !v.trim().is_empty()) {
-            message.push_str(": ");
-            message.push_str(notes.trim());
-        }
-        self.enqueue_message(SystemActor::System, SystemActor::Orchestrator, &message)
-            .await?;
+        PostTurnJob::spawn(
+            worker_id,
+            completed,
+            self.middleware.clone(),
+            self.db.clone(),
+        );
         Ok(())
     }
 
@@ -832,6 +636,29 @@ impl QueueManagerRuntime {
         )
     }
 
+    fn format_status_update(worker_id: i64, turn: &WorkerTurn) -> Option<String> {
+        let summary = turn.summary.trim();
+        let details = turn
+            .details
+            .as_deref()
+            .map(str::trim)
+            .filter(|d| !d.is_empty());
+        if summary.is_empty() && details.is_none() {
+            return None;
+        }
+
+        let mut body = if summary.is_empty() {
+            format!("ws{worker_id} sent a status update.")
+        } else {
+            format!("ws{worker_id}: {summary}")
+        };
+        if let Some(details) = details {
+            body.push_str("\n\n");
+            body.push_str(details);
+        }
+        Some(body)
+    }
+
     async fn enqueue_intent(&mut self, intent: ProcessIntent) -> Result<(), QueueManagerError> {
         if self.state.paused {
             self.state.buffered.push_back(intent);
@@ -945,6 +772,261 @@ struct ProcessRunResult {
     exit_code: Option<i32>,
     stdout: String,
     stderr: String,
+}
+
+struct PostTurnJob {
+    worker_id: i64,
+    completion: WorkerCompletion,
+    middleware: MiddlewareHandle,
+    db: DatabaseManagerHandle,
+}
+
+impl PostTurnJob {
+    fn spawn(
+        worker_id: i64,
+        completion: WorkerCompletion,
+        middleware: MiddlewareHandle,
+        db: DatabaseManagerHandle,
+    ) {
+        let job = Self {
+            worker_id,
+            completion,
+            middleware,
+            db,
+        };
+        spawn(async move {
+            job.run().await;
+        });
+    }
+
+    async fn run(self) {
+        match self.execute().await {
+            Ok(_) => {
+                if let Err(err) = self.notify_orchestrator_completion().await {
+                    warn!(
+                        worker_id = self.worker_id,
+                        ?err,
+                        "failed to notify orchestrator completion"
+                    );
+                }
+                self.clear_worker_session().await;
+            }
+            Err(error) => {
+                if let Err(err) = self.notify_worker_failure(&error).await {
+                    warn!(
+                        worker_id = self.worker_id,
+                        ?err,
+                        "failed to notify worker about post-turn failure"
+                    );
+                }
+            }
+        }
+    }
+
+    async fn execute(&self) -> Result<(), PostTurnError> {
+        self.run_post_turn_checks().await?;
+        auto_commit_and_merge(self.worker_id, &self.completion).await?;
+        Ok(())
+    }
+
+    async fn run_post_turn_checks(&self) -> Result<(), PostTurnError> {
+        let plan = PostTurnCheckRegistry::global().list();
+        if plan.is_empty() {
+            return Ok(());
+        }
+        let registry = ProjectCommandRegistry::global();
+        for check_id in plan {
+            let command = registry
+                .get(&check_id)
+                .ok_or_else(|| PostTurnError::UnknownCheck(check_id.clone()))?;
+            let result = self.run_check_command(&check_id, &command).await?;
+            if !result.success {
+                return Err(PostTurnError::CheckFailed {
+                    id: check_id,
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                    exit_code: result.exit_code,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    async fn run_check_command(
+        &self,
+        check_id: &str,
+        command: &CommandConfig,
+    ) -> Result<ProcessRunResult, PostTurnError> {
+        if command.exec.is_empty() {
+            return Err(PostTurnError::InvalidCommand(check_id.to_string()));
+        }
+
+        let workspace_root = Path::new(PROJECT_DIR.as_str());
+        let worker_root = worker_worktree_path(self.worker_id);
+        let working_dir =
+            shell::resolve_working_dir(workspace_root, &worker_root, command.cwd.as_deref())
+                .map_err(|err| PostTurnError::InvalidWorkingDir(err.to_string()))?;
+
+        let metadata = RunMetadata {
+            run_id: Uuid::new_v4(),
+            persona: format!("post_turn_check:{check_id}"),
+            workspace_root: workspace_root.to_path_buf(),
+            tags: vec![
+                "post_turn_check".to_string(),
+                format!("worker:{}", self.worker_id),
+                format!("check:{check_id}"),
+            ],
+            priority: RunPriority::High,
+            issued_at: Utc::now(),
+        };
+
+        let intent = ProcessSpawnIntent {
+            metadata,
+            program: command.exec[0].clone(),
+            args: command.exec.iter().skip(1).cloned().collect(),
+            env: Vec::new(),
+            working_dir,
+            stream_stdout: true,
+            stream_stderr: true,
+            stdin: None,
+        };
+
+        let handle_rx = self
+            .middleware
+            .enqueue_spawn(intent)
+            .await
+            .map_err(|err| PostTurnError::Spawn(err.to_string()))?;
+
+        let handle = handle_rx.await.map_err(|_| PostTurnError::HandleDropped)?;
+
+        Self::await_process(handle).await
+    }
+
+    async fn await_process(mut handle: ProcessHandle) -> Result<ProcessRunResult, PostTurnError> {
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        let mut exit_code: Option<i32> = None;
+
+        while let Some(event) = handle.events.recv().await {
+            match event {
+                ProcessEvent::Output(chunk) => match chunk.stream {
+                    ProcessStream::Stdout => stdout.extend_from_slice(&chunk.bytes),
+                    ProcessStream::Stderr => stderr.extend_from_slice(&chunk.bytes),
+                },
+                ProcessEvent::OutputError(err) => {
+                    stderr.extend_from_slice(err.message.as_bytes());
+                }
+                ProcessEvent::Exit(exit) => {
+                    exit_code = exit.status.code();
+                    break;
+                }
+                ProcessEvent::Killed(_) => {
+                    return Err(PostTurnError::ProcessTerminated);
+                }
+                ProcessEvent::SpawnFailed(err) => {
+                    return Err(PostTurnError::Spawn(err.message));
+                }
+            }
+        }
+
+        let stdout = String::from_utf8_lossy(&stdout).to_string();
+        let stderr = String::from_utf8_lossy(&stderr).to_string();
+        let success = exit_code.map(|code| code == 0).unwrap_or(false);
+
+        Ok(ProcessRunResult {
+            success,
+            exit_code,
+            stdout,
+            stderr,
+        })
+    }
+
+    async fn notify_worker_failure(&self, error: &PostTurnError) -> Result<(), QueueManagerError> {
+        let message = error.render(self.worker_id);
+        self.db
+            .enqueue_message(
+                SystemActor::System.label(),
+                SystemActor::Worker(self.worker_id).label(),
+                message.clone(),
+            )
+            .await
+            .map_err(QueueManagerError::from)?;
+        QueueCoordinator::global().validation_failed(self.worker_id, &message);
+        Ok(())
+    }
+
+    async fn notify_orchestrator_completion(&self) -> Result<(), QueueManagerError> {
+        let mut message = format!(
+            "ws{} completed {}",
+            self.worker_id, self.completion.task_slug
+        );
+        if let Some(notes) = self
+            .completion
+            .notes
+            .as_ref()
+            .and_then(|v| (!v.trim().is_empty()).then_some(v.trim()))
+        {
+            message.push_str(": ");
+            message.push_str(notes);
+        }
+        self.db
+            .enqueue_message(
+                SystemActor::System.label(),
+                SystemActor::Orchestrator.label(),
+                message,
+            )
+            .await
+            .map_err(QueueManagerError::from)?;
+        Ok(())
+    }
+
+    async fn clear_worker_session(&self) {
+        let owner = format!("ws{}", self.worker_id);
+        if let Err(err) = db::session::delete_session(&owner).await {
+            warn!(
+                worker_id = self.worker_id,
+                ?err,
+                "failed to clear worker session"
+            );
+        }
+    }
+}
+
+async fn auto_commit_and_merge(
+    worker_id: i64,
+    completed: &WorkerCompletion,
+) -> Result<(), PostTurnError> {
+    let worker_root = worker_worktree_path(worker_id);
+    if !worker_root.exists() {
+        return Err(PostTurnError::MissingWorktree(worker_root));
+    }
+
+    git::stage_all(&worker_root).map_err(PostTurnError::Git)?;
+
+    match git::commit(&worker_root, &completed.commit_summary) {
+        Ok(_) => {}
+        Err(git::GitError::CommandFailure { stderr }) if stderr.contains("nothing to commit") => {
+            return Err(PostTurnError::NothingToCommit);
+        }
+        Err(err) => return Err(PostTurnError::Git(err)),
+    }
+
+    let staging = staging_path();
+    let branch = format!("ws{worker_id}");
+    if let Err(err) = git::merge_ff_only(&staging, &branch) {
+        debug!(
+            ?err,
+            worker_id, "fast-forward merge failed, attempting regular merge"
+        );
+        if let Err(err) = git::merge(&staging, &branch) {
+            error!(?err, worker_id, "merge failed");
+            let conflicts = git::collect_merge_conflicts(&staging).map_err(PostTurnError::Git)?;
+            let _ = git::abort_merge(&staging);
+            return Err(PostTurnError::MergeConflict(conflicts));
+        }
+    }
+
+    Ok(())
 }
 
 fn sanitize_feed_entry(entry: &Feed) -> Feed {

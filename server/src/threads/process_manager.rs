@@ -49,6 +49,7 @@ pub enum ProcessNotification {
         worker_id: i64,
         message: String,
         raw: String,
+        thread_id: Option<String>,
     },
 }
 
@@ -489,10 +490,15 @@ impl StructuredOutputCollector {
             Ok(event) => event,
             Err(_) => return None,
         };
-        if let CodexEvent::ItemCompleted { item } = event {
-            return self.fragment_for_detail(item.detail, line);
+        match event {
+            CodexEvent::ItemCompleted { item } => self.fragment_for_detail(item.detail, line),
+            CodexEvent::ThreadStarted { thread_id } => Some(WorkerFeedFragment {
+                text: format!("Thread started: {thread_id}"),
+                raw: line.to_string(),
+                thread_id: Some(thread_id),
+            }),
+            _ => None,
         }
-        None
     }
 
     fn fragment_for_detail(
@@ -508,11 +514,13 @@ impl StructuredOutputCollector {
                 Some(WorkerFeedFragment {
                     text,
                     raw: raw.to_string(),
+                    thread_id: None,
                 })
             }
             TurnItemDetail::Reasoning { text } => Some(WorkerFeedFragment {
                 text: format!("Reasoning:\n{text}"),
                 raw: raw.to_string(),
+                thread_id: None,
             }),
             TurnItemDetail::CommandExecution(cmd) => {
                 let mut summary = format!("Command `{}` {:?}", cmd.command, cmd.status);
@@ -523,11 +531,13 @@ impl StructuredOutputCollector {
                 Some(WorkerFeedFragment {
                     text: summary,
                     raw: raw.to_string(),
+                    thread_id: None,
                 })
             }
             TurnItemDetail::ItemError { message } => Some(WorkerFeedFragment {
                 text: format!("Error: {message}"),
                 raw: raw.to_string(),
+                thread_id: None,
             }),
             TurnItemDetail::TodoList { items } => {
                 let list = items
@@ -544,6 +554,7 @@ impl StructuredOutputCollector {
                 Some(WorkerFeedFragment {
                     text: format!("TODO List:\n{list}"),
                     raw: raw.to_string(),
+                    thread_id: None,
                 })
             }
             TurnItemDetail::FileChange(file_change) => {
@@ -556,6 +567,7 @@ impl StructuredOutputCollector {
                 Some(WorkerFeedFragment {
                     text: format!("File changes:\n{files}"),
                     raw: raw.to_string(),
+                    thread_id: None,
                 })
             }
             TurnItemDetail::McpToolCall(call) => Some(WorkerFeedFragment {
@@ -564,6 +576,7 @@ impl StructuredOutputCollector {
                     call.server, call.tool, call.status
                 ),
                 raw: raw.to_string(),
+                thread_id: None,
             }),
             _ => None,
         }
@@ -573,6 +586,7 @@ impl StructuredOutputCollector {
 struct WorkerFeedFragment {
     text: String,
     raw: String,
+    thread_id: Option<String>,
 }
 
 async fn forward_output<R>(
@@ -625,6 +639,7 @@ async fn forward_output<R>(
                                         worker_id: ctx.worker_id,
                                         message: fragment.text,
                                         raw: fragment.raw,
+                                        thread_id: fragment.thread_id,
                                     })
                                     .await
                                     .is_err()

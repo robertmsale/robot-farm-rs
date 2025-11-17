@@ -1,4 +1,4 @@
-use crate::{globals::PROJECT_DIR, shared::git};
+use crate::{db, globals::PROJECT_DIR, shared::git};
 use openapi::models::{Worker, WorkerState};
 use std::{
     collections::HashSet,
@@ -10,7 +10,24 @@ use tracing::warn;
 
 pub async fn list_workers() -> Vec<Worker> {
     match discover_workers() {
-        Ok(workers) => workers,
+        Ok(mut workers) => {
+            for worker in &mut workers {
+                let owner = format!("ws{}", worker.id);
+                match db::session::get_session(&owner).await {
+                    Ok(value) => {
+                        worker.thread_id = value;
+                    }
+                    Err(err) => {
+                        warn!(
+                            ?err,
+                            worker_id = worker.id,
+                            "failed to load worker thread id"
+                        );
+                    }
+                }
+            }
+            workers
+        }
         Err(err) => {
             warn!(?err, "failed to discover worker worktrees");
             Vec::new()
@@ -24,6 +41,7 @@ pub async fn create_worker() -> Worker {
         id: -1,
         last_seen: 0,
         state: WorkerState::Ready,
+        thread_id: None,
     }
 }
 
@@ -70,6 +88,7 @@ fn discover_workers() -> Result<Vec<Worker>, WorkerDiscoveryError> {
                         id: worker_id,
                         last_seen: 0,
                         state: WorkerState::Ready,
+                        thread_id: None,
                     });
                 }
             }

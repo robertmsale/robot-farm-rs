@@ -5,7 +5,8 @@ use serde_json::{Value, json};
 
 use super::{
     AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
-    project_commands::ProjectCommandRegistry, roles_all, schema_for_type, serialize_json,
+    project_commands::{ProjectCommandRegistry, command_visible_for_role},
+    roles_all, schema_for_type, serialize_json,
 };
 
 #[derive(Default)]
@@ -35,11 +36,15 @@ impl McpTool for ProjectCommandListTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
         let _: ProjectCommandListInput = parse_params(args)?;
-        let commands = ProjectCommandRegistry::global().list();
+        let commands: Vec<_> = ProjectCommandRegistry::global()
+            .list()
+            .into_iter()
+            .filter(|command| command_visible_for_role(ctx.role(), command))
+            .collect();
         let payload = json!({
             "commands": commands,
         });

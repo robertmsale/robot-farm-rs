@@ -46,7 +46,6 @@ pub async fn stream_mcp(headers: HeaderMap) -> impl IntoResponse {
         Err(err) => return (StatusCode::BAD_REQUEST, err.to_string()).into_response(),
     };
 
-    // agent currently unused but parsed to enforce header correctness
     let _ = agent;
 
     let session_id = match require_session_id(&headers) {

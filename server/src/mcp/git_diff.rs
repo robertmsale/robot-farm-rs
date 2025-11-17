@@ -6,6 +6,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::process::Command;
 
+use super::Agent;
 use crate::globals::PROJECT_DIR;
 
 use super::{
@@ -40,11 +41,11 @@ impl McpTool for GitDiffTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
         let input: GitDiffInput = parse_params(args)?;
-        run_git_diff(input).await
+        run_git_diff(ctx, input).await
     }
 }
 
@@ -57,8 +58,17 @@ struct GitDiffInput {
     pub staged: bool,
 }
 
-async fn run_git_diff(input: GitDiffInput) -> Result<ToolInvocationResponse, ToolInvocationError> {
-    let repo = Path::new(PROJECT_DIR.as_str()).join("staging");
+async fn run_git_diff(
+    ctx: &ToolContext,
+    input: GitDiffInput,
+) -> Result<ToolInvocationResponse, ToolInvocationError> {
+    let repo = repo_root_for_agent(&ctx.agent);
+    if !repo.exists() {
+        return Err(ToolInvocationError::Internal(format!(
+            "repository {} not found",
+            repo.display()
+        )));
+    }
     let mut command = Command::new("git");
     command.current_dir(&repo).arg("diff");
     if input.staged {
@@ -87,5 +97,13 @@ async fn run_git_diff(input: GitDiffInput) -> Result<ToolInvocationResponse, Too
         Ok(ToolInvocationResponse::text("(no diff)"))
     } else {
         Ok(ToolInvocationResponse::text(stdout))
+    }
+}
+
+fn repo_root_for_agent(agent: &Agent) -> std::path::PathBuf {
+    let root = Path::new(PROJECT_DIR.as_str());
+    match agent {
+        Agent::WorkerWithId(id) => root.join(format!("ws{id}")),
+        _ => root.join("staging"),
     }
 }

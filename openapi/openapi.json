@@ -1810,10 +1810,15 @@
             "format": "int64",
             "description": "Unix timestamp in seconds when the worker last reported."
           },
-          "state": {
-            "$ref": "#/components/schemas/WorkerState"
-          }
-        },
+    "state": {
+      "$ref": "#/components/schemas/WorkerState"
+    },
+    "thread_id": {
+      "type": "string",
+      "nullable": true,
+      "description": "Most recent Codex thread id for this worker, if any."
+    }
+  },
         "required": [
           "id",
           "last_seen",

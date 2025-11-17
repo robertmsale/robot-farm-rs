@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -56,19 +56,28 @@ fn apply_config(config: &WorkspaceConfig) -> Result<(), ConfigSyncError> {
 }
 
 fn regenerate_agent_overrides(config: &AppendFilesConfig) -> Result<(), ConfigSyncError> {
-    for worktree in worktree_paths()? {
-        write_override_for_worktree(&worktree, config)?;
+    for (worktree, role) in worktree_paths()? {
+        write_override_for_worktree(&worktree, role, config)?;
     }
     Ok(())
 }
 
 fn write_override_for_worktree(
     worktree: &Path,
+    role: WorktreeRole,
     config: &AppendFilesConfig,
 ) -> Result<(), ConfigSyncError> {
     let mut buffer = String::new();
-    append_sections(worktree, &config.orchestrator, &mut buffer)?;
-    append_sections(worktree, &config.worker, &mut buffer)?;
+    match role {
+        WorktreeRole::Orchestrator => {
+            append_role_directive(WorktreeRole::Orchestrator, &mut buffer)?;
+            append_sections(worktree, &config.orchestrator, &mut buffer)?;
+        }
+        WorktreeRole::Worker => {
+            append_role_directive(WorktreeRole::Worker, &mut buffer)?;
+            append_sections(worktree, &config.worker, &mut buffer)?;
+        }
+    }
 
     let file = worktree.join("AGENTS.override.md");
     if buffer.trim().is_empty() {
@@ -102,6 +111,21 @@ fn append_sections(
     Ok(())
 }
 
+pub const WORKER_DIRECTIVE: &str = include_str!("../../directives/worker.md");
+pub const ORCHESTRATOR_DIRECTIVE: &str = include_str!("../../directives/orchestrator.md");
+fn append_role_directive(role: WorktreeRole, buffer: &mut String) -> Result<(), ConfigSyncError> {
+    let data = match role {
+        WorktreeRole::Orchestrator => ORCHESTRATOR_DIRECTIVE,
+        WorktreeRole::Worker => WORKER_DIRECTIVE,
+    };
+    buffer.push_str(&data);
+    if !buffer.ends_with('\n') {
+        buffer.push('\n');
+    }
+    buffer.push('\n');
+    Ok(())
+}
+
 fn resolve_path(root: &Path, raw: &str) -> PathBuf {
     let candidate = Path::new(raw);
     if candidate.is_absolute() {
@@ -112,7 +136,7 @@ fn resolve_path(root: &Path, raw: &str) -> PathBuf {
 }
 
 fn remove_agent_overrides() -> Result<(), ConfigSyncError> {
-    for worktree in worktree_paths()? {
+    for (worktree, _) in worktree_paths()? {
         let file = worktree.join("AGENTS.override.md");
         if file.exists() {
             let _ = fs::remove_file(file);
@@ -121,17 +145,23 @@ fn remove_agent_overrides() -> Result<(), ConfigSyncError> {
     Ok(())
 }
 
-fn worktree_paths() -> Result<Vec<PathBuf>, ConfigSyncError> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum WorktreeRole {
+    Orchestrator,
+    Worker,
+}
+
+fn worktree_paths() -> Result<Vec<(PathBuf, WorktreeRole)>, ConfigSyncError> {
     let project_root = Path::new(PROJECT_DIR.as_str());
     let staging = project_root.join("staging");
-    let mut set: HashSet<PathBuf> = HashSet::new();
-    if staging.exists() && is_robot_farm_worktree(&staging, project_root) {
-        set.insert(staging.clone());
-    }
+    let mut map: HashMap<PathBuf, WorktreeRole> = HashMap::new();
     if staging.exists() {
+        if let Some(role) = classify_worktree(&staging, project_root) {
+            map.insert(staging.clone(), role);
+        }
         for path in git::list_worktrees(&staging)? {
-            if is_robot_farm_worktree(&path, project_root) {
-                set.insert(path);
+            if let Some(role) = classify_worktree(&path, project_root) {
+                map.insert(path, role);
             } else {
                 debug!(
                     ?path,
@@ -140,28 +170,35 @@ fn worktree_paths() -> Result<Vec<PathBuf>, ConfigSyncError> {
             }
         }
     }
-    Ok(set.into_iter().collect())
+    Ok(map.into_iter().collect())
 }
 
-fn is_robot_farm_worktree(path: &Path, project_root: &Path) -> bool {
+fn classify_worktree(path: &Path, project_root: &Path) -> Option<WorktreeRole> {
     if !path.starts_with(project_root) {
-        return false;
+        return None;
     }
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
-        return false;
+        return None;
     };
     if name == "staging" {
-        return path == project_root.join("staging");
+        if path == project_root.join("staging") {
+            return Some(WorktreeRole::Orchestrator);
+        }
+        return None;
     }
     if path
         .parent()
         .map(|parent| parent != project_root)
         .unwrap_or(true)
     {
-        return false;
+        return None;
     }
     if !name.starts_with("ws") {
-        return false;
+        return None;
     }
-    name[2..].chars().all(|c| c.is_ascii_digit())
+    if name[2..].chars().all(|c| c.is_ascii_digit()) {
+        Some(WorktreeRole::Worker)
+    } else {
+        None
+    }
 }

@@ -1,4 +1,7 @@
-use std::{path::Path, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use async_trait::async_trait;
 use schemars::JsonSchema;
@@ -9,8 +12,10 @@ use tokio::{process::Command, time::timeout};
 use crate::{globals::PROJECT_DIR, shared::shell};
 
 use super::{
-    AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
-    project_commands::ProjectCommandRegistry, roles_all, schema_for_type, serialize_json,
+    Agent, AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse,
+    parse_params,
+    project_commands::{ProjectCommandRegistry, command_visible_for_role},
+    roles_all, schema_for_type, serialize_json,
 };
 
 #[derive(Default)]
@@ -40,11 +45,11 @@ impl McpTool for ProjectCommandRunTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
         let input: ProjectCommandRunInput = parse_params(args)?;
-        run_command(input).await
+        run_command(&ctx.agent, input).await
     }
 }
 
@@ -54,11 +59,18 @@ struct ProjectCommandRunInput {
 }
 
 async fn run_command(
+    agent: &Agent,
     input: ProjectCommandRunInput,
 ) -> Result<ToolInvocationResponse, ToolInvocationError> {
     let command = ProjectCommandRegistry::global()
         .get(&input.command_id)
         .ok_or_else(|| ToolInvocationError::NotFound(format!("command {}", input.command_id)))?;
+
+    if !command_visible_for_role(agent.role(), &command) {
+        return Err(ToolInvocationError::Unauthorized(
+            "command is hidden for this agent".to_string(),
+        ));
+    }
 
     if command.exec.is_empty() {
         return Err(ToolInvocationError::InvalidParams(format!(
@@ -67,8 +79,9 @@ async fn run_command(
         )));
     }
 
-    let workspace = Path::new(PROJECT_DIR.as_str());
-    let cwd = shell::resolve_working_dir(workspace, command.cwd.as_deref())
+    let workspace_root = Path::new(PROJECT_DIR.as_str());
+    let worktree_root = worktree_root_for_agent(agent, workspace_root);
+    let cwd = shell::resolve_working_dir(workspace_root, &worktree_root, command.cwd.as_deref())
         .map_err(|err| ToolInvocationError::InvalidParams(err.to_string()))?;
 
     let mut builder = Command::new(&command.exec[0]);
@@ -118,4 +131,11 @@ async fn run_command(
         response.is_error = true;
     }
     Ok(response)
+}
+
+fn worktree_root_for_agent(agent: &Agent, workspace_root: &Path) -> PathBuf {
+    match agent {
+        Agent::WorkerWithId(id) => workspace_root.join(format!("ws{id}")),
+        _ => workspace_root.join("staging"),
+    }
 }

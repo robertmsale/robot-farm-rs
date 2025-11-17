@@ -102,7 +102,6 @@ class _EnqueueMessageSheetState extends State<EnqueueMessageSheet> {
       }
 
       if (!mounted) return;
-      Get.snackbar('Message enqueued', 'Sent to $normalizedTarget.');
       Navigator.of(context).maybePop();
     } on robot_farm_api.ApiException catch (err) {
       Get.snackbar(

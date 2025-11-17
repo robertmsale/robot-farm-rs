@@ -37,6 +37,20 @@ This project is a rust-based AI development system that aims to enable multiple 
 - `db::ensure_db()` runs after config initialization to guarantee the SQLite file exists and migrations are up to date.
 - Queue control is exposed via `/queue` (GET returns the paused flag, PUT toggles it) and always starts paused. `/message_queue` exposes CRUD for queued messages plus manual enqueues and ordering operations that power the Flutter queue sheet.
 
+### Agent directives & overrides
+
+- The server binary embeds `directives/orchestrator.md` and `directives/worker.md` via `include_str!`, so every install ships with a canonical preamble even if the user launches `robot-farm` inside an arbitrary project that lacks a `directives/` folder. Startup never attempts to read those files from disk.
+- At runtime, we still support workspace-specific directives by letting users mount whatever layout they want under their project directory. A common pattern is:
+  - `PROJECT_DIR/directives/orchestrator.md` (and optional worker variants)
+  - `PROJECT_DIR/.robot-farm-rs/…` for config + DB
+  - `PROJECT_DIR/staging`, `PROJECT_DIR/ws1`, … for worktrees
+- `AppendFilesConfig` paths in `.robot-farm/config.json` are resolved relative to each worktree (`staging` or `wsN`). That means entries like `"../directives/custom.md"` walk up from the worktree into the workspace so you only keep one copy of a custom directive instead of mirroring it into every `wsN`.
+- Generation flow per worktree:
+  1. Start with the embedded orchestrator or worker directive (depends on whether the worktree is `staging` or `wsN`).
+  2. Append every file listed in `append_agents_file.(orchestrator|worker)` after resolving paths relative to that specific worktree.
+  3. Write the result to `<workspace>/(staging|wsN)/AGENTS.override.md`. No other directories receive overrides.
+- Users can add as many project-specific append files as they want (e.g., a frontend reminder) without touching the compiled-in base directives, keeping upgrades simple while still supporting per-project customization.
+
 ## UI Notes
 
 - The home screen shows orchestrator/worker feeds plus a compact status bar that mirrors the active strategy and its focus list. The data is hydrated on login (`GET /strategy` + `GET /queue`) and kept fresh via websocket `queue_state` and `strategy_state` events.

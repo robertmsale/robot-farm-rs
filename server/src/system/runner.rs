@@ -63,7 +63,7 @@ pub fn plan_codex_run(
         .config_override("mcp_servers.robot_farm.tool_timeout_sec=900")
         .config_override(format!("mcp_servers.robot_farm.url=\"{mcp_url}\""))
         .config_override(format!(
-            "mcp_servers.robot_farm.http_headers={{\"Agent\"=\"{agent_label}\"}}"
+            "mcp_servers.robot_farm.http_headers.AGENT=\"{agent_label}\""
         ))
         .config_override(format!("model=\"{}\"", launch_settings.model))
         .config_override(format!(

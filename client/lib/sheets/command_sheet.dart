@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:my_api_client/api.dart' as robot_farm_api;
 
+const _outputMonospaceStyle = TextStyle(fontFamily: 'RobotoMono');
+
 class CommandSheet extends StatefulWidget {
   const CommandSheet({super.key, required this.baseUrl, this.workerId});
 
@@ -196,9 +198,11 @@ class _CommandSheetState extends State<CommandSheet> {
                       padding: const EdgeInsets.all(12),
                       child: SelectableText(
                         _outputText,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontFamily: 'monospace',
-                        ),
+                        style:
+                            theme.textTheme.bodyMedium?.merge(
+                              _outputMonospaceStyle,
+                            ) ??
+                            _outputMonospaceStyle,
                       ),
                     ),
                   ),

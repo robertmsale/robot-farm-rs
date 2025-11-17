@@ -310,11 +310,6 @@ class ConnectionController extends GetxController {
         body: {'paused': targetPaused},
       );
       isPlaying.value = !(updatedPaused ?? targetPaused);
-      Get.snackbar(
-        targetPaused ? 'Paused' : 'Resumed',
-        targetPaused ? 'Automation paused.' : 'Automation continues running.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
     } on robot_farm_api.ApiException catch (error) {
       Get.snackbar(
         'Failed to update queue',
@@ -405,7 +400,6 @@ class ConnectionController extends GetxController {
       final client = robot_farm_api.ApiClient(basePath: baseUrl);
       final api = robot_farm_api.DefaultApi(client);
       await api.deleteFeed();
-      Get.snackbar('Feeds cleared', 'All feed entries removed.');
     } on robot_farm_api.ApiException catch (err) {
       Get.snackbar(
         'Failed to clear feeds',
@@ -1016,11 +1010,9 @@ class _SystemFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     if (events.isEmpty) {
       return Center(
-        child: SelectionArea(
-          child: Text(
-            emptyMessage ?? 'No feed entries yet.',
-            textAlign: TextAlign.center,
-          ),
+        child: Text(
+          emptyMessage ?? 'No feed entries yet.',
+          textAlign: TextAlign.center,
         ),
       );
     }
@@ -1041,50 +1033,48 @@ class _SystemFeed extends StatelessWidget {
           onTap: () => _showEventDetails(context, event),
           child: Card(
             margin: EdgeInsets.zero,
-            child: SelectionArea(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: viewModel.color.withValues(
-                            alpha: 0.15,
-                          ),
-                          child: Icon(viewModel.icon, color: viewModel.color),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: viewModel.color.withValues(
+                          alpha: 0.15,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                        child: Icon(viewModel.icon, color: viewModel.color),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              viewModel.title,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            if (viewModel.subtitle != null) ...[
+                              const SizedBox(height: 4),
                               Text(
-                                viewModel.title,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold),
+                                viewModel.subtitle!,
+                                style: Theme.of(context).textTheme.bodyMedium,
                               ),
-                              if (viewModel.subtitle != null) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  viewModel.subtitle!,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
                             ],
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                    if (viewModel.body != null) ...[
-                      const SizedBox(height: 8),
-                      viewModel.body!,
+                      ),
                     ],
+                  ),
+                  if (viewModel.body != null) ...[
+                    const SizedBox(height: 8),
+                    viewModel.body!,
                   ],
-                ),
+                ],
               ),
             ),
           ),
@@ -1407,18 +1397,39 @@ class WorkerFeedPane extends StatelessWidget {
                                       ),
                                     ),
                                   ]
-                                : workers
-                                      .map(
-                                        (worker) => _SystemFeed(
-                                          connection: controller.connection,
-                                          events: controller.eventsForWorker(
-                                            worker.id,
-                                          ),
-                                          emptyMessage:
-                                              'No feed entries yet for worker ${worker.id}.',
+                                : workers.map((worker) {
+                                    final threadStyle = theme
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(fontFamily: 'RobotoMono');
+                                    final threadValue = worker.threadId?.trim();
+                                    final threadLabel =
+                                        (threadValue == null ||
+                                            threadValue.isEmpty)
+                                        ? 'Thread ID: not started'
+                                        : 'Thread ID: ${worker.threadId}';
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        SelectableText(
+                                          threadLabel,
+                                          style: threadStyle,
                                         ),
-                                      )
-                                      .toList(),
+                                        const SizedBox(height: 8),
+                                        Expanded(
+                                          child: _SystemFeed(
+                                            connection: controller.connection,
+                                            events: controller.eventsForWorker(
+                                              worker.id,
+                                            ),
+                                            emptyMessage:
+                                                'No feed entries yet for worker ${worker.id}.',
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
                           ),
                         ),
                       ],

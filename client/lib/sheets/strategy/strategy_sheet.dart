@@ -106,10 +106,6 @@ class _StrategySheetState extends State<StrategySheet> {
     try {
       await _api!.updateActiveStrategy(payload);
       if (!mounted) return;
-      Get.snackbar(
-        'Strategy updated',
-        'Now running ${_selectedStrategy.value}.',
-      );
       Navigator.of(context).maybePop();
     } on robot_farm_api.ApiException catch (err) {
       Get.snackbar(

@@ -6,6 +6,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::process::Command;
 
+use super::Agent;
 use crate::globals::PROJECT_DIR;
 
 use super::{
@@ -40,11 +41,11 @@ impl McpTool for GitStatusTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
         let _: GitStatusInput = parse_params(args)?;
-        run_git_command(["status", "-sb"]).await
+        run_git_command(ctx, ["status", "-sb"]).await
     }
 }
 
@@ -52,9 +53,16 @@ impl McpTool for GitStatusTool {
 struct GitStatusInput {}
 
 async fn run_git_command<const N: usize>(
+    ctx: &ToolContext,
     args: [&str; N],
 ) -> Result<ToolInvocationResponse, ToolInvocationError> {
-    let repo = Path::new(PROJECT_DIR.as_str()).join("staging");
+    let repo = repo_root_for_agent(&ctx.agent);
+    if !repo.exists() {
+        return Err(ToolInvocationError::Internal(format!(
+            "repository {} not found",
+            repo.display()
+        )));
+    }
     let output = Command::new("git")
         .args(args)
         .current_dir(&repo)
@@ -72,4 +80,12 @@ async fn run_git_command<const N: usize>(
         )));
     }
     Ok(ToolInvocationResponse::text(stdout))
+}
+
+fn repo_root_for_agent(agent: &Agent) -> std::path::PathBuf {
+    let root = Path::new(PROJECT_DIR.as_str());
+    match agent {
+        Agent::WorkerWithId(id) => root.join(format!("ws{id}")),
+        _ => root.join("staging"),
+    }
 }

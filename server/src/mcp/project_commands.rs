@@ -2,6 +2,8 @@ use once_cell::sync::OnceCell;
 use openapi::models::CommandConfig;
 use parking_lot::RwLock;
 
+use super::AgentRole;
+
 pub struct ProjectCommandRegistry {
     commands: RwLock<Vec<CommandConfig>>,
 }
@@ -29,5 +31,13 @@ impl ProjectCommandRegistry {
             .iter()
             .find(|command| command.id == id)
             .cloned()
+    }
+}
+
+pub fn command_visible_for_role(role: AgentRole, command: &CommandConfig) -> bool {
+    if command.hidden.unwrap_or(false) {
+        !matches!(role, AgentRole::Worker | AgentRole::Orchestrator)
+    } else {
+        true
     }
 }

@@ -14,17 +14,27 @@ pub enum ShellError {
 
 pub fn resolve_working_dir(
     workspace_root: &Path,
+    base_dir: &Path,
     override_cwd: Option<&str>,
 ) -> Result<PathBuf, ShellError> {
+    let base = base_dir.clean();
+    if !base.starts_with(workspace_root) {
+        return Err(ShellError::InvalidCwd(format!(
+            "base directory {} escapes workspace root {}",
+            base.display(),
+            workspace_root.display()
+        )));
+    }
+
     let Some(raw) = override_cwd.map(str::trim).filter(|s| !s.is_empty()) else {
-        return Ok(workspace_root.to_path_buf());
+        return Ok(base);
     };
 
     let override_path = Path::new(raw);
     let candidate = if override_path.is_absolute() {
         override_path.to_path_buf()
     } else {
-        workspace_root.join(override_path)
+        base.join(override_path)
     };
     let cleaned = candidate.clean();
     if !cleaned.starts_with(workspace_root) {

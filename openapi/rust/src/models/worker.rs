@@ -21,6 +21,8 @@ pub struct Worker {
     pub last_seen: i64,
     #[serde(rename = "state")]
     pub state: models::WorkerState,
+    #[serde(rename = "thread_id", skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
 }
 
 impl Worker {
@@ -30,6 +32,7 @@ impl Worker {
             id,
             last_seen,
             state,
+            thread_id: None,
         }
     }
 }

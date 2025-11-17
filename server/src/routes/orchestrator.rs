@@ -1,7 +1,7 @@
 use crate::{db, globals::PROJECT_DIR, shared::shell};
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{Json, http::StatusCode};
 use openapi::models::{ExecCommandInput, ExecResult};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::error;
 
 pub async fn delete_orchestrator_session() -> StatusCode {
@@ -20,9 +20,10 @@ pub async fn exec_orchestrator_command(
     if command.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
-    let staging: PathBuf = PathBuf::from(PROJECT_DIR.as_str()).join("staging");
-    let working_dir =
-        shell::resolve_working_dir(&staging, payload.cwd.as_deref()).map_err(|err| {
+    let workspace_root = Path::new(PROJECT_DIR.as_str());
+    let staging: PathBuf = workspace_root.join("staging");
+    let working_dir = shell::resolve_working_dir(workspace_root, &staging, payload.cwd.as_deref())
+        .map_err(|err| {
             error!(?err, "invalid working directory for orchestrator command");
             StatusCode::BAD_REQUEST
         })?;
