@@ -1,4 +1,4 @@
-use crate::ai::schemas::WorkerTurn;
+use crate::ai::schemas::{OrchestratorTurn, WorkerTurn};
 use crate::models::codex_events::{CodexEvent, TurnItemDetail};
 use crate::models::process::{
     KillReason, KillSignal, ProcessDirective, ProcessEvent, ProcessExit, ProcessHandle,
@@ -45,16 +45,31 @@ pub enum ProcessNotification {
         metadata: RunMetadata,
         turn: WorkerTurn,
     },
-    WorkerFeed {
-        worker_id: i64,
+    AgentFeed {
+        actor: AgentRunActor,
         message: String,
         raw: String,
         thread_id: Option<String>,
     },
+    AgentCompleted {
+        run_id: RunId,
+        actor: AgentRunActor,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentRunActor {
+    Worker(i64),
+    Orchestrator,
 }
 
 struct ActiveProcess {
     kill_tx: mpsc::Sender<KillSignal>,
+}
+
+enum AgentObserver {
+    Worker(WorkerObserver),
+    Orchestrator,
 }
 
 struct WorkerObserver {
@@ -63,9 +78,10 @@ struct WorkerObserver {
     collector: Arc<Mutex<StructuredOutputCollector>>,
 }
 
+
 #[derive(Clone)]
-struct WorkerFeedContext {
-    worker_id: i64,
+struct AgentFeedContext {
+    actor: AgentRunActor,
     notifications_tx: mpsc::Sender<ProcessNotification>,
 }
 
@@ -236,11 +252,13 @@ async fn run_child(
     let run_id = request.metadata.run_id;
     let stdin_payload = request.stdin.clone();
     let mut command = build_command(&request);
-    let worker_id = parse_worker_id(&request.metadata);
-    let worker_collector =
-        worker_id.map(|_| Arc::new(Mutex::new(StructuredOutputCollector::default())));
-    let worker_feed_ctx = worker_id.map(|id| WorkerFeedContext {
-        worker_id: id,
+    let actor = detect_agent_actor(&request.metadata);
+    let collector = actor.map(|actor_kind| {
+        Arc::new(Mutex::new(StructuredOutputCollector::new(actor_kind)))
+    });
+
+    let feed_ctx = actor.map(|actor_kind| AgentFeedContext {
+        actor: actor_kind,
         notifications_tx: notifications_tx.clone(),
     });
 
@@ -264,8 +282,8 @@ async fn run_child(
             if request.stream_stdout {
                 if let Some(stdout) = child.stdout.take() {
                     let tx = events_tx.clone();
-                    let collector = worker_collector.clone();
-                    let feed_ctx = worker_feed_ctx.clone();
+                    let collector = collector.clone();
+                    let feed_ctx = feed_ctx.clone();
                     tokio::spawn(forward_output(
                         stdout,
                         tx,
@@ -291,17 +309,25 @@ async fn run_child(
                 }
             }
 
+            let agent_ctx = match actor {
+                Some(AgentRunActor::Worker(worker_id)) => collector.clone().map(|collector| {
+                    AgentObserver::Worker(WorkerObserver {
+                        worker_id,
+                        metadata: request.metadata.clone(),
+                        collector,
+                    })
+                }),
+                Some(AgentRunActor::Orchestrator) => Some(AgentObserver::Orchestrator),
+                None => None,
+            };
+
             observe_child(
                 child,
                 run_id,
                 events_tx,
                 kill_rx,
                 lifecycle_tx,
-                worker_id.map(|id| WorkerObserver {
-                    worker_id: id,
-                    metadata: request.metadata.clone(),
-                    collector: worker_collector.expect("collector set when worker detected"),
-                }),
+                agent_ctx,
                 notifications_tx.clone(),
             )
             .await;
@@ -350,18 +376,29 @@ fn build_command(request: &ProcessRequest) -> Command {
     command
 }
 
-fn parse_worker_id(metadata: &RunMetadata) -> Option<i64> {
+fn detect_agent_actor(metadata: &RunMetadata) -> Option<AgentRunActor> {
     for tag in &metadata.tags {
         if let Some(rest) = tag.strip_prefix("worker:") {
             if let Ok(id) = rest.parse() {
-                return Some(id);
+                return Some(AgentRunActor::Worker(id));
             }
         }
+        if tag.eq_ignore_ascii_case("orchestrator") {
+            return Some(AgentRunActor::Orchestrator);
+        }
     }
+
+    if metadata.persona.eq_ignore_ascii_case("orchestrator") {
+        return Some(AgentRunActor::Orchestrator);
+    }
+
     if let Some(rest) = metadata.persona.strip_prefix("worker:") {
         let rest = rest.trim_start_matches("ws");
-        return rest.parse().ok();
+        if let Ok(id) = rest.parse() {
+            return Some(AgentRunActor::Worker(id));
+        }
     }
+
     None
 }
 
@@ -371,7 +408,7 @@ async fn observe_child(
     events_tx: mpsc::Sender<ProcessEvent>,
     mut kill_rx: mpsc::Receiver<KillSignal>,
     lifecycle_tx: mpsc::Sender<ProcessLifecycleEvent>,
-    worker_ctx: Option<WorkerObserver>,
+    agent_ctx: Option<AgentObserver>,
     notifications_tx: mpsc::Sender<ProcessNotification>,
 ) {
     let mut kill_reason: Option<KillReason> = None;
@@ -431,16 +468,40 @@ async fn observe_child(
         }
     }
 
-    if let Some(observer) = worker_ctx {
-        if let Some(turn) = observer.collector.lock().await.take_turn() {
-            let notification = ProcessNotification::WorkerTurn {
-                run_id,
-                worker_id: observer.worker_id,
-                metadata: observer.metadata,
-                turn,
-            };
-            if notifications_tx.send(notification).await.is_err() {
-                warn!(%run_id, "failed to deliver worker turn notification");
+    if let Some(observer) = agent_ctx {
+        match observer {
+            AgentObserver::Worker(observer) => {
+                if let Some(turn) = observer.collector.lock().await.take_turn() {
+                    let notification = ProcessNotification::WorkerTurn {
+                        run_id,
+                        worker_id: observer.worker_id,
+                        metadata: observer.metadata.clone(),
+                        turn,
+                    };
+                    if notifications_tx.send(notification).await.is_err() {
+                        warn!(%run_id, "failed to deliver worker turn notification");
+                    }
+                } else {
+                    warn!(%run_id, worker_id = observer.worker_id, "worker turn missing from output");
+                }
+                let _ = notifications_tx
+                    .send(ProcessNotification::AgentCompleted {
+                        run_id,
+                        actor: AgentRunActor::Worker(observer.worker_id),
+                    })
+                    .await;
+            }
+            AgentObserver::Orchestrator => {
+                if notifications_tx
+                    .send(ProcessNotification::AgentCompleted {
+                        run_id,
+                        actor: AgentRunActor::Orchestrator,
+                    })
+                    .await
+                    .is_err()
+                {
+                    warn!(%run_id, "failed to deliver orchestrator completion notification");
+                }
             }
         }
     }

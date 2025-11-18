@@ -21,7 +21,7 @@ use crate::system::{
 };
 use crate::threads::database_manager::{DatabaseManagerError, DatabaseManagerHandle};
 use crate::threads::middleware::MiddlewareHandle;
-use crate::threads::process_manager::ProcessNotification;
+use crate::threads::process_manager::{AgentRunActor, ProcessNotification};
 use chrono::Utc;
 use openapi::models::{CommandConfig, Feed, FeedLevel, Message, Strategy as ApiStrategy};
 use serde_json;
@@ -386,6 +386,18 @@ impl QueueManagerRuntime {
                 }
                 self.record_worker_feed(worker_id, &message, &raw).await?;
             }
+            ProcessNotification::AgentCompleted { actor, run_id } => match actor {
+                AgentRunActor::Worker(worker_id) => {
+                    self.state.active_workers.remove(&worker_id);
+                    self.state.worker_runs.remove(&worker_id);
+                    QueueCoordinator::global().clear_assignment(worker_id);
+                    debug!(%run_id, worker_id, "worker run completed");
+                }
+                AgentRunActor::Orchestrator => {
+                    self.state.orchestrator_run = None;
+                    debug!(%run_id, "orchestrator run completed");
+                }
+            },
         }
         Ok(())
     }
@@ -540,6 +552,30 @@ impl QueueManagerRuntime {
                         }
                     }
                 }
+                Some(SystemActor::Orchestrator) => {
+                    if self.state.orchestrator_run.is_some() {
+                        continue;
+                    }
+                    match self.dispatch_orchestrator_message(&entry).await {
+                        Ok(true) => {
+                            if let Err(err) = self.db.delete_message_by_id(entry.id).await {
+                                warn!(
+                                    ?err,
+                                    message_id = entry.id,
+                                    "failed to delete orchestrator message after dispatch"
+                                );
+                            }
+                        }
+                        Ok(false) => continue,
+                        Err(err) => {
+                            warn!(
+                                ?err,
+                                message_id = entry.id,
+                                "failed to dispatch orchestrator message"
+                            );
+                        }
+                    }
+                }
                 _ => continue,
             }
         }
@@ -609,7 +645,81 @@ impl QueueManagerRuntime {
         Ok(true)
     }
 
-    fn spawn_process_event_drain(worker_id: i64, mut events: mpsc::Receiver<ProcessEvent>) {
+    async fn dispatch_orchestrator_message(
+        &mut self,
+        message: &Message,
+    ) -> Result<bool, QueueManagerError> {
+        let staging = staging_path();
+        if !staging.exists() {
+            warn!(path = %staging.display(), "staging directory missing; skipping orchestrator dispatch");
+            return Ok(false);
+        }
+
+        let session_id = match db::session::get_session("orchestrator").await {
+            Ok(value) => value,
+            Err(err) => {
+                warn!(?err, "failed to load orchestrator session id");
+                None
+            }
+        };
+
+        let plan = runner::plan_codex_run(
+            Persona::Orchestrator,
+            session_id.as_deref(),
+            RunnerConfig::default(),
+        );
+        let mut docker_args = plan.docker_args;
+        if docker_args.is_empty() {
+            warn!("docker run command missing for orchestrator persona");
+            return Ok(false);
+        }
+        let program = docker_args.remove(0);
+        docker_args.extend(plan.codex_args);
+
+        let run_id = Uuid::new_v4();
+        let metadata = RunMetadata {
+            run_id,
+            persona: "orchestrator".to_string(),
+            workspace_root: PathBuf::from(PROJECT_DIR.as_str()),
+            tags: vec!["orchestrator".to_string()],
+            priority: RunPriority::Normal,
+            issued_at: Utc::now(),
+        };
+
+        let intent = ProcessSpawnIntent {
+            metadata,
+            program,
+            args: docker_args,
+            env: Vec::new(),
+            working_dir: PathBuf::from(PROJECT_DIR.as_str()),
+            stream_stdout: true,
+            stream_stderr: true,
+            stdin: Some(Self::format_orchestrator_prompt(message).into_bytes()),
+        };
+
+        let handle_rx = self
+            .middleware
+            .enqueue_spawn(intent)
+            .await
+            .map_err(|err| QueueManagerError::MiddlewareSend(err.to_string()))?;
+        let handle = handle_rx
+            .await
+            .map_err(|_| QueueManagerError::ResponseDropped)?;
+
+        self.state.orchestrator_run = Some(run_id);
+        Self::spawn_agent_event_drain(AgentRunActor::Orchestrator, handle.events);
+        info!(message_id = message.id, "dispatched orchestrator turn from queue");
+        Ok(true)
+    }
+
+    fn spawn_process_event_drain(worker_id: i64, events: mpsc::Receiver<ProcessEvent>) {
+        Self::spawn_agent_event_drain(AgentRunActor::Worker(worker_id), events);
+    }
+
+    fn spawn_agent_event_drain(
+        agent: AgentRunActor,
+        mut events: mpsc::Receiver<ProcessEvent>,
+    ) {
         spawn(async move {
             const MAX_CAPTURE: usize = 8 * 1024;
             let mut stdout_buf = Vec::with_capacity(MAX_CAPTURE);
@@ -629,35 +739,72 @@ impl QueueManagerRuntime {
                         }
                     }
                     ProcessEvent::Exit(exit) => {
-                        if !exit.status.success() {
-                            error!(
-                                worker_id,
-                                code = exit.status.code(),
-                                stdout = %String::from_utf8_lossy(&stdout_buf).trim(),
-                                stderr = %String::from_utf8_lossy(&stderr_buf).trim(),
-                                "worker process exited with failure"
-                            );
-                        } else {
-                            info!(worker_id, "worker process completed");
+                        match agent {
+                            AgentRunActor::Worker(worker_id) => {
+                                if !exit.status.success() {
+                                    error!(
+                                        worker_id,
+                                        code = exit.status.code(),
+                                        stdout = %String::from_utf8_lossy(&stdout_buf).trim(),
+                                        stderr = %String::from_utf8_lossy(&stderr_buf).trim(),
+                                        "worker process exited with failure"
+                                    );
+                                } else {
+                                    info!(worker_id, "worker process completed");
+                                }
+                            }
+                            AgentRunActor::Orchestrator => {
+                                if !exit.status.success() {
+                                    error!(
+                                        code = exit.status.code(),
+                                        stdout = %String::from_utf8_lossy(&stdout_buf).trim(),
+                                        stderr = %String::from_utf8_lossy(&stderr_buf).trim(),
+                                        "orchestrator process exited with failure"
+                                    );
+                                } else {
+                                    info!("orchestrator process completed");
+                                }
+                            }
                         }
                         break;
                     }
                     ProcessEvent::SpawnFailed(err) => {
-                        error!(
-                            worker_id,
-                            message = err.message,
-                            "worker process failed to spawn"
-                        );
+                        match agent {
+                            AgentRunActor::Worker(worker_id) => {
+                                error!(
+                                    worker_id,
+                                    message = err.message,
+                                    "worker process failed to spawn"
+                                );
+                            }
+                            AgentRunActor::Orchestrator => {
+                                error!(message = err.message, "orchestrator process failed to spawn");
+                            }
+                        }
                         break;
                     }
                     ProcessEvent::Killed(killed) => {
-                        warn!(worker_id, reason = ?killed.reason, "worker process killed");
+                        match agent {
+                            AgentRunActor::Worker(worker_id) => {
+                                warn!(worker_id, reason = ?killed.reason, "worker process killed");
+                            }
+                            AgentRunActor::Orchestrator => {
+                                warn!(reason = ?killed.reason, "orchestrator process killed");
+                            }
+                        }
                         break;
                     }
                     _ => {}
                 }
             }
-            debug!(worker_id, "worker process event channel closed");
+            match agent {
+                AgentRunActor::Worker(worker_id) => {
+                    debug!(worker_id, "worker process event channel closed");
+                }
+                AgentRunActor::Orchestrator => {
+                    debug!("orchestrator process event channel closed");
+                }
+            }
         });
     }
 
@@ -665,6 +812,17 @@ impl QueueManagerRuntime {
         let summary = message.message.trim();
         format!(
             "Queue message #{id} from {from} to {to}:\n\n{summary}\n\nRespond with a JSON object matching the Robot Farm worker turn schema.\n",
+            id = message.id,
+            from = message.from.trim(),
+            to = message.to.trim(),
+            summary = summary,
+        )
+    }
+
+    fn format_orchestrator_prompt(message: &Message) -> String {
+        let summary = message.message.trim();
+        format!(
+            "Queue message #{id} from {from} to {to}:\n\n{summary}\n\nRespond with a JSON object matching the Robot Farm orchestrator turn schema.\n",
             id = message.id,
             from = message.from.trim(),
             to = message.to.trim(),
