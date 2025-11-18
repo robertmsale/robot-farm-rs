@@ -8,6 +8,7 @@ use crate::models::process::{
     ProcessEvent, ProcessHandle, ProcessIntent, ProcessSpawnIntent, ProcessStream, RunMetadata,
     RunPriority,
 };
+use crate::models::strategy::OrchestratorHint;
 use crate::post_turn_checks::PostTurnCheckRegistry;
 use crate::realtime::{self, RealtimeEvent};
 use crate::shared::git::MergeConflict;
@@ -16,12 +17,13 @@ use crate::system::{
     events::{SystemActor, SystemEvent},
     queue::QueueCoordinator,
     runner::{self, Persona, RunnerConfig},
+    strategy::StrategyState,
 };
 use crate::threads::database_manager::{DatabaseManagerError, DatabaseManagerHandle};
 use crate::threads::middleware::MiddlewareHandle;
 use crate::threads::process_manager::ProcessNotification;
 use chrono::Utc;
-use openapi::models::{CommandConfig, Feed, FeedLevel, Message};
+use openapi::models::{CommandConfig, Feed, FeedLevel, Message, Strategy as ApiStrategy};
 use serde_json;
 use std::{
     collections::{HashSet, VecDeque},
@@ -400,6 +402,7 @@ impl QueueManagerRuntime {
                     )
                     .await?;
                 }
+                Self::record_support_hint(worker_id);
             }
             WorkerIntent::AckPause => {}
         }
@@ -659,6 +662,27 @@ impl QueueManagerRuntime {
         Some(body)
     }
 
+    fn record_support_hint(worker_id: i64) {
+        let strategy = StrategyState::global().snapshot();
+        let mut hints = vec![OrchestratorHint::SendSupport {
+            to_worker: worker_id,
+        }];
+        if should_seed_assignments(&strategy.id) {
+            let focus = strategy
+                .focus
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|group| group.to_string())
+                .collect();
+            hints.push(OrchestratorHint::AssignTask {
+                to_worker: worker_id,
+                from_groups: focus,
+            });
+        }
+        QueueCoordinator::global().record_assignment_hint(&hints);
+    }
+
     async fn enqueue_intent(&mut self, intent: ProcessIntent) -> Result<(), QueueManagerError> {
         if self.state.paused {
             self.state.buffered.push_back(intent);
@@ -715,6 +739,10 @@ impl Default for QueueRuntimeState {
             active_workers: HashSet::new(),
         }
     }
+}
+
+fn should_seed_assignments(strategy: &ApiStrategy) -> bool {
+    !matches!(strategy, ApiStrategy::Planning | ApiStrategy::WindDown)
 }
 
 async fn run_queue_manager(mut runtime: QueueManagerRuntime) {
