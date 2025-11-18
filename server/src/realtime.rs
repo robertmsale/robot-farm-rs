@@ -6,8 +6,16 @@ use tokio::sync::broadcast;
 pub enum RealtimeEvent {
     FeedEntry(openapi::models::Feed),
     FeedCleared,
-    QueueState { paused: bool },
-    StrategyState { id: Strategy, focus: Vec<i64> },
+    QueueState {
+        paused: bool,
+    },
+    StrategyState {
+        id: Strategy,
+        focus: Vec<i64>,
+    },
+    WorkersSnapshot {
+        workers: Vec<openapi::models::Worker>,
+    },
 }
 
 static CHANNEL: OnceCell<broadcast::Sender<RealtimeEvent>> = OnceCell::new();

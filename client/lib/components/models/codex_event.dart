@@ -442,9 +442,9 @@ class SystemFeedEvent {
           case SystemFeedLevel.warning:
             return Icons.warning;
           case SystemFeedLevel.info:
-          default:
-            return Icons.info;
+            break;
         }
+        return Icons.info;
     }
   }
 }

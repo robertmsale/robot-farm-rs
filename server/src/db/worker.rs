@@ -14,16 +14,12 @@ pub async fn list_workers() -> Vec<Worker> {
             for worker in &mut workers {
                 let owner = format!("ws{}", worker.id);
                 match db::session::get_session(&owner).await {
-                    Ok(value) => {
-                        worker.thread_id = value;
-                    }
-                    Err(err) => {
-                        warn!(
-                            ?err,
-                            worker_id = worker.id,
-                            "failed to load worker thread id"
-                        );
-                    }
+                    Ok(value) => worker.thread_id = value,
+                    Err(err) => warn!(
+                        ?err,
+                        worker_id = worker.id,
+                        "failed to load worker thread id"
+                    ),
                 }
             }
             workers
@@ -35,14 +31,27 @@ pub async fn list_workers() -> Vec<Worker> {
     }
 }
 
-pub async fn create_worker() -> Worker {
-    warn!("worker creation via API is not supported; returning placeholder");
-    Worker {
-        id: -1,
+#[derive(Debug, Error)]
+pub enum WorkerCreateError {
+    #[error(transparent)]
+    Discover(#[from] WorkerDiscoveryError),
+    #[error(transparent)]
+    Git(#[from] git::GitError),
+}
+
+pub async fn create_worker() -> Result<Worker, WorkerCreateError> {
+    let workers = discover_workers()?;
+    let next_id = workers.iter().map(|w| w.id).max().unwrap_or(0) + 1;
+    let project_dir = Path::new(PROJECT_DIR.as_str());
+    let staging_dir = project_dir.join("staging");
+    let target = project_dir.join(format!("ws{next_id}"));
+    git::create_worker_worktree(&staging_dir, &target, next_id)?;
+    Ok(Worker {
+        id: next_id,
         last_seen: 0,
         state: WorkerState::Ready,
         thread_id: None,
-    }
+    })
 }
 
 pub async fn delete_worker(_worker_id: i64) -> bool {
@@ -120,7 +129,7 @@ fn parse_worker_id(name: &str) -> Option<i64> {
 }
 
 #[derive(Debug, Error)]
-enum WorkerDiscoveryError {
+pub enum WorkerDiscoveryError {
     #[error("failed to read project directory: {0}")]
     Io(#[from] std::io::Error),
     #[error(transparent)]

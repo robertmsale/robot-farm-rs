@@ -92,6 +92,16 @@ async fn handle_socket(mut socket: WebSocket) {
                             break;
                         }
                     }
+                    Ok(RealtimeEvent::WorkersSnapshot { workers }) => {
+                        let payload = json!({"type": "workers_snapshot", "workers": workers});
+                        if sender
+                            .send(Message::Text(payload.to_string().into()))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
                     Err(broadcast::error::RecvError::Lagged(_)) => continue,
                     Err(broadcast::error::RecvError::Closed) => break,
                 }

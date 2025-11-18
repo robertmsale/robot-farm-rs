@@ -114,6 +114,10 @@ pub fn build_routes() -> Router {
             delete(worker::delete_worker_session),
         )
         .route(
+            "/workers/{workerId}/terminate",
+            post(worker::terminate_worker),
+        )
+        .route(
             "/workers/{workerId}/exec",
             post(worker::exec_worker_command),
         )
@@ -128,6 +132,10 @@ pub fn build_routes() -> Router {
         .route(
             "/orchestrator/exec",
             post(orchestrator::exec_orchestrator_command),
+        )
+        .route(
+            "/orchestrator/terminate",
+            post(orchestrator::terminate_orchestrator),
         )
         .route("/mcp", get(mcp::stream_mcp).post(mcp::handle_mcp_request))
         .layer(cors)

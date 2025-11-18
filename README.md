@@ -121,6 +121,12 @@ Stored in WORKSPACE_DIRECTORY/.robot-farm-rs (editable from Flutter UI, with hot
 - Flutter: `flutter analyze` and `dart fix --apply` keep the client lint-free.
 - Need extra tooling in Codex containers? Drop a Dockerfile fragment at `<WORKSPACE>/.robot-farm/Dockerfile`; the server folds it in when building the `robot-farm-orchestrator_*` & `robot-farm-worker_*` images.
 
+## 🚗 Road Map
+
+- "Stakeholder" mode: a dedicated worktree where a stakeholder may iterate over UI design (use VPN, provide connection details), submits to code review bot who merges it into a worker tree, creates and assigns a task to that worker
+- Scheming watcher: a fast and dirt cheap API bot (like grok-code-fast-1 or gpt-5.1-codex-mini, or even gpt-5.1-nano) to watch reasoning messages and identify whether they are drifting from the task or scheming to break out of the sandbox. Can create scripted responses based on the category to automatically realign the worker.
+- 
+
 ## 🤝 Contributing
 
 1. Fork + PR welcome! Please describe the subsystem you touched (queue/middleware/process/db) as they’re tightly coupled.

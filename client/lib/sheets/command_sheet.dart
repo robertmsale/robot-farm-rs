@@ -16,6 +16,7 @@ class CommandSheet extends StatefulWidget {
 class _CommandSheetState extends State<CommandSheet> {
   final TextEditingController _commandController = TextEditingController();
   final TextEditingController _cwdController = TextEditingController();
+  List<robot_farm_api.CommandConfig> _commands = const [];
   bool _isRunning = false;
   String? _stdout;
   String? _stderr;
@@ -27,6 +28,27 @@ class _CommandSheetState extends State<CommandSheet> {
     _commandController.dispose();
     _cwdController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCommands();
+  }
+
+  Future<void> _fetchCommands() async {
+    try {
+      final client = robot_farm_api.ApiClient(basePath: widget.baseUrl);
+      final api = robot_farm_api.DefaultApi(client);
+      final config = await api.getConfig();
+      setState(() {
+        _commands = config?.commands ?? const [];
+      });
+    } catch (_) {
+      // best-effort; ignore failures silently
+    } finally {
+      // ignore failures
+    }
   }
 
   Future<void> _runCommand() async {
@@ -142,6 +164,36 @@ class _CommandSheetState extends State<CommandSheet> {
                 ],
               ),
               const SizedBox(height: 16),
+              if (_commands.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Post-turn commands',
+                      border: OutlineInputBorder(),
+                    ),
+                    isExpanded: true,
+                    items: _commands
+                        .map(
+                          (command) => DropdownMenuItem(
+                            value: command.id,
+                            child: Text(command.id),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      final command = _commands.firstWhere(
+                        (cmd) => cmd.id == value,
+                      );
+                      _commandController.text = command.exec.join(' ');
+                      if (command.cwd != null &&
+                          command.cwd!.trim().isNotEmpty) {
+                        _cwdController.text = command.cwd!;
+                      }
+                    },
+                  ),
+                ),
               TextField(
                 controller: _commandController,
                 decoration: const InputDecoration(

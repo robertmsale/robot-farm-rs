@@ -108,6 +108,7 @@ class ConnectionController extends GetxController {
   StreamSubscription<ws.WebSocketEvent>? _webSocketSubscription;
   SharedPreferences? _prefs;
   String? _currentBaseUrl;
+  Timer? _reconnectTimer;
 
   @override
   void onInit() {
@@ -155,6 +156,7 @@ class ConnectionController extends GetxController {
     await _recordLogin(hostPort);
 
     _currentBaseUrl = baseUrl;
+    _scheduleReconnect();
     await refreshQueueState();
     await refreshStrategy();
     Get.offAllNamed('/home');
@@ -208,6 +210,7 @@ class ConnectionController extends GetxController {
             final statusCode = code ?? 1005;
             final suffix = reason.isNotEmpty ? ' ($reason)' : '';
             websocketError.value = 'WebSocket closed: $statusCode$suffix';
+            _scheduleReconnect();
           default:
             break;
         }
@@ -216,8 +219,31 @@ class ConnectionController extends GetxController {
     } catch (error) {
       websocketStatus.value = WebsocketStatus.failed;
       websocketError.value = 'WebSocket failed: $error';
+      _scheduleReconnect();
       return false;
     }
+  }
+
+  void _closeWebSocket() {
+    _reconnectTimer?.cancel();
+    _webSocketSubscription?.cancel();
+    _webSocket?.close();
+    _webSocketSubscription = null;
+    _webSocket = null;
+  }
+
+  void _scheduleReconnect() {
+    _reconnectTimer?.cancel();
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null || websocketStatus.value == WebsocketStatus.good) {
+      return;
+    }
+    _reconnectTimer = Timer(const Duration(seconds: 5), () {
+      if (_currentBaseUrl == null) {
+        return;
+      }
+      _connectWebsocket(baseUrl);
+    });
   }
 
   void _handleWebsocketText(String text) {
@@ -242,6 +268,8 @@ class ConnectionController extends GetxController {
         _applyQueueState(decoded['paused']);
       } else if (type == 'strategy_state') {
         _applyStrategyState(decoded['strategy']);
+      } else if (type == 'websocket_server_closed') {
+        // server hint to reconnect? none expected but placeholder
       }
     } catch (error) {
       debugPrint('Failed to parse WebSocket message: $error');
@@ -410,6 +438,97 @@ class ConnectionController extends GetxController {
     }
   }
 
+  Future<void> createWorker() async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      Get.snackbar(
+        'Not connected',
+        'Connect to a server before adding workers.',
+      );
+      return;
+    }
+
+    final api = robot_farm_api.DefaultApi(
+      robot_farm_api.ApiClient(basePath: baseUrl),
+    );
+
+    try {
+      final worker = await api.createWorker();
+      if (worker == null) {
+        Get.snackbar(
+          'Failed to add worker',
+          'Server returned an empty response.',
+        );
+      }
+    } on robot_farm_api.ApiException catch (err) {
+      Get.snackbar('Failed to add worker', err.message ?? 'Status ${err.code}');
+    } catch (err) {
+      Get.snackbar('Failed to add worker', '$err');
+    }
+  }
+
+  Future<void> terminateWorker(int workerId) async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      Get.snackbar('Not connected', 'Connect to a server before terminating workers.');
+      return;
+    }
+
+    final client = robot_farm_api.ApiClient(basePath: baseUrl);
+    try {
+      final response = await client.invokeAPI(
+        '/workers/$workerId/terminate',
+        'POST',
+        const <robot_farm_api.QueryParam>[],
+        null,
+        <String, String>{},
+        <String, String>{},
+        null,
+      );
+      if (response.statusCode >= HttpStatus.badRequest) {
+        throw robot_farm_api.ApiException(response.statusCode, response.body);
+      }
+    } on robot_farm_api.ApiException catch (err) {
+      Get.snackbar(
+        'Failed to terminate worker',
+        err.message ?? 'Status ${err.code}',
+      );
+    } catch (err) {
+      Get.snackbar('Failed to terminate worker', '$err');
+    }
+  }
+
+  Future<void> terminateOrchestrator() async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      Get.snackbar('Not connected', 'Connect to a server before terminating the orchestrator.');
+      return;
+    }
+
+    final client = robot_farm_api.ApiClient(basePath: baseUrl);
+    try {
+      final response = await client.invokeAPI(
+        '/orchestrator/terminate',
+        'POST',
+        const <robot_farm_api.QueryParam>[],
+        null,
+        <String, String>{},
+        <String, String>{},
+        null,
+      );
+      if (response.statusCode >= HttpStatus.badRequest) {
+        throw robot_farm_api.ApiException(response.statusCode, response.body);
+      }
+    } on robot_farm_api.ApiException catch (err) {
+      Get.snackbar(
+        'Failed to terminate orchestrator',
+        err.message ?? 'Status ${err.code}',
+      );
+    } catch (err) {
+      Get.snackbar('Failed to terminate orchestrator', '$err');
+    }
+  }
+
   Future<robot_farm_api.Feed?> fetchFeedEntry(int feedId) async {
     final baseUrl = _currentBaseUrl;
     if (baseUrl == null) {
@@ -535,15 +654,6 @@ class ConnectionController extends GetxController {
     return '${uri.host}:$port';
   }
 
-  void _closeWebSocket() {
-    _webSocketSubscription?.cancel();
-    _webSocketSubscription = null;
-    _webSocket?.close();
-    _webSocket = null;
-    _currentBaseUrl = null;
-    workers.clear();
-  }
-
   bool get isConnecting =>
       healthStatus.value == HealthStatus.checking ||
       websocketStatus.value == WebsocketStatus.connecting;
@@ -575,6 +685,8 @@ class ConnectionController extends GetxController {
   void onClose() {
     urlController.dispose();
     _closeWebSocket();
+    _currentBaseUrl = null;
+    workers.clear();
     _feedController.close();
     _feedClearedController.close();
     super.onClose();
@@ -799,6 +911,7 @@ class HomeScreen extends GetView<ConnectionController> {
       onEnqueueMessage: (workerId) =>
           _openMessageSheet(context, workerId: workerId),
       onEditQueue: (workerId) => _openQueueSheet(context, workerId: workerId),
+      onAddWorker: () => controller.createWorker(),
     );
 
     final child = isPhone
@@ -981,6 +1094,9 @@ class OrchestratorPane extends StatelessWidget {
                       onRunCommand: onRunCommand,
                       onEnqueueMessage: onEnqueueMessage,
                       onEditQueue: onEditQueue,
+                      onAddWorker: null,
+                      onTerminate: () => connection.terminateOrchestrator(),
+                      terminateLabel: 'Terminate orchestrator',
                     ),
                   ],
                 ),
@@ -1028,11 +1144,11 @@ class _SystemFeed extends StatelessWidget {
           fullDetail: false,
         );
 
-        return InkWell(
-          borderRadius: radius,
-          onTap: () => _showEventDetails(context, event),
-          child: Card(
-            margin: EdgeInsets.zero,
+        return Card(
+          margin: EdgeInsets.zero,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: () => _showEventDetails(context, event),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -1318,6 +1434,7 @@ class WorkerFeedPane extends StatelessWidget {
     required this.onRunCommand,
     required this.onEnqueueMessage,
     required this.onEditQueue,
+    required this.onAddWorker,
     super.key,
   });
 
@@ -1325,6 +1442,7 @@ class WorkerFeedPane extends StatelessWidget {
   final void Function(int workerId) onRunCommand;
   final void Function(int workerId) onEnqueueMessage;
   final void Function(int workerId) onEditQueue;
+  final VoidCallback onAddWorker;
 
   @override
   Widget build(BuildContext context) {
@@ -1342,6 +1460,9 @@ class WorkerFeedPane extends StatelessWidget {
         final onWorkerQueue = controller.activeWorkerId == null
             ? null
             : () => onEditQueue(controller.activeWorkerId!);
+        final onWorkerTerminate = controller.activeWorkerId == null
+            ? null
+            : () => controller.terminateWorker(controller.activeWorkerId!);
 
         final workers = controller.connection.workers.toList();
         final tabs = workers.isEmpty
@@ -1366,6 +1487,9 @@ class WorkerFeedPane extends StatelessWidget {
                       onRunCommand: onWorkerRun,
                       onEnqueueMessage: onWorkerMessage,
                       onEditQueue: onWorkerQueue,
+                      onAddWorker: onAddWorker,
+                      onTerminate: onWorkerTerminate,
+                      terminateLabel: 'Terminate worker',
                     ),
                   ],
                 ),
@@ -1557,6 +1681,10 @@ class WorkerFeedController extends GetxController
     }
     final index = tabController.index.clamp(0, connection.workers.length - 1);
     return connection.workers[index].id;
+  }
+
+  Future<void> terminateWorker(int workerId) async {
+    await connection.terminateWorker(workerId);
   }
 
   void _syncTabs() {
@@ -2559,11 +2687,17 @@ class _FeedActionsMenu extends StatelessWidget {
     required this.onRunCommand,
     required this.onEnqueueMessage,
     required this.onEditQueue,
+    this.onAddWorker,
+    this.onTerminate,
+    this.terminateLabel,
   });
 
   final VoidCallback? onRunCommand;
   final VoidCallback? onEnqueueMessage;
   final VoidCallback? onEditQueue;
+  final VoidCallback? onAddWorker;
+  final VoidCallback? onTerminate;
+  final String? terminateLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -2586,7 +2720,24 @@ class _FeedActionsMenu extends StatelessWidget {
         icon: Icons.list_alt,
         handler: onEditQueue,
       ),
+      _FeedActionItem(
+        action: _FeedMenuAction.addWorker,
+        label: 'Add worker',
+        icon: Icons.person_add,
+        handler: onAddWorker,
+      ),
     ];
+
+    if (onTerminate != null) {
+      entries.add(
+        _FeedActionItem(
+          action: _FeedMenuAction.terminate,
+          label: terminateLabel ?? 'Terminate',
+          icon: Icons.stop_circle_outlined,
+          handler: onTerminate,
+        ),
+      );
+    }
 
     if (entries.every((item) => item.handler == null)) {
       return const SizedBox.shrink();
@@ -2606,6 +2757,12 @@ class _FeedActionsMenu extends StatelessWidget {
             break;
           case _FeedMenuAction.editQueue:
             onEditQueue?.call();
+            break;
+          case _FeedMenuAction.addWorker:
+            onAddWorker?.call();
+            break;
+          case _FeedMenuAction.terminate:
+            onTerminate?.call();
             break;
         }
       },
@@ -2635,7 +2792,7 @@ class _FeedActionsMenu extends StatelessWidget {
   }
 }
 
-enum _FeedMenuAction { runCommand, enqueueMessage, editQueue }
+enum _FeedMenuAction { runCommand, enqueueMessage, editQueue, addWorker, terminate }
 
 class _FeedActionItem {
   const _FeedActionItem({
@@ -2670,9 +2827,23 @@ class _HomeStatusBar extends StatelessWidget {
         width: double.infinity,
         color: theme.colorScheme.surfaceContainerHighest,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Text(
-          'Active Strategy: $name | Focus: [$focus]',
-          style: theme.textTheme.labelSmall,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Active Strategy: $name | Focus: [$focus]',
+                style: theme.textTheme.labelSmall,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Websocket: ${controller.websocketStatusLabel}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: controller.websocketStatusColor(theme),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       );
     });

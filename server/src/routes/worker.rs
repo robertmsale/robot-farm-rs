@@ -1,17 +1,35 @@
-use crate::{db, globals::PROJECT_DIR, shared::shell};
+use crate::{
+    db,
+    globals::PROJECT_DIR,
+    realtime::{self, RealtimeEvent},
+    shared::shell,
+    system::queue::QueueCoordinator,
+    threads,
+    threads::queue_manager::QueueManagerError,
+};
 use axum::{Json, extract::Path as AxumPath, http::StatusCode};
 use openapi::models::{ExecCommandInput, ExecResult, Worker};
 use std::path::{Path, PathBuf};
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 pub async fn list_workers() -> Json<Vec<Worker>> {
     let workers = db::worker::list_workers().await;
     Json(workers)
 }
 
-pub async fn create_worker() -> (StatusCode, Json<Worker>) {
-    let worker = db::worker::create_worker().await;
-    (StatusCode::CREATED, Json(worker))
+pub async fn create_worker() -> Result<(StatusCode, Json<Worker>), StatusCode> {
+    match db::worker::create_worker().await {
+        Ok(worker) => {
+            QueueCoordinator::global().register_worker(worker.id);
+            broadcast_worker_snapshot().await;
+            info!(worker_id = worker.id, "created worker worktree");
+            Ok((StatusCode::CREATED, Json(worker)))
+        }
+        Err(err) => {
+            error!(?err, "failed to create worker");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 pub async fn delete_worker(AxumPath(_worker_id): AxumPath<i64>) -> StatusCode {
@@ -53,4 +71,21 @@ pub async fn exec_worker_command(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     Ok(Json(result))
+}
+
+pub async fn terminate_worker(AxumPath(worker_id): AxumPath<i64>) -> StatusCode {
+    let handles = threads::thread_handles();
+    match handles.queue.kill_worker(worker_id).await {
+        Ok(_) => StatusCode::ACCEPTED,
+        Err(QueueManagerError::WorkerNotRunning(_)) => StatusCode::CONFLICT,
+        Err(err) => {
+            error!(?err, worker_id, "failed to terminate worker process");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    }
+}
+
+async fn broadcast_worker_snapshot() {
+    let workers = db::worker::list_workers().await;
+    realtime::publish(RealtimeEvent::WorkersSnapshot { workers });
 }

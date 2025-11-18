@@ -44,7 +44,18 @@ This project is a rust-based AI development system that aims to enable multiple 
   - `PROJECT_DIR/directives/orchestrator.md` (and optional worker variants)
   - `PROJECT_DIR/.robot-farm-rs/…` for config + DB
   - `PROJECT_DIR/staging`, `PROJECT_DIR/ws1`, … for worktrees
-- `AppendFilesConfig` paths in `.robot-farm/config.json` are resolved relative to each worktree (`staging` or `wsN`). That means entries like `"../directives/custom.md"` walk up from the worktree into the workspace so you only keep one copy of a custom directive instead of mirroring it into every `wsN`.
+- `AppendFilesConfig` paths in `.robot-farm/config.json` are resolved relative to each worktree (`staging` or `wsN`). That means entries like `"../directives/custom.md"` walk up from the worktree into the workspace so you only keep one copy of a custom directive instead of mirroring it into every `wsN`. A typical layout that takes advantage of this looks like:
+
+  ```text
+  PROJECT_DIR
+  ├─ .robot-farm-rs         # sqlite + config lives here
+  ├─ directives/
+  │  ├─ orchestrator.md    # shared, referenced via ../directives/orchestrator.md
+  │  └─ worker.md
+  ├─ staging/              # orchestrator worktree
+  ├─ ws1/                  # worker worktree (AGENTS.override.md lives inside)
+  └─ ws2/
+  ```
 - Generation flow per worktree:
   1. Start with the embedded orchestrator or worker directive (depends on whether the worktree is `staging` or `wsN`).
   2. Append every file listed in `append_agents_file.(orchestrator|worker)` after resolving paths relative to that specific worktree.

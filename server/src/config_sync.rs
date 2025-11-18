@@ -153,14 +153,17 @@ enum WorktreeRole {
 
 fn worktree_paths() -> Result<Vec<(PathBuf, WorktreeRole)>, ConfigSyncError> {
     let project_root = Path::new(PROJECT_DIR.as_str());
+    let canonical_root = project_root
+        .canonicalize()
+        .unwrap_or_else(|_| project_root.to_path_buf());
     let staging = project_root.join("staging");
     let mut map: HashMap<PathBuf, WorktreeRole> = HashMap::new();
     if staging.exists() {
-        if let Some(role) = classify_worktree(&staging, project_root) {
+        if let Some(role) = classify_worktree(&staging, &canonical_root) {
             map.insert(staging.clone(), role);
         }
         for path in git::list_worktrees(&staging)? {
-            if let Some(role) = classify_worktree(&path, project_root) {
+            if let Some(role) = classify_worktree(&path, &canonical_root) {
                 map.insert(path, role);
             } else {
                 debug!(
@@ -173,30 +176,28 @@ fn worktree_paths() -> Result<Vec<(PathBuf, WorktreeRole)>, ConfigSyncError> {
     Ok(map.into_iter().collect())
 }
 
-fn classify_worktree(path: &Path, project_root: &Path) -> Option<WorktreeRole> {
-    if !path.starts_with(project_root) {
-        return None;
+fn classify_worktree(path: &Path, canonical_project_root: &Path) -> Option<WorktreeRole> {
+    let canonical_path = path
+        .canonicalize()
+        .unwrap_or_else(|_| path.to_path_buf());
+    let staging = canonical_project_root.join("staging");
+    if canonical_path == staging {
+        return Some(WorktreeRole::Orchestrator);
     }
-    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+    let Some(name) = canonical_path.file_name().and_then(|n| n.to_str()) else {
         return None;
     };
-    if name == "staging" {
-        if path == project_root.join("staging") {
-            return Some(WorktreeRole::Orchestrator);
-        }
-        return None;
-    }
-    if path
-        .parent()
-        .map(|parent| parent != project_root)
-        .unwrap_or(true)
-    {
-        return None;
-    }
     if !name.starts_with("ws") {
         return None;
     }
-    if name[2..].chars().all(|c| c.is_ascii_digit()) {
+    if !name[2..].chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let is_child_of_workspace = canonical_path
+        .parent()
+        .map(|parent| parent == canonical_project_root)
+        .unwrap_or(false);
+    if is_child_of_workspace {
         Some(WorktreeRole::Worker)
     } else {
         None

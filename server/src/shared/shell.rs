@@ -1,5 +1,6 @@
 use openapi::models::ExecResult;
 use path_clean::PathClean;
+use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tokio::process::Command;
@@ -17,8 +18,9 @@ pub fn resolve_working_dir(
     base_dir: &Path,
     override_cwd: Option<&str>,
 ) -> Result<PathBuf, ShellError> {
-    let base = base_dir.clean();
-    if !base.starts_with(workspace_root) {
+    let workspace = canonicalize_or_clean(workspace_root);
+    let base = canonicalize_or_clean(base_dir);
+    if !base.starts_with(&workspace) {
         return Err(ShellError::InvalidCwd(format!(
             "base directory {} escapes workspace root {}",
             base.display(),
@@ -36,14 +38,11 @@ pub fn resolve_working_dir(
     } else {
         base.join(override_path)
     };
-    let cleaned = candidate.clean();
-    if !cleaned.starts_with(workspace_root) {
-        return Err(ShellError::InvalidCwd(format!(
-            "{raw} escapes workspace root {}",
-            workspace_root.display()
-        )));
-    }
-    Ok(cleaned)
+    Ok(candidate.clean())
+}
+
+fn canonicalize_or_clean(path: &Path) -> PathBuf {
+    fs::canonicalize(path).unwrap_or_else(|_| path.clean())
 }
 
 pub async fn run_shell_command(cwd: &Path, command: &str) -> Result<ExecResult, ShellError> {

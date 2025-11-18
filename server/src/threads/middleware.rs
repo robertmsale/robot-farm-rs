@@ -104,8 +104,7 @@ async fn run_middleware_loop(
     let mut state = MiddlewareState::default();
     let mut batch = Vec::with_capacity(config.max_batch);
     let mut intents_closed = false;
-
-    loop {
+    'outer: loop {
         drain_lifecycle_events(&mut lifecycle_rx, &mut state);
 
         if intents_closed && batch.is_empty() {
@@ -114,7 +113,13 @@ async fn run_middleware_loop(
 
         if batch.is_empty() {
             match intents_rx.recv().await {
-                Some(intent) => batch.push(intent),
+                Some(intent) => {
+                    if is_priority_intent(&intent) {
+                        dispatch_batch(vec![intent], &mut state, &directives_tx).await;
+                        continue;
+                    }
+                    batch.push(intent)
+                }
                 None => {
                     intents_closed = true;
                     continue;
@@ -130,7 +135,17 @@ async fn run_middleware_loop(
             }
 
             match timeout(remaining, intents_rx.recv()).await {
-                Ok(Some(intent)) => batch.push(intent),
+                Ok(Some(intent)) => {
+                    if is_priority_intent(&intent) {
+                        if !batch.is_empty() {
+                            dispatch_batch(std::mem::take(&mut batch), &mut state, &directives_tx)
+                                .await;
+                        }
+                        dispatch_batch(vec![intent], &mut state, &directives_tx).await;
+                        continue 'outer;
+                    }
+                    batch.push(intent)
+                }
                 Ok(None) => {
                     intents_closed = true;
                     break;
@@ -145,23 +160,36 @@ async fn run_middleware_loop(
             continue;
         }
 
-        info!(
-            batch_size = batch.len(),
-            "middleware reducing batch of intents"
-        );
-
-        let directives = state.reduce_batch(std::mem::take(&mut batch));
-        info!(count = directives.len(), "middleware produced directives");
-
-        for directive in directives {
-            if directives_tx.send(directive).await.is_err() {
-                warn!("process manager dropped directive channel");
-                return;
-            }
-        }
+        dispatch_batch(std::mem::take(&mut batch), &mut state, &directives_tx).await;
     }
 
     info!("middleware loop exited");
+}
+
+fn is_priority_intent(intent: &ProcessIntent) -> bool {
+    matches!(intent, ProcessIntent::Kill(_) | ProcessIntent::AdjustPriority { .. })
+}
+
+async fn dispatch_batch(
+    batch: Vec<ProcessIntent>,
+    state: &mut MiddlewareState,
+    directives_tx: &mpsc::Sender<ProcessDirective>,
+) {
+    if batch.is_empty() {
+        return;
+    }
+    info!(
+        batch_size = batch.len(),
+        "middleware reducing batch of intents"
+    );
+    let directives = state.reduce_batch(batch);
+    info!(count = directives.len(), "middleware produced directives");
+    for directive in directives {
+        if directives_tx.send(directive).await.is_err() {
+            warn!("process manager dropped directive channel");
+            break;
+        }
+    }
 }
 
 fn drain_lifecycle_events(

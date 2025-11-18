@@ -187,6 +187,25 @@ pub fn list_worktrees(repo_root: &Path) -> Result<Vec<PathBuf>, GitError> {
     Ok(paths)
 }
 
+pub fn create_worker_worktree(
+    staging_repo: &Path,
+    destination: &Path,
+    worker_id: i64,
+) -> Result<(), GitError> {
+    let branch = format!("ws{worker_id}");
+    run_git_command(
+        staging_repo,
+        vec![
+            OsString::from("worktree"),
+            OsString::from("add"),
+            OsString::from("-B"),
+            OsString::from(&branch),
+            destination.as_os_str().to_os_string(),
+        ],
+    )?;
+    Ok(())
+}
+
 pub fn collect_all_worktree_statuses(
     project_root: &Path,
     include_hunks: bool,

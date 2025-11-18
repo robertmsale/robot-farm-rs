@@ -5,8 +5,8 @@ use crate::db::message_queue::{MessageFilters, RelativePosition};
 use crate::globals::PROJECT_DIR;
 use crate::mcp::project_commands::ProjectCommandRegistry;
 use crate::models::process::{
-    ProcessEvent, ProcessHandle, ProcessIntent, ProcessSpawnIntent, ProcessStream, RunMetadata,
-    RunPriority,
+    KillReason, ProcessEvent, ProcessHandle, ProcessIntent, ProcessSpawnIntent, ProcessStream,
+    RunId, RunMetadata, RunPriority,
 };
 use crate::models::strategy::OrchestratorHint;
 use crate::post_turn_checks::PostTurnCheckRegistry;
@@ -26,7 +26,7 @@ use chrono::Utc;
 use openapi::models::{CommandConfig, Feed, FeedLevel, Message, Strategy as ApiStrategy};
 use serde_json;
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -77,6 +77,13 @@ pub enum QueueManagerCommand {
     },
     EnqueueProcessIntent {
         intent: ProcessIntent,
+        respond_to: oneshot::Sender<Result<(), QueueManagerError>>,
+    },
+    KillWorker {
+        worker_id: i64,
+        respond_to: oneshot::Sender<Result<(), QueueManagerError>>,
+    },
+    KillOrchestrator {
         respond_to: oneshot::Sender<Result<(), QueueManagerError>>,
     },
 }
@@ -168,6 +175,16 @@ impl QueueManagerHandle {
         intent: ProcessIntent,
     ) -> Result<(), QueueManagerError> {
         self.request(|respond_to| QueueManagerCommand::EnqueueProcessIntent { intent, respond_to })
+            .await
+    }
+
+    pub async fn kill_worker(&self, worker_id: i64) -> Result<(), QueueManagerError> {
+        self.request(|respond_to| QueueManagerCommand::KillWorker { worker_id, respond_to })
+            .await
+    }
+
+    pub async fn kill_orchestrator(&self) -> Result<(), QueueManagerError> {
+        self.request(|respond_to| QueueManagerCommand::KillOrchestrator { respond_to })
             .await
     }
 
@@ -323,6 +340,19 @@ impl QueueManagerRuntime {
                 let result = self.enqueue_intent(intent).await;
                 let _ = respond_to.send(result);
             }
+            QueueManagerCommand::KillWorker {
+                worker_id,
+                respond_to,
+            } => {
+                info!(worker_id, "queue command: kill_worker");
+                let result = self.kill_worker_process(worker_id).await;
+                let _ = respond_to.send(result);
+            }
+            QueueManagerCommand::KillOrchestrator { respond_to } => {
+                info!("queue command: kill_orchestrator");
+                let result = self.kill_orchestrator_process().await;
+                let _ = respond_to.send(result);
+            }
         }
         Ok(())
     }
@@ -368,6 +398,7 @@ impl QueueManagerRuntime {
     ) -> Result<(), QueueManagerError> {
         QueueCoordinator::global().clear_assignment(worker_id);
         self.state.active_workers.remove(&worker_id);
+        self.state.worker_runs.remove(&worker_id);
         info!(worker_id, intent = ?turn.intent, "processing worker turn");
 
         match turn.intent {
@@ -537,8 +568,9 @@ impl QueueManagerRuntime {
         let program = docker_args.remove(0);
         docker_args.extend(plan.codex_args);
 
+        let run_id = Uuid::new_v4();
         let metadata = RunMetadata {
-            run_id: Uuid::new_v4(),
+            run_id,
             persona: format!("worker:ws{worker_id}"),
             workspace_root: PathBuf::from(PROJECT_DIR.as_str()),
             tags: vec![format!("worker:{worker_id}")],
@@ -566,6 +598,7 @@ impl QueueManagerRuntime {
             .await
             .map_err(|_| QueueManagerError::ResponseDropped)?;
 
+        self.state.worker_runs.insert(worker_id, run_id);
         Self::spawn_process_event_drain(worker_id, handle.events);
         self.state.active_workers.insert(worker_id);
         info!(
@@ -696,6 +729,32 @@ impl QueueManagerRuntime {
             .map_err(|err| QueueManagerError::MiddlewareSend(err.to_string()))
     }
 
+    async fn kill_worker_process(&mut self, worker_id: i64) -> Result<(), QueueManagerError> {
+        let run_id = self
+            .state
+            .worker_runs
+            .remove(&worker_id)
+            .ok_or(QueueManagerError::WorkerNotRunning(worker_id))?;
+        self.state.active_workers.remove(&worker_id);
+        QueueCoordinator::global().clear_assignment(worker_id);
+        self.middleware
+            .enqueue_kill(run_id, KillReason::UserRequested)
+            .await
+            .map_err(|err| QueueManagerError::MiddlewareSend(err.to_string()))
+    }
+
+    async fn kill_orchestrator_process(&mut self) -> Result<(), QueueManagerError> {
+        let run_id = self
+            .state
+            .orchestrator_run
+            .take()
+            .ok_or(QueueManagerError::OrchestratorNotRunning)?;
+        self.middleware
+            .enqueue_kill(run_id, KillReason::UserRequested)
+            .await
+            .map_err(|err| QueueManagerError::MiddlewareSend(err.to_string()))
+    }
+
     async fn flush_pending(&mut self) -> Result<(), QueueManagerError> {
         while let Some(intent) = self.state.buffered.pop_front() {
             self.middleware
@@ -729,6 +788,8 @@ struct QueueRuntimeState {
     paused: bool,
     buffered: VecDeque<ProcessIntent>,
     active_workers: HashSet<i64>,
+    worker_runs: HashMap<i64, RunId>,
+    orchestrator_run: Option<RunId>,
 }
 
 impl Default for QueueRuntimeState {
@@ -737,6 +798,8 @@ impl Default for QueueRuntimeState {
             paused: true,
             buffered: VecDeque::new(),
             active_workers: HashSet::new(),
+            worker_runs: HashMap::new(),
+            orchestrator_run: None,
         }
     }
 }
@@ -1072,6 +1135,10 @@ pub enum QueueManagerError {
     ResponseDropped,
     #[error("failed to send middleware intent: {0}")]
     MiddlewareSend(String),
+    #[error("worker {0} is not running")]
+    WorkerNotRunning(i64),
+    #[error("orchestrator is not running")]
+    OrchestratorNotRunning,
 }
 
 #[derive(Debug, Error)]

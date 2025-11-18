@@ -1,8 +1,8 @@
-use crate::{db, globals::PROJECT_DIR, shared::shell};
+use crate::{db, globals::PROJECT_DIR, shared::shell, threads, threads::queue_manager::QueueManagerError};
 use axum::{Json, http::StatusCode};
 use openapi::models::{ExecCommandInput, ExecResult};
 use std::path::{Path, PathBuf};
-use tracing::error;
+use tracing::{error, warn};
 
 pub async fn delete_orchestrator_session() -> StatusCode {
     if let Err(err) = db::session::delete_session("orchestrator").await {
@@ -34,4 +34,16 @@ pub async fn exec_orchestrator_command(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     Ok(Json(result))
+}
+
+pub async fn terminate_orchestrator() -> StatusCode {
+    let handles = threads::thread_handles();
+    match handles.queue.kill_orchestrator().await {
+        Ok(_) => StatusCode::ACCEPTED,
+        Err(QueueManagerError::OrchestratorNotRunning) => StatusCode::CONFLICT,
+        Err(err) => {
+            warn!(?err, "failed to terminate orchestrator process");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    }
 }
