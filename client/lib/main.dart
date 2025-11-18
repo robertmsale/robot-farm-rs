@@ -96,6 +96,7 @@ class ConnectionController extends GetxController {
   final Rx<WebsocketStatus> websocketStatus = WebsocketStatus.idle.obs;
   final RxnString errorMessage = RxnString();
   final RxnString websocketError = RxnString();
+  final RxnString orchestratorThreadId = RxnString();
   final RxList<String> pastLogins = <String>[].obs;
   final RxList<robot_farm_api.Worker> workers = <robot_farm_api.Worker>[].obs;
   final RxBool isPlaying = true.obs;
@@ -260,6 +261,10 @@ class ConnectionController extends GetxController {
       final type = decoded['type'];
       if (type == 'workers_snapshot') {
         _updateWorkers(decoded['workers']);
+      } else if (type == 'worker_thread') {
+        _handleWorkerThread(decoded);
+      } else if (type == 'orchestrator_thread') {
+        _handleOrchestratorThread(decoded);
       } else if (type == 'feed_entry') {
         _handleFeedEntry(decoded['entry']);
       } else if (type == 'feed_cleared') {
@@ -291,6 +296,47 @@ class ConnectionController extends GetxController {
     workers.assignAll(parsed);
   }
 
+  void _handleWorkerThread(dynamic payload) {
+    if (payload is! Map<String, dynamic>) {
+      return;
+    }
+    final workerId = payload['worker_id'];
+    if (workerId is! int) {
+      return;
+    }
+    final rawThread = payload['thread_id'];
+    final threadId = rawThread == null
+        ? null
+        : rawThread.toString().trim().isEmpty
+            ? null
+            : rawThread.toString();
+    final index = workers.indexWhere((w) => w.id == workerId);
+    if (index == -1) {
+      return;
+    }
+    final current = workers[index];
+    workers[index] = robot_farm_api.Worker(
+      id: current.id,
+      lastSeen: current.lastSeen,
+      state: current.state,
+      threadId: threadId,
+    );
+    workers.refresh();
+  }
+
+  void _handleOrchestratorThread(dynamic payload) {
+    if (payload is! Map<String, dynamic>) {
+      return;
+    }
+    final rawThread = payload['thread_id'];
+    final value = rawThread == null
+        ? null
+        : rawThread.toString().trim().isEmpty
+            ? null
+            : rawThread.toString();
+    orchestratorThreadId.value = value;
+  }
+
   void _handleFeedEntry(dynamic payload) {
     if (payload is! Map<String, dynamic>) {
       return;
@@ -303,6 +349,7 @@ class ConnectionController extends GetxController {
 
   void _handleFeedCleared() {
     _feedClearedController.add(null);
+    orchestratorThreadId.value = null;
   }
 
   void _applyQueueState(dynamic rawPaused) {

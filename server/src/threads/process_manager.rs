@@ -1,4 +1,4 @@
-use crate::ai::schemas::{OrchestratorTurn, WorkerTurn};
+use crate::ai::schemas::WorkerTurn;
 use crate::models::codex_events::{CodexEvent, TurnItemDetail};
 use crate::models::process::{
     KillReason, KillSignal, ProcessDirective, ProcessEvent, ProcessExit, ProcessHandle,
@@ -471,7 +471,7 @@ async fn observe_child(
     if let Some(observer) = agent_ctx {
         match observer {
             AgentObserver::Worker(observer) => {
-                if let Some(turn) = observer.collector.lock().await.take_turn() {
+                if let Some(turn) = observer.collector.lock().await.take_worker_turn() {
                     let notification = ProcessNotification::WorkerTurn {
                         run_id,
                         worker_id: observer.worker_id,
@@ -507,14 +507,22 @@ async fn observe_child(
     }
 }
 
-#[derive(Default)]
 struct StructuredOutputCollector {
+    actor: AgentRunActor,
     buffer: Vec<u8>,
-    turn: Option<WorkerTurn>,
+    worker_turn: Option<WorkerTurn>,
 }
 
 impl StructuredOutputCollector {
-    fn ingest(&mut self, bytes: &[u8]) -> Vec<WorkerFeedFragment> {
+    fn new(actor: AgentRunActor) -> Self {
+        Self {
+            actor,
+            buffer: Vec::new(),
+            worker_turn: None,
+        }
+    }
+
+    fn ingest(&mut self, bytes: &[u8]) -> Vec<AgentFeedFragment> {
         let mut fragments = Vec::new();
         self.buffer.extend_from_slice(bytes);
         while let Some(pos) = self.buffer.iter().position(|b| *b == b'\n') {
@@ -535,7 +543,10 @@ impl StructuredOutputCollector {
         fragments
     }
 
-    fn take_turn(&mut self) -> Option<WorkerTurn> {
+    fn take_worker_turn(&mut self) -> Option<WorkerTurn> {
+        if !matches!(self.actor, AgentRunActor::Worker(_)) {
+            return None;
+        }
         if !self.buffer.is_empty() {
             let text = String::from_utf8_lossy(&self.buffer).trim().to_string();
             if !text.is_empty() {
@@ -543,17 +554,17 @@ impl StructuredOutputCollector {
             }
             self.buffer.clear();
         }
-        self.turn.take()
+        self.worker_turn.take()
     }
 
-    fn process_line(&mut self, line: &str) -> Option<WorkerFeedFragment> {
+    fn process_line(&mut self, line: &str) -> Option<AgentFeedFragment> {
         let event: CodexEvent = match serde_json::from_str(line) {
             Ok(event) => event,
             Err(_) => return None,
         };
         match event {
             CodexEvent::ItemCompleted { item } => self.fragment_for_detail(item.detail, line),
-            CodexEvent::ThreadStarted { thread_id } => Some(WorkerFeedFragment {
+            CodexEvent::ThreadStarted { thread_id } => Some(AgentFeedFragment {
                 text: format!("Thread started: {thread_id}"),
                 raw: line.to_string(),
                 thread_id: Some(thread_id),
@@ -566,19 +577,21 @@ impl StructuredOutputCollector {
         &mut self,
         detail: TurnItemDetail,
         raw: &str,
-    ) -> Option<WorkerFeedFragment> {
+    ) -> Option<AgentFeedFragment> {
         match detail {
             TurnItemDetail::AgentMessage { text } => {
-                if let Ok(turn) = serde_json::from_str::<WorkerTurn>(&text) {
-                    self.turn = Some(turn);
+                if matches!(self.actor, AgentRunActor::Worker(_)) {
+                    if let Ok(turn) = serde_json::from_str::<WorkerTurn>(&text) {
+                        self.worker_turn = Some(turn);
+                    }
                 }
-                Some(WorkerFeedFragment {
+                Some(AgentFeedFragment {
                     text,
                     raw: raw.to_string(),
                     thread_id: None,
                 })
             }
-            TurnItemDetail::Reasoning { text } => Some(WorkerFeedFragment {
+            TurnItemDetail::Reasoning { text } => Some(AgentFeedFragment {
                 text: format!("Reasoning:\n{text}"),
                 raw: raw.to_string(),
                 thread_id: None,
@@ -589,13 +602,13 @@ impl StructuredOutputCollector {
                     summary.push_str("\n");
                     summary.push_str(cmd.aggregated_output.trim());
                 }
-                Some(WorkerFeedFragment {
+                Some(AgentFeedFragment {
                     text: summary,
                     raw: raw.to_string(),
                     thread_id: None,
                 })
             }
-            TurnItemDetail::ItemError { message } => Some(WorkerFeedFragment {
+            TurnItemDetail::ItemError { message } => Some(AgentFeedFragment {
                 text: format!("Error: {message}"),
                 raw: raw.to_string(),
                 thread_id: None,
@@ -612,7 +625,7 @@ impl StructuredOutputCollector {
                     })
                     .collect::<Vec<_>>()
                     .join("\n");
-                Some(WorkerFeedFragment {
+                Some(AgentFeedFragment {
                     text: format!("TODO List:\n{list}"),
                     raw: raw.to_string(),
                     thread_id: None,
@@ -625,13 +638,13 @@ impl StructuredOutputCollector {
                     .map(|entry| format!("{:?}: {}", entry.kind, entry.path))
                     .collect::<Vec<_>>()
                     .join("\n");
-                Some(WorkerFeedFragment {
+                Some(AgentFeedFragment {
                     text: format!("File changes:\n{files}"),
                     raw: raw.to_string(),
                     thread_id: None,
                 })
             }
-            TurnItemDetail::McpToolCall(call) => Some(WorkerFeedFragment {
+            TurnItemDetail::McpToolCall(call) => Some(AgentFeedFragment {
                 text: format!(
                     "MCP tool call {}::{}, status {:?}",
                     call.server, call.tool, call.status
@@ -639,12 +652,16 @@ impl StructuredOutputCollector {
                 raw: raw.to_string(),
                 thread_id: None,
             }),
-            _ => None,
+            TurnItemDetail::WebSearch { query } => Some(AgentFeedFragment {
+                text: format!("Web search: {query}"),
+                raw: raw.to_string(),
+                thread_id: None,
+            }),
         }
     }
 }
 
-struct WorkerFeedFragment {
+struct AgentFeedFragment {
     text: String,
     raw: String,
     thread_id: Option<String>,
@@ -656,7 +673,7 @@ async fn forward_output<R>(
     run_id: RunId,
     stream: ProcessStream,
     collector: Option<Arc<Mutex<StructuredOutputCollector>>>,
-    feed_ctx: Option<WorkerFeedContext>,
+    feed_ctx: Option<AgentFeedContext>,
 ) where
     R: AsyncRead + Unpin + Send + 'static,
 {
@@ -696,8 +713,8 @@ async fn forward_output<R>(
                                 }
                                 if ctx
                                     .notifications_tx
-                                    .send(ProcessNotification::WorkerFeed {
-                                        worker_id: ctx.worker_id,
+                                    .send(ProcessNotification::AgentFeed {
+                                        actor: ctx.actor,
                                         message: fragment.text,
                                         raw: fragment.raw,
                                         thread_id: fragment.thread_id,

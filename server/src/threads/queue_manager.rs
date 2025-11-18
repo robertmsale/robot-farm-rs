@@ -371,21 +371,40 @@ impl QueueManagerRuntime {
                 info!(%run_id, worker_id, intent = ?turn.intent, "worker turn notification");
                 self.process_worker_turn(worker_id, metadata, turn).await?;
             }
-            ProcessNotification::WorkerFeed {
-                worker_id,
+            ProcessNotification::AgentFeed {
+                actor,
                 message,
                 raw,
                 thread_id,
-            } => {
-                if let Some(thread_id) = thread_id {
-                    if let Err(err) =
-                        db::session::upsert_session(&format!("ws{worker_id}"), &thread_id).await
-                    {
-                        warn!(?err, worker_id, "failed to store thread id");
+            } => match actor {
+                AgentRunActor::Worker(worker_id) => {
+                    if let Some(thread_id) = thread_id {
+                        match db::session::upsert_session(&format!("ws{worker_id}"), &thread_id)
+                            .await
+                        {
+                            Ok(_) => realtime::publish(RealtimeEvent::WorkerThread {
+                                worker_id,
+                                thread_id: Some(thread_id.clone()),
+                            }),
+                            Err(err) => warn!(?err, worker_id, "failed to store worker thread id"),
+                        }
                     }
+                    self.record_worker_feed(worker_id, &message, &raw).await?;
                 }
-                self.record_worker_feed(worker_id, &message, &raw).await?;
-            }
+                AgentRunActor::Orchestrator => {
+                    if let Some(thread_id) = thread_id {
+                        match db::session::upsert_session("orchestrator", &thread_id).await {
+                            Ok(_) => realtime::publish(RealtimeEvent::OrchestratorThread {
+                                thread_id: Some(thread_id.clone()),
+                            }),
+                            Err(err) => {
+                                warn!(?err, "failed to store orchestrator thread id");
+                            }
+                        }
+                    }
+                    self.record_orchestrator_feed(&message, &raw).await?;
+                }
+            },
             ProcessNotification::AgentCompleted { actor, run_id } => match actor {
                 AgentRunActor::Worker(worker_id) => {
                     self.state.active_workers.remove(&worker_id);
@@ -408,9 +427,6 @@ impl QueueManagerRuntime {
         _metadata: RunMetadata,
         turn: WorkerTurn,
     ) -> Result<(), QueueManagerError> {
-        QueueCoordinator::global().clear_assignment(worker_id);
-        self.state.active_workers.remove(&worker_id);
-        self.state.worker_runs.remove(&worker_id);
         info!(worker_id, intent = ?turn.intent, "processing worker turn");
 
         match turn.intent {
@@ -491,6 +507,28 @@ impl QueueManagerRuntime {
             text: message.to_string(),
             raw: raw.to_string(),
             category: "worker".to_string(),
+        };
+        let feed_entry = self
+            .db
+            .insert_feed_entry(entry)
+            .await
+            .map_err(QueueManagerError::from)?;
+        realtime::publish(RealtimeEvent::FeedEntry(sanitize_feed_entry(&feed_entry)));
+        Ok(())
+    }
+
+    async fn record_orchestrator_feed(
+        &self,
+        message: &str,
+        raw: &str,
+    ) -> Result<(), QueueManagerError> {
+        let entry = NewFeedEntry {
+            source: "Orchestrator".to_string(),
+            target: "Orchestrator".to_string(),
+            level: FeedLevel::Info,
+            text: message.to_string(),
+            raw: raw.to_string(),
+            category: "orchestrator".to_string(),
         };
         let feed_entry = self
             .db
@@ -888,13 +926,12 @@ impl QueueManagerRuntime {
     }
 
     async fn kill_worker_process(&mut self, worker_id: i64) -> Result<(), QueueManagerError> {
-        let run_id = self
+        let run_id = *self
             .state
             .worker_runs
-            .remove(&worker_id)
+            .get(&worker_id)
             .ok_or(QueueManagerError::WorkerNotRunning(worker_id))?;
-        self.state.active_workers.remove(&worker_id);
-        QueueCoordinator::global().clear_assignment(worker_id);
+        info!(worker_id, %run_id, "issuing kill for worker run");
         self.middleware
             .enqueue_kill(run_id, KillReason::UserRequested)
             .await
@@ -905,8 +942,8 @@ impl QueueManagerRuntime {
         let run_id = self
             .state
             .orchestrator_run
-            .take()
             .ok_or(QueueManagerError::OrchestratorNotRunning)?;
+        info!(%run_id, "issuing kill for orchestrator run");
         self.middleware
             .enqueue_kill(run_id, KillReason::UserRequested)
             .await
@@ -1237,6 +1274,11 @@ impl PostTurnJob {
                 ?err,
                 "failed to clear worker session"
             );
+        } else {
+            realtime::publish(RealtimeEvent::WorkerThread {
+                worker_id: self.worker_id,
+                thread_id: None,
+            });
         }
     }
 }

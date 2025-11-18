@@ -43,6 +43,10 @@ pub async fn delete_worker_session(AxumPath(worker_id): AxumPath<i64>) -> Status
         warn!(?err, worker_id, "failed to clear worker session");
         StatusCode::INTERNAL_SERVER_ERROR
     } else {
+        realtime::publish(RealtimeEvent::WorkerThread {
+            worker_id,
+            thread_id: None,
+        });
         StatusCode::NO_CONTENT
     }
 }

@@ -102,6 +102,33 @@ async fn handle_socket(mut socket: WebSocket) {
                             break;
                         }
                     }
+                    Ok(RealtimeEvent::WorkerThread { worker_id, thread_id }) => {
+                        let payload = json!({
+                            "type": "worker_thread",
+                            "worker_id": worker_id,
+                            "thread_id": thread_id,
+                        });
+                        if sender
+                            .send(Message::Text(payload.to_string().into()))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    Ok(RealtimeEvent::OrchestratorThread { thread_id }) => {
+                        let payload = json!({
+                            "type": "orchestrator_thread",
+                            "thread_id": thread_id,
+                        });
+                        if sender
+                            .send(Message::Text(payload.to_string().into()))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
                     Err(broadcast::error::RecvError::Lagged(_)) => continue,
                     Err(broadcast::error::RecvError::Closed) => break,
                 }

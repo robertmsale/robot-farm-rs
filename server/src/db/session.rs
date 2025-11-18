@@ -25,6 +25,13 @@ pub async fn delete_session(owner: &str) -> DbResult<()> {
     Ok(())
 }
 
+pub async fn clear_sessions() -> DbResult<()> {
+    sqlx::query("DELETE FROM session")
+        .execute(db::pool())
+        .await?;
+    Ok(())
+}
+
 pub async fn get_session(owner: &str) -> DbResult<Option<String>> {
     let row = sqlx::query("SELECT thread_id FROM session WHERE owner = ?1")
         .bind(owner)

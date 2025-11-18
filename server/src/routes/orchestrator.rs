@@ -1,4 +1,11 @@
-use crate::{db, globals::PROJECT_DIR, shared::shell, threads, threads::queue_manager::QueueManagerError};
+use crate::{
+    db,
+    globals::PROJECT_DIR,
+    realtime::{self, RealtimeEvent},
+    shared::shell,
+    threads,
+    threads::queue_manager::QueueManagerError,
+};
 use axum::{Json, http::StatusCode};
 use openapi::models::{ExecCommandInput, ExecResult};
 use std::path::{Path, PathBuf};
@@ -9,6 +16,7 @@ pub async fn delete_orchestrator_session() -> StatusCode {
         error!(?err, "failed to clear orchestrator session");
         StatusCode::INTERNAL_SERVER_ERROR
     } else {
+        realtime::publish(RealtimeEvent::OrchestratorThread { thread_id: None });
         StatusCode::NO_CONTENT
     }
 }

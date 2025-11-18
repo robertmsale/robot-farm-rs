@@ -54,6 +54,13 @@ pub async fn get_feed_entry(Path(feed_id): Path<i64>) -> Result<Json<Feed>, Stat
 pub async fn delete_feed() -> StatusCode {
     match db::feed::delete_feed().await {
         Ok(_) => {
+            if let Err(err) = db::session::clear_sessions().await {
+                error!(?err, "failed to clear codex sessions while clearing feed");
+                return StatusCode::INTERNAL_SERVER_ERROR;
+            }
+            let workers = db::worker::list_workers().await;
+            realtime::publish(RealtimeEvent::WorkersSnapshot { workers });
+            realtime::publish(RealtimeEvent::OrchestratorThread { thread_id: None });
             realtime::publish(RealtimeEvent::FeedCleared);
             StatusCode::NO_CONTENT
         }

@@ -16,6 +16,13 @@ pub enum RealtimeEvent {
     WorkersSnapshot {
         workers: Vec<openapi::models::Worker>,
     },
+    WorkerThread {
+        worker_id: i64,
+        thread_id: Option<String>,
+    },
+    OrchestratorThread {
+        thread_id: Option<String>,
+    },
 }
 
 static CHANNEL: OnceCell<broadcast::Sender<RealtimeEvent>> = OnceCell::new();
