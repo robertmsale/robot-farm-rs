@@ -5,7 +5,10 @@ use crate::{
         codex_exec::CodexExecBuilder,
         docker::{DockerRunBuilder, ensure_default_mcp_url},
     },
-    system::codex_config::{self, AgentKind as CodexAgentKind},
+    system::{
+        codex_config::{self, AgentKind as CodexAgentKind},
+        docker_overrides,
+    },
 };
 use std::{env, path::PathBuf};
 
@@ -103,8 +106,11 @@ pub fn plan_codex_run(
         .env("CODEX_HOME", docker_codex_home.display().to_string())
         .env("PWD", workspace_container.display().to_string());
 
+    let mut docker_args = docker.build();
+    docker_overrides::apply_overrides(agent_kind, &mut docker_args, image);
+
     CommandPlan {
-        docker_args: docker.build(),
+        docker_args,
         codex_args: codex.change_dir("/workspace").build(),
     }
 }

@@ -1,6 +1,6 @@
 use crate::{config_sync, globals::PROJECT_DIR, system::codex_config};
 use axum::{Json, http::StatusCode};
-use openapi::models::{AppendFilesConfig, Config as WorkspaceConfig};
+use openapi::models::{AppendFilesConfig, Config as WorkspaceConfig, DockerOverrides};
 use serde_json::{Error as SerdeError, Value};
 use std::fs;
 use std::io::ErrorKind;
@@ -72,6 +72,7 @@ fn default_config() -> WorkspaceConfig {
         reasoning: Box::new(codex_config::default_reasoning()),
         commands: vec![],
         post_turn_checks: vec![],
+        docker_overrides: Box::new(default_docker_overrides()),
     }
 }
 
@@ -153,10 +154,26 @@ fn hydrate_new_fields(value: &mut Value) -> Result<bool, SerdeError> {
         changed = true;
     }
 
+    if !object.contains_key("docker_overrides") {
+        object.insert(
+            "docker_overrides".to_string(),
+            serde_json::to_value(default_docker_overrides())?,
+        );
+        changed = true;
+    }
+
     Ok(changed)
 }
 
 fn validate_workspace_config(config: &WorkspaceConfig) -> Result<(), (StatusCode, String)> {
     codex_config::validate_preferences(config.models.as_ref(), config.reasoning.as_ref())
         .map_err(|msg| (StatusCode::BAD_REQUEST, msg))
+}
+
+fn default_docker_overrides() -> DockerOverrides {
+    DockerOverrides {
+        orchestrator: vec![],
+        worker: vec![],
+        wizard: vec![],
+    }
 }

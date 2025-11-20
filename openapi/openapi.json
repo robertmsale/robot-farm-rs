@@ -1561,6 +1561,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "docker_overrides": {
+            "$ref": "#/components/schemas/DockerOverrides"
           }
         },
         "required": [
@@ -1568,7 +1571,41 @@
           "models",
           "reasoning",
           "commands",
-          "post_turn_checks"
+          "post_turn_checks",
+          "docker_overrides"
+        ],
+        "additionalProperties": false
+      },
+      "DockerOverrides": {
+        "type": "object",
+        "description": "Additional docker args injected before the image per persona.",
+        "properties": {
+          "orchestrator": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "worker": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "wizard": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        },
+        "required": [
+          "orchestrator",
+          "worker",
+          "wizard"
         ],
         "additionalProperties": false
       },

@@ -686,6 +686,20 @@ pub async fn require_task_by_slug(slug: &str) -> Result<Task, ToolInvocationErro
         .ok_or_else(|| ToolInvocationError::NotFound(format!("task {slug} not found")))
 }
 
+pub async fn require_visible_task_by_slug(
+    ctx: &ToolContext,
+    slug: &str,
+) -> Result<Task, ToolInvocationError> {
+    let task = require_task_by_slug(slug).await?;
+    if task_visible_for(&ctx.agent, &task) {
+        Ok(task)
+    } else {
+        Err(ToolInvocationError::Unauthorized(
+            "task is not visible to this agent".to_string(),
+        ))
+    }
+}
+
 pub async fn require_task_by_id(task_id: i64) -> Result<Task, ToolInvocationError> {
     task_db::get_task(task_id)
         .await
@@ -714,6 +728,23 @@ pub async fn summarize_task(task: Task) -> Result<TaskWithGroupPayload, ToolInvo
         task,
         group: summary,
     })
+}
+
+pub fn task_visible_for(agent: &Agent, task: &Task) -> bool {
+    match agent {
+        Agent::Orchestrator => {
+            task.owner
+                .trim()
+                .eq_ignore_ascii_case("orchestrator")
+                && task.status == TaskStatus::Ready
+        }
+        Agent::WorkerWithId(id) => {
+            let expected = format!("ws{id}");
+            task.owner.trim().eq_ignore_ascii_case(&expected)
+        }
+        Agent::Worker => false,
+        _ => true,
+    }
 }
 
 pub async fn load_group_map() -> Result<HashMap<i64, TaskGroupSummary>, ToolInvocationError> {

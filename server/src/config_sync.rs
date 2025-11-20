@@ -14,7 +14,7 @@ use crate::{
     post_turn_checks::PostTurnCheckRegistry,
     routes::config::{self, ConfigError},
     shared::git,
-    system::codex_config,
+    system::{codex_config, docker_overrides},
 };
 
 #[derive(Debug, Error)]
@@ -41,6 +41,7 @@ pub fn clear_state() -> Result<(), ConfigSyncError> {
     ProjectCommandRegistry::global().replace(Vec::new());
     PostTurnCheckRegistry::global().replace(Vec::new());
     codex_config::reset();
+    docker_overrides::reset();
     remove_agent_overrides()?;
     Ok(())
 }
@@ -49,6 +50,7 @@ fn apply_config(config: &WorkspaceConfig) -> Result<(), ConfigSyncError> {
     codex_config::validate_preferences(config.models.as_ref(), config.reasoning.as_ref())
         .map_err(ConfigSyncError::InvalidCodexSettings)?;
     codex_config::replace((*config.models).clone(), (*config.reasoning).clone());
+    docker_overrides::replace((*config.docker_overrides).clone());
     ProjectCommandRegistry::global().replace(config.commands.clone());
     PostTurnCheckRegistry::global().replace(config.post_turn_checks.clone());
     regenerate_agent_overrides(&config.append_agents_file)?;

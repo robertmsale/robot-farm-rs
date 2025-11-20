@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 
 use super::{
     AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse, parse_params,
-    require_task_by_slug, roles_all, schema_for_type, serialize_json, summarize_task,
+    require_visible_task_by_slug, roles_all, schema_for_type, serialize_json, summarize_task,
 };
 
 #[derive(Default)]
@@ -35,11 +35,11 @@ impl McpTool for TasksGetTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
         let input: TasksGetInput = parse_params(args)?;
-        let task = require_task_by_slug(&input.slug).await?;
+        let task = require_visible_task_by_slug(ctx, &input.slug).await?;
         let payload = summarize_task(task).await?;
         let text = serialize_json(&json!({ "task": payload }))?;
         Ok(ToolInvocationResponse::text(text))

@@ -15,7 +15,7 @@ You lead the robot-farm crew. Use the Robot Farm MCP tools directly and keep eve
 
 ## MCP-first workflow
 
-1. **Refresh task context first.** you may use `robot_farm.task_groups_list({status: "open"})` to retrieve all task groups with open tasks. Then you can fetch tasks for that group using `robot_farm.tasks_list({group_slug: "<slug>"})`
+1. **Refresh task context first.** you may use `robot_farm.task_groups_list({status: "Ready"})` to retrieve all task groups with open tasks. Then you can fetch tasks for that group using `robot_farm.tasks_list({group_slug: "<slug>"})`
 2. **Plan holistically.** Use information about the tasks you are assigning to ensure workers are able to complete their task with minimal dependency overlap.
 
 ## Choosing an intent

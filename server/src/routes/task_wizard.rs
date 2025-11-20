@@ -11,7 +11,10 @@ use crate::{
         codex_exec::CodexExecBuilder,
         docker::{DockerRunBuilder, ensure_default_mcp_url},
     },
-    system::codex_config::{self, AgentKind as CodexAgentKind},
+    system::{
+        codex_config::{self, AgentKind as CodexAgentKind},
+        docker_overrides,
+    },
     threads,
 };
 use axum::{
@@ -389,7 +392,7 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
         ))
         .build();
 
-    DockerRunBuilder::new(DOCKER_IMAGE_WIZARD)
+    let mut docker_args = DockerRunBuilder::new(DOCKER_IMAGE_WIZARD)
         .remove_container(true)
         .interactive(true)
         .attach("STDOUT")
@@ -398,7 +401,11 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
         .workdir("/workspace")
         .env("PATH", "")
         .command(codex_args)
-        .build()
+        .build();
+
+    docker_overrides::apply_overrides(CodexAgentKind::Wizard, &mut docker_args, DOCKER_IMAGE_WIZARD);
+
+    docker_args
 }
 
 fn resolve_api_port() -> u16 {

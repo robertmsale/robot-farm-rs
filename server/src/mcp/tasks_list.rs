@@ -8,7 +8,7 @@ use crate::db::task as task_db;
 use super::{
     AgentRole, McpTool, TaskWithGroupPayload, ToolContext, ToolInvocationError,
     ToolInvocationResponse, load_group_map, parse_params, parse_task_status, roles_all,
-    schema_for_type, serialize_json,
+    schema_for_type, serialize_json, task_visible_for,
 };
 
 #[derive(Default)]
@@ -38,7 +38,7 @@ impl McpTool for TasksListTool {
 
     async fn call(
         &self,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         args: Value,
     ) -> Result<ToolInvocationResponse, ToolInvocationError> {
         let input: TasksListInput = parse_params(args)?;
@@ -54,6 +54,9 @@ impl McpTool for TasksListTool {
 
         let mut payloads = Vec::new();
         for task in tasks {
+            if !task_visible_for(&ctx.agent, &task) {
+                continue;
+            }
             if let Some(filter_slug) = slug_filter {
                 if task.slug != *filter_slug {
                     continue;

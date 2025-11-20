@@ -1854,6 +1854,10 @@ class SettingsController extends GetxController {
   final RxnString error = RxnString();
   final TextEditingController orchestratorController = TextEditingController();
   final TextEditingController workerController = TextEditingController();
+  final TextEditingController orchestratorDockerController =
+      TextEditingController();
+  final TextEditingController workerDockerController = TextEditingController();
+  final TextEditingController wizardDockerController = TextEditingController();
   static const String _modelCodex = 'gpt-5.1-codex';
   static const String _modelCodexMini = 'gpt-5.1-codex-mini';
   static const String _modelGpt51 = 'gpt-5.1';
@@ -1888,6 +1892,17 @@ class SettingsController extends GetxController {
         return models.worker.value;
       case CodexPersona.wizard:
         return models.wizard.value;
+    }
+  }
+
+  TextEditingController dockerControllerFor(CodexPersona persona) {
+    switch (persona) {
+      case CodexPersona.orchestrator:
+        return orchestratorDockerController;
+      case CodexPersona.worker:
+        return workerDockerController;
+      case CodexPersona.wizard:
+        return wizardDockerController;
     }
   }
 
@@ -1933,6 +1948,12 @@ class SettingsController extends GetxController {
           ', ',
         );
         workerController.text = result.appendAgentsFile.worker.join(', ');
+        orchestratorDockerController.text =
+            result.dockerOverrides.orchestrator.join('\n');
+        workerDockerController.text =
+            result.dockerOverrides.worker.join('\n');
+        wizardDockerController.text =
+            result.dockerOverrides.wizard.join('\n');
       }
     } on robot_farm_api.ApiException catch (err) {
       error.value = err.message ?? 'Failed to load config: ${err.code}';
@@ -1985,6 +2006,28 @@ class SettingsController extends GetxController {
       worker: _splitPaths(value),
     );
     _assignConfig(appendAgentsFile: updated);
+  }
+
+  void updateDockerOverrides(CodexPersona persona, String value) {
+    final current = config.value;
+    if (current == null) return;
+    final args = value
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    final overrides = robot_farm_api.DockerOverrides(
+      orchestrator: persona == CodexPersona.orchestrator
+          ? args
+          : List<String>.from(current.dockerOverrides.orchestrator),
+      worker: persona == CodexPersona.worker
+          ? args
+          : List<String>.from(current.dockerOverrides.worker),
+      wizard: persona == CodexPersona.wizard
+          ? args
+          : List<String>.from(current.dockerOverrides.wizard),
+    );
+    _assignConfig(dockerOverrides: overrides);
   }
 
   void updateModel(CodexPersona persona, String value) {
@@ -2125,6 +2168,7 @@ class SettingsController extends GetxController {
     List<String>? postTurnChecks,
     robot_farm_api.AgentModelOverrides? models,
     robot_farm_api.AgentReasoningOverrides? reasoning,
+    robot_farm_api.DockerOverrides? dockerOverrides,
   }) {
     final current = config.value;
     if (current == null) return;
@@ -2150,6 +2194,13 @@ class SettingsController extends GetxController {
           worker: current.reasoning.worker,
           wizard: current.reasoning.wizard,
         );
+    final appliedDockerOverrides =
+        dockerOverrides ??
+        robot_farm_api.DockerOverrides(
+          orchestrator: List<String>.from(current.dockerOverrides.orchestrator),
+          worker: List<String>.from(current.dockerOverrides.worker),
+          wizard: List<String>.from(current.dockerOverrides.wizard),
+        );
     final cmds =
         commands ?? List<robot_farm_api.CommandConfig>.from(current.commands);
     final checks = postTurnChecks ?? List<String>.from(current.postTurnChecks);
@@ -2159,6 +2210,7 @@ class SettingsController extends GetxController {
       reasoning: appliedReasoning,
       commands: cmds,
       postTurnChecks: checks,
+      dockerOverrides: appliedDockerOverrides,
     );
     config.refresh();
   }
@@ -2371,6 +2423,29 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 onChanged: controller.updateWorkerPaths,
               ),
+              const SizedBox(height: 24),
+              Text('Docker Overrides', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 12),
+              ...CodexPersona.values.map((persona) {
+                final dockerController =
+                    controller.dockerControllerFor(persona);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: TextField(
+                    controller: dockerController,
+                    minLines: 2,
+                    maxLines: null,
+                    decoration: InputDecoration(
+                      labelText: '${persona.label} docker args (one per line)',
+                      helperText:
+                          'Each line becomes a separate argument inserted before the docker image.',
+                    ),
+                    keyboardType: TextInputType.multiline,
+                    onChanged: (value) =>
+                        controller.updateDockerOverrides(persona, value),
+                  ),
+                );
+              }),
               const SizedBox(height: 24),
               Text(
                 'Codex Models & Reasoning',

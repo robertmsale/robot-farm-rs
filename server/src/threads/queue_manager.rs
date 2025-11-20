@@ -1,5 +1,6 @@
-use crate::ai::schemas::{WorkerCompletion, WorkerIntent, WorkerTurn};
+use crate::ai::schemas::{Assignment, OrchestratorIntent, OrchestratorTurn, WorkerCompletion, WorkerIntent, WorkerTurn};
 use crate::db;
+use crate::db::task as task_db;
 use crate::db::feed::NewFeedEntry;
 use crate::db::message_queue::{MessageFilters, RelativePosition};
 use crate::globals::PROJECT_DIR;
@@ -15,7 +16,7 @@ use crate::shared::git::MergeConflict;
 use crate::shared::{git, shell};
 use crate::system::{
     events::{SystemActor, SystemEvent},
-    queue::QueueCoordinator,
+    queue::{QueueCoordinator, QueueError},
     runner::{self, Persona, RunnerConfig},
     strategy::StrategyState,
 };
@@ -23,7 +24,7 @@ use crate::threads::database_manager::{DatabaseManagerError, DatabaseManagerHand
 use crate::threads::middleware::MiddlewareHandle;
 use crate::threads::process_manager::{AgentRunActor, ProcessNotification};
 use chrono::Utc;
-use openapi::models::{CommandConfig, Feed, FeedLevel, Message, Strategy as ApiStrategy};
+use openapi::models::{CommandConfig, Feed, FeedLevel, Message, Strategy as ApiStrategy, TaskUpdateInput};
 use serde_json;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -371,6 +372,10 @@ impl QueueManagerRuntime {
                 info!(%run_id, worker_id, intent = ?turn.intent, "worker turn notification");
                 self.process_worker_turn(worker_id, metadata, turn).await?;
             }
+            ProcessNotification::OrchestratorTurn { run_id, metadata, turn } => {
+                info!(%run_id, intent = ?turn.intent, "orchestrator turn notification");
+                self.process_orchestrator_turn(metadata, turn).await?;
+            }
             ProcessNotification::AgentFeed {
                 actor,
                 message,
@@ -466,6 +471,85 @@ impl QueueManagerRuntime {
             WorkerIntent::AckPause => {}
         }
 
+        Ok(())
+    }
+
+    async fn process_orchestrator_turn(
+        &mut self,
+        _metadata: RunMetadata,
+        turn: OrchestratorTurn,
+    ) -> Result<(), QueueManagerError> {
+        match turn.intent {
+            OrchestratorIntent::AssignTask => {
+                self.handle_orchestrator_assignment(&turn).await?;
+            }
+            OrchestratorIntent::StatusUpdate => {}
+            OrchestratorIntent::AckPause => {}
+        }
+        Ok(())
+    }
+
+    async fn handle_orchestrator_assignment(
+        &mut self,
+        turn: &OrchestratorTurn,
+    ) -> Result<(), QueueManagerError> {
+        let Some(target) = turn.target.as_deref() else {
+            warn!("orchestrator assignment missing target worker");
+            return Ok(());
+        };
+        let Some(worker_id) = Self::parse_worker_target(target) else {
+            warn!(target, "orchestrator assignment target invalid");
+            return Ok(());
+        };
+        let Some(assignment) = turn.assignments.as_ref() else {
+            warn!(worker_id, "orchestrator assignment missing payload");
+            return Ok(());
+        };
+
+        let slug = assignment.task_slug.trim();
+        if slug.is_empty() {
+            warn!(worker_id, "orchestrator assignment missing task slug");
+            return Ok(());
+        }
+
+        let task = task_db::get_task_by_slug(slug)
+            .await
+            .map_err(|err| QueueManagerError::Assignment(err.to_string()))?
+            .ok_or_else(|| QueueManagerError::Assignment(format!("task {slug} not found")))?;
+
+        if !task.owner.trim().eq_ignore_ascii_case("orchestrator") {
+            warn!(
+                worker_id,
+                task_id = task.id,
+                owner = %task.owner,
+                "task is not owned by orchestrator"
+            );
+            return Ok(());
+        }
+
+        let mut update = TaskUpdateInput::new();
+        let worker_label = format!("ws{worker_id}");
+        update.owner = Some(worker_label.clone());
+        let updated = task_db::update_task(task.id, update)
+            .await
+            .map_err(|err| QueueManagerError::Assignment(err.to_string()))?
+            .ok_or_else(|| QueueManagerError::Assignment(format!("task {} missing", task.id)))?;
+
+        if let Err(QueueError::WorkerBusy) = QueueCoordinator::global().assign_task(
+            worker_id,
+            updated.id,
+            Some(updated.slug.clone()),
+        ) {
+            warn!(worker_id, task_id = updated.id, "worker already has an assignment");
+        }
+
+        let message = Self::format_assignment_message(turn, assignment);
+        self.enqueue_message(
+            SystemActor::Orchestrator,
+            SystemActor::Worker(worker_id),
+            &message,
+        )
+        .await?;
         Ok(())
     }
 
@@ -857,14 +941,84 @@ impl QueueManagerRuntime {
         )
     }
 
+    fn parse_worker_target(target: &str) -> Option<i64> {
+        let lowered = target.trim().to_ascii_lowercase();
+        lowered.strip_prefix("ws")?.parse().ok()
+    }
+
+    fn format_assignment_message(turn: &OrchestratorTurn, assignment: &Assignment) -> String {
+        let mut sections = Vec::new();
+        sections.push(format!(
+            "New assignment: {} ({})",
+            assignment.task_slug, assignment.task_title
+        ));
+        if !turn.summary.trim().is_empty() {
+            sections.push(format!("Summary: {}", turn.summary.trim()));
+        }
+        if let Some(details) = turn
+            .details
+            .as_deref()
+            .map(str::trim)
+            .filter(|d| !d.is_empty())
+        {
+            sections.push(format!("Details:\n{}", details));
+        }
+        if !assignment.steps.is_empty() {
+            let steps = assignment
+                .steps
+                .iter()
+                .enumerate()
+                .map(|(idx, step)| format!("{}. {}", idx + 1, step))
+                .collect::<Vec<_>>()
+                .join("\n");
+            sections.push(format!("Steps:\n{}", steps));
+        }
+        if let Some(acceptance) = assignment
+            .acceptance
+            .as_deref()
+            .map(str::trim)
+            .filter(|d| !d.is_empty())
+        {
+            sections.push(format!("Acceptance Criteria:\n{}", acceptance));
+        }
+        sections.push(
+            "Respond with STATUS_UPDATE for long-running work and COMPLETE_TASK when finished.".
+                to_string(),
+        );
+        sections.join("\n\n")
+    }
+
     fn format_orchestrator_prompt(message: &Message) -> String {
         let summary = message.message.trim();
+        let footer = Self::strategy_footer();
         format!(
-            "Queue message #{id} from {from} to {to}:\n\n{summary}\n\nRespond with a JSON object matching the Robot Farm orchestrator turn schema.\n",
+            "Queue message #{id} from {from} to {to}:\n\n{summary}\n\nRespond with a JSON object matching the Robot Farm orchestrator turn schema.\n\n{footer}\n",
             id = message.id,
             from = message.from.trim(),
             to = message.to.trim(),
             summary = summary,
+            footer = footer,
+        )
+    }
+
+    fn strategy_footer() -> String {
+        let strategy = StrategyState::global().snapshot();
+        let strategy_label = strategy.id.to_string();
+        let focus = strategy
+            .focus
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|group| group.to_string())
+            .collect::<Vec<_>>();
+        let focus_str = if focus.is_empty() {
+            "none".to_string()
+        } else {
+            focus.join(", ")
+        };
+        format!(
+            "Active Strategy: {} | Focus Groups: {}",
+            strategy_label, focus_str
         )
     }
 
@@ -1339,6 +1493,8 @@ pub enum QueueManagerError {
     WorkerNotRunning(i64),
     #[error("orchestrator is not running")]
     OrchestratorNotRunning,
+    #[error("assignment processing failed: {0}")]
+    Assignment(String),
 }
 
 #[derive(Debug, Error)]

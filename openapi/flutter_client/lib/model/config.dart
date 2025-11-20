@@ -18,6 +18,7 @@ class Config {
     required this.reasoning,
     this.commands = const [],
     this.postTurnChecks = const [],
+    required this.dockerOverrides,
   });
 
   AppendFilesConfig appendAgentsFile;
@@ -31,13 +32,16 @@ class Config {
   /// Commands executed after each turn.
   List<String> postTurnChecks;
 
+  DockerOverrides dockerOverrides;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is Config &&
     other.appendAgentsFile == appendAgentsFile &&
     other.models == models &&
     other.reasoning == reasoning &&
     _deepEquality.equals(other.commands, commands) &&
-    _deepEquality.equals(other.postTurnChecks, postTurnChecks);
+    _deepEquality.equals(other.postTurnChecks, postTurnChecks) &&
+    other.dockerOverrides == dockerOverrides;
 
   @override
   int get hashCode =>
@@ -46,10 +50,11 @@ class Config {
     (models.hashCode) +
     (reasoning.hashCode) +
     (commands.hashCode) +
-    (postTurnChecks.hashCode);
+    (postTurnChecks.hashCode) +
+    (dockerOverrides.hashCode);
 
   @override
-  String toString() => 'Config[appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks]';
+  String toString() => 'Config[appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks, dockerOverrides=$dockerOverrides]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -58,6 +63,7 @@ class Config {
       json[r'reasoning'] = this.reasoning;
       json[r'commands'] = this.commands;
       json[r'post_turn_checks'] = this.postTurnChecks;
+      json[r'docker_overrides'] = this.dockerOverrides;
     return json;
   }
 
@@ -87,6 +93,7 @@ class Config {
         postTurnChecks: json[r'post_turn_checks'] is Iterable
             ? (json[r'post_turn_checks'] as Iterable).cast<String>().toList(growable: false)
             : const [],
+        dockerOverrides: DockerOverrides.fromJson(json[r'docker_overrides'])!,
       );
     }
     return null;
@@ -139,6 +146,6 @@ class Config {
     'reasoning',
     'commands',
     'post_turn_checks',
+    'docker_overrides',
   };
 }
-

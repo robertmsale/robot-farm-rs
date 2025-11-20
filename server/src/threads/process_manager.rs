@@ -1,4 +1,4 @@
-use crate::ai::schemas::WorkerTurn;
+use crate::ai::schemas::{OrchestratorTurn, WorkerTurn};
 use crate::models::codex_events::{CodexEvent, TurnItemDetail};
 use crate::models::process::{
     KillReason, KillSignal, ProcessDirective, ProcessEvent, ProcessExit, ProcessHandle,
@@ -45,6 +45,11 @@ pub enum ProcessNotification {
         metadata: RunMetadata,
         turn: WorkerTurn,
     },
+    OrchestratorTurn {
+        run_id: RunId,
+        metadata: RunMetadata,
+        turn: OrchestratorTurn,
+    },
     AgentFeed {
         actor: AgentRunActor,
         message: String,
@@ -69,11 +74,16 @@ struct ActiveProcess {
 
 enum AgentObserver {
     Worker(WorkerObserver),
-    Orchestrator,
+    Orchestrator(OrchestratorObserver),
 }
 
 struct WorkerObserver {
     worker_id: i64,
+    metadata: RunMetadata,
+    collector: Arc<Mutex<StructuredOutputCollector>>,
+}
+
+struct OrchestratorObserver {
     metadata: RunMetadata,
     collector: Arc<Mutex<StructuredOutputCollector>>,
 }
@@ -317,7 +327,12 @@ async fn run_child(
                         collector,
                     })
                 }),
-                Some(AgentRunActor::Orchestrator) => Some(AgentObserver::Orchestrator),
+                Some(AgentRunActor::Orchestrator) => collector.clone().map(|collector| {
+                    AgentObserver::Orchestrator(OrchestratorObserver {
+                        metadata: request.metadata.clone(),
+                        collector,
+                    })
+                }),
                 None => None,
             };
 
@@ -482,7 +497,11 @@ async fn observe_child(
                         warn!(%run_id, "failed to deliver worker turn notification");
                     }
                 } else {
-                    warn!(%run_id, worker_id = observer.worker_id, "worker turn missing from output");
+                    warn!(
+                        %run_id,
+                        worker_id = observer.worker_id,
+                        "worker turn missing from output"
+                    );
                 }
                 let _ = notifications_tx
                     .send(ProcessNotification::AgentCompleted {
@@ -491,7 +510,27 @@ async fn observe_child(
                     })
                     .await;
             }
-            AgentObserver::Orchestrator => {
+            AgentObserver::Orchestrator(observer) => {
+                if let Some(turn) = observer
+                    .collector
+                    .lock()
+                    .await
+                    .take_orchestrator_turn()
+                {
+                    if notifications_tx
+                        .send(ProcessNotification::OrchestratorTurn {
+                            run_id,
+                            metadata: observer.metadata.clone(),
+                            turn,
+                        })
+                        .await
+                        .is_err()
+                    {
+                        warn!(%run_id, "failed to deliver orchestrator turn notification");
+                    }
+                } else {
+                    warn!(%run_id, "orchestrator turn missing from output");
+                }
                 if notifications_tx
                     .send(ProcessNotification::AgentCompleted {
                         run_id,
@@ -511,6 +550,7 @@ struct StructuredOutputCollector {
     actor: AgentRunActor,
     buffer: Vec<u8>,
     worker_turn: Option<WorkerTurn>,
+    orchestrator_turn: Option<OrchestratorTurn>,
 }
 
 impl StructuredOutputCollector {
@@ -519,6 +559,7 @@ impl StructuredOutputCollector {
             actor,
             buffer: Vec::new(),
             worker_turn: None,
+            orchestrator_turn: None,
         }
     }
 
@@ -557,6 +598,20 @@ impl StructuredOutputCollector {
         self.worker_turn.take()
     }
 
+    fn take_orchestrator_turn(&mut self) -> Option<OrchestratorTurn> {
+        if !matches!(self.actor, AgentRunActor::Orchestrator) {
+            return None;
+        }
+        if !self.buffer.is_empty() {
+            let text = String::from_utf8_lossy(&self.buffer).trim().to_string();
+            if !text.is_empty() {
+                let _ = self.process_line(&text);
+            }
+            self.buffer.clear();
+        }
+        self.orchestrator_turn.take()
+    }
+
     fn process_line(&mut self, line: &str) -> Option<AgentFeedFragment> {
         let event: CodexEvent = match serde_json::from_str(line) {
             Ok(event) => event,
@@ -580,9 +635,16 @@ impl StructuredOutputCollector {
     ) -> Option<AgentFeedFragment> {
         match detail {
             TurnItemDetail::AgentMessage { text } => {
-                if matches!(self.actor, AgentRunActor::Worker(_)) {
-                    if let Ok(turn) = serde_json::from_str::<WorkerTurn>(&text) {
-                        self.worker_turn = Some(turn);
+                match self.actor {
+                    AgentRunActor::Worker(_) => {
+                        if let Ok(turn) = serde_json::from_str::<WorkerTurn>(&text) {
+                            self.worker_turn = Some(turn);
+                        }
+                    }
+                    AgentRunActor::Orchestrator => {
+                        if let Ok(turn) = serde_json::from_str::<OrchestratorTurn>(&text) {
+                            self.orchestrator_turn = Some(turn);
+                        }
                     }
                 }
                 Some(AgentFeedFragment {

@@ -25,6 +25,8 @@ pub struct Config {
     /// Commands executed after each turn.
     #[serde(rename = "post_turn_checks")]
     pub post_turn_checks: Vec<String>,
+    #[serde(rename = "docker_overrides")]
+    pub docker_overrides: Box<models::DockerOverrides>,
 }
 
 impl Config {
@@ -35,6 +37,7 @@ impl Config {
         reasoning: models::AgentReasoningOverrides,
         commands: Vec<models::CommandConfig>,
         post_turn_checks: Vec<String>,
+        docker_overrides: models::DockerOverrides,
     ) -> Config {
         Config {
             append_agents_file: Box::new(append_agents_file),
@@ -42,6 +45,7 @@ impl Config {
             reasoning: Box::new(reasoning),
             commands,
             post_turn_checks,
+            docker_overrides: Box::new(docker_overrides),
         }
     }
 }
