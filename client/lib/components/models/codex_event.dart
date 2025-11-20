@@ -419,6 +419,10 @@ class SystemFeedEvent {
   IconData iconForCategory() {
     final normalized = category.toLowerCase();
     switch (normalized) {
+      case 'worker_turn':
+      case 'orchestrator_turn':
+      case 'agent_turn':
+        return Icons.task_alt;
       case 'worker':
         return Icons.smart_toy;
       case 'strategy':

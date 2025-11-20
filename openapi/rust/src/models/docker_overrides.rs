@@ -23,7 +23,11 @@ pub struct DockerOverrides {
 
 impl DockerOverrides {
     /// Additional docker args injected before the image per persona.
-    pub fn new(orchestrator: Vec<String>, worker: Vec<String>, wizard: Vec<String>) -> DockerOverrides {
+    pub fn new(
+        orchestrator: Vec<String>,
+        worker: Vec<String>,
+        wizard: Vec<String>,
+    ) -> DockerOverrides {
         DockerOverrides {
             orchestrator,
             worker,

@@ -12,7 +12,8 @@ struct OverridesStore {
     wizard: Vec<String>,
 }
 
-static STORE: LazyLock<RwLock<OverridesStore>> = LazyLock::new(|| RwLock::new(OverridesStore::default()));
+static STORE: LazyLock<RwLock<OverridesStore>> =
+    LazyLock::new(|| RwLock::new(OverridesStore::default()));
 
 pub fn reset() {
     *STORE.write() = OverridesStore::default();

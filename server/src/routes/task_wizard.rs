@@ -403,7 +403,11 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
         .command(codex_args)
         .build();
 
-    docker_overrides::apply_overrides(CodexAgentKind::Wizard, &mut docker_args, DOCKER_IMAGE_WIZARD);
+    docker_overrides::apply_overrides(
+        CodexAgentKind::Wizard,
+        &mut docker_args,
+        DOCKER_IMAGE_WIZARD,
+    );
 
     docker_args
 }

@@ -179,9 +179,7 @@ fn worktree_paths() -> Result<Vec<(PathBuf, WorktreeRole)>, ConfigSyncError> {
 }
 
 fn classify_worktree(path: &Path, canonical_project_root: &Path) -> Option<WorktreeRole> {
-    let canonical_path = path
-        .canonicalize()
-        .unwrap_or_else(|_| path.to_path_buf());
+    let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
     let staging = canonical_project_root.join("staging");
     if canonical_path == staging {
         return Some(WorktreeRole::Orchestrator);

@@ -167,7 +167,10 @@ async fn run_middleware_loop(
 }
 
 fn is_priority_intent(intent: &ProcessIntent) -> bool {
-    matches!(intent, ProcessIntent::Kill(_) | ProcessIntent::AdjustPriority { .. })
+    matches!(
+        intent,
+        ProcessIntent::Kill(_) | ProcessIntent::AdjustPriority { .. }
+    )
 }
 
 async fn dispatch_batch(

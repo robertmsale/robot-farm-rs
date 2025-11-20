@@ -55,6 +55,7 @@ pub enum ProcessNotification {
         message: String,
         raw: String,
         thread_id: Option<String>,
+        category: Option<String>,
     },
     AgentCompleted {
         run_id: RunId,
@@ -87,7 +88,6 @@ struct OrchestratorObserver {
     metadata: RunMetadata,
     collector: Arc<Mutex<StructuredOutputCollector>>,
 }
-
 
 #[derive(Clone)]
 struct AgentFeedContext {
@@ -263,9 +263,8 @@ async fn run_child(
     let stdin_payload = request.stdin.clone();
     let mut command = build_command(&request);
     let actor = detect_agent_actor(&request.metadata);
-    let collector = actor.map(|actor_kind| {
-        Arc::new(Mutex::new(StructuredOutputCollector::new(actor_kind)))
-    });
+    let collector =
+        actor.map(|actor_kind| Arc::new(Mutex::new(StructuredOutputCollector::new(actor_kind))));
 
     let feed_ctx = actor.map(|actor_kind| AgentFeedContext {
         actor: actor_kind,
@@ -511,12 +510,7 @@ async fn observe_child(
                     .await;
             }
             AgentObserver::Orchestrator(observer) => {
-                if let Some(turn) = observer
-                    .collector
-                    .lock()
-                    .await
-                    .take_orchestrator_turn()
-                {
+                if let Some(turn) = observer.collector.lock().await.take_orchestrator_turn() {
                     if notifications_tx
                         .send(ProcessNotification::OrchestratorTurn {
                             run_id,
@@ -623,6 +617,7 @@ impl StructuredOutputCollector {
                 text: format!("Thread started: {thread_id}"),
                 raw: line.to_string(),
                 thread_id: Some(thread_id),
+                category: Some("thread".to_string()),
             }),
             _ => None,
         }
@@ -635,28 +630,40 @@ impl StructuredOutputCollector {
     ) -> Option<AgentFeedFragment> {
         match detail {
             TurnItemDetail::AgentMessage { text } => {
+                let mut summary: Option<String> = None;
+                let mut category: Option<String> = None;
                 match self.actor {
                     AgentRunActor::Worker(_) => {
                         if let Ok(turn) = serde_json::from_str::<WorkerTurn>(&text) {
+                            summary = Some(turn.summary.clone());
+                            category = Some("worker_turn".to_string());
                             self.worker_turn = Some(turn);
                         }
                     }
                     AgentRunActor::Orchestrator => {
                         if let Ok(turn) = serde_json::from_str::<OrchestratorTurn>(&text) {
+                            summary = Some(turn.summary.clone());
+                            category = Some("orchestrator_turn".to_string());
                             self.orchestrator_turn = Some(turn);
                         }
                     }
                 }
+                let display_text = summary
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or_else(|| "Turn completed.".to_string());
                 Some(AgentFeedFragment {
-                    text,
+                    text: display_text,
                     raw: raw.to_string(),
                     thread_id: None,
+                    category,
                 })
             }
             TurnItemDetail::Reasoning { text } => Some(AgentFeedFragment {
                 text: format!("Reasoning:\n{text}"),
                 raw: raw.to_string(),
                 thread_id: None,
+                category: None,
             }),
             TurnItemDetail::CommandExecution(cmd) => {
                 let mut summary = format!("Command `{}` {:?}", cmd.command, cmd.status);
@@ -668,12 +675,14 @@ impl StructuredOutputCollector {
                     text: summary,
                     raw: raw.to_string(),
                     thread_id: None,
+                    category: None,
                 })
             }
             TurnItemDetail::ItemError { message } => Some(AgentFeedFragment {
                 text: format!("Error: {message}"),
                 raw: raw.to_string(),
                 thread_id: None,
+                category: None,
             }),
             TurnItemDetail::TodoList { items } => {
                 let list = items
@@ -691,6 +700,7 @@ impl StructuredOutputCollector {
                     text: format!("TODO List:\n{list}"),
                     raw: raw.to_string(),
                     thread_id: None,
+                    category: None,
                 })
             }
             TurnItemDetail::FileChange(file_change) => {
@@ -704,6 +714,7 @@ impl StructuredOutputCollector {
                     text: format!("File changes:\n{files}"),
                     raw: raw.to_string(),
                     thread_id: None,
+                    category: None,
                 })
             }
             TurnItemDetail::McpToolCall(call) => Some(AgentFeedFragment {
@@ -713,11 +724,13 @@ impl StructuredOutputCollector {
                 ),
                 raw: raw.to_string(),
                 thread_id: None,
+                category: None,
             }),
             TurnItemDetail::WebSearch { query } => Some(AgentFeedFragment {
                 text: format!("Web search: {query}"),
                 raw: raw.to_string(),
                 thread_id: None,
+                category: None,
             }),
         }
     }
@@ -727,6 +740,7 @@ struct AgentFeedFragment {
     text: String,
     raw: String,
     thread_id: Option<String>,
+    category: Option<String>,
 }
 
 async fn forward_output<R>(
@@ -780,6 +794,7 @@ async fn forward_output<R>(
                                         message: fragment.text,
                                         raw: fragment.raw,
                                         thread_id: fragment.thread_id,
+                                        category: fragment.category.clone(),
                                     })
                                     .await
                                     .is_err()

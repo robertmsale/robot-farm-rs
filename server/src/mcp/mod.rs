@@ -733,9 +733,7 @@ pub async fn summarize_task(task: Task) -> Result<TaskWithGroupPayload, ToolInvo
 pub fn task_visible_for(agent: &Agent, task: &Task) -> bool {
     match agent {
         Agent::Orchestrator => {
-            task.owner
-                .trim()
-                .eq_ignore_ascii_case("orchestrator")
+            task.owner.trim().eq_ignore_ascii_case("orchestrator")
                 && task.status == TaskStatus::Ready
         }
         Agent::WorkerWithId(id) => {

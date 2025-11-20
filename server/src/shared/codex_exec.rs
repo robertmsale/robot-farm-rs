@@ -156,10 +156,7 @@ impl CodexExecBuilder {
 
     pub fn build(self) -> Vec<String> {
         let mut args = vec!["codex".to_string(), "exec".to_string()];
-        match self.mode {
-            ExecMode::Start => {}
-            ExecMode::Resume => args.push("resume".to_string()),
-        }
+        let is_resume = matches!(self.mode, ExecMode::Resume);
 
         if let Some(change_dir) = self.change_dir {
             args.push("-C".to_string());
@@ -235,6 +232,10 @@ impl CodexExecBuilder {
 
         if self.oss {
             args.push("--oss".to_string());
+        }
+
+        if is_resume {
+            args.push("resume".to_string());
         }
 
         match self.mode {
@@ -323,7 +324,25 @@ mod tests {
         let args = build_default_codex_exec_command(None, Some("session-123"));
         assert_eq!(args[0], "codex");
         assert_eq!(args[1], "exec");
-        assert_eq!(args[2], "resume");
-        assert!(args.contains(&"session-123".to_string()));
+        assert!(args.contains(&"resume".to_string()));
+        assert!(args.last().unwrap().ends_with("session-123"));
+    }
+
+    #[test]
+    fn resume_command_lists_change_dir_before_resume() {
+        let args = CodexExecBuilder::resume()
+            .change_dir("/workspace")
+            .session_id("abc-123".to_string())
+            .build();
+        assert_eq!(args[0], "codex");
+        assert_eq!(args[1], "exec");
+        assert_eq!(args[2], "-C");
+        assert_eq!(args[3], "/workspace");
+        let resume_pos = args
+            .iter()
+            .position(|arg| arg == "resume")
+            .expect("resume argument present");
+        assert!(resume_pos > 3, "resume should appear after -C /workspace");
+        assert_eq!(args.last().unwrap(), "abc-123");
     }
 }
