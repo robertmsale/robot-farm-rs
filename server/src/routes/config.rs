@@ -67,6 +67,7 @@ pub fn delete_config_file() -> Result<(), ConfigError> {
 
 fn default_config() -> WorkspaceConfig {
     WorkspaceConfig {
+        workspace_path: Some(PROJECT_DIR.as_str().to_string()),
         append_agents_file: Box::new(AppendFilesConfig::new(vec![], vec![])),
         models: Box::new(codex_config::default_models()),
         reasoning: Box::new(codex_config::default_reasoning()),
@@ -101,7 +102,13 @@ fn map_sync_error(err: config_sync::ConfigSyncError) -> (StatusCode, String) {
 }
 
 pub async fn get_config() -> Result<Json<WorkspaceConfig>, (StatusCode, String)> {
-    load_config_from_disk().map(Json).map_err(map_error)
+    load_config_from_disk()
+        .map(|mut cfg| {
+            cfg.workspace_path = Some(PROJECT_DIR.as_str().to_string());
+            cfg
+        })
+        .map(Json)
+        .map_err(map_error)
 }
 
 pub async fn create_config(
@@ -112,18 +119,26 @@ pub async fn create_config(
     }
 
     validate_workspace_config(&payload)?;
-    write_config_to_disk(&payload).map_err(map_error)?;
+    let mut to_disk = payload.clone();
+    to_disk.workspace_path = None;
+    write_config_to_disk(&to_disk).map_err(map_error)?;
     config_sync::reload_from_disk().map_err(map_sync_error)?;
-    Ok((StatusCode::CREATED, Json(payload)))
+    let mut response = payload;
+    response.workspace_path = Some(PROJECT_DIR.as_str().to_string());
+    Ok((StatusCode::CREATED, Json(response)))
 }
 
 pub async fn update_config(
     Json(payload): Json<WorkspaceConfig>,
 ) -> Result<Json<WorkspaceConfig>, (StatusCode, String)> {
     validate_workspace_config(&payload)?;
-    write_config_to_disk(&payload).map_err(map_error)?;
+    let mut to_disk = payload.clone();
+    to_disk.workspace_path = None;
+    write_config_to_disk(&to_disk).map_err(map_error)?;
     config_sync::reload_from_disk().map_err(map_sync_error)?;
-    Ok(Json(payload))
+    let mut response = payload;
+    response.workspace_path = Some(PROJECT_DIR.as_str().to_string());
+    Ok(Json(response))
 }
 
 pub async fn delete_config() -> Result<StatusCode, (StatusCode, String)> {

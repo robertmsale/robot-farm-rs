@@ -54,6 +54,7 @@ fn apply_config(config: &WorkspaceConfig) -> Result<(), ConfigSyncError> {
     ProjectCommandRegistry::global().replace(config.commands.clone());
     PostTurnCheckRegistry::global().replace(config.post_turn_checks.clone());
     regenerate_agent_overrides(&config.append_agents_file)?;
+    // workspace_path is informational only; no runtime effect.
     Ok(())
 }
 

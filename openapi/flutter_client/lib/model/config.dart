@@ -13,6 +13,7 @@ part of openapi.api;
 class Config {
   /// Returns a new [Config] instance.
   Config({
+    this.workspacePath,
     required this.appendAgentsFile,
     required this.models,
     required this.reasoning,
@@ -20,6 +21,9 @@ class Config {
     this.postTurnChecks = const [],
     required this.dockerOverrides,
   });
+
+  /// Absolute path of the workspace the server is running in.
+  String? workspacePath;
 
   AppendFilesConfig appendAgentsFile;
 
@@ -36,6 +40,7 @@ class Config {
 
   @override
   bool operator ==(Object other) => identical(this, other) || other is Config &&
+    other.workspacePath == workspacePath &&
     other.appendAgentsFile == appendAgentsFile &&
     other.models == models &&
     other.reasoning == reasoning &&
@@ -46,6 +51,7 @@ class Config {
   @override
   int get hashCode =>
     // ignore: unnecessary_parenthesis
+    (workspacePath == null ? 0 : workspacePath!.hashCode) +
     (appendAgentsFile.hashCode) +
     (models.hashCode) +
     (reasoning.hashCode) +
@@ -54,10 +60,11 @@ class Config {
     (dockerOverrides.hashCode);
 
   @override
-  String toString() => 'Config[appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks, dockerOverrides=$dockerOverrides]';
+  String toString() => 'Config[workspacePath=$workspacePath, appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks, dockerOverrides=$dockerOverrides]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+      json[r'workspace_path'] = this.workspacePath;
       json[r'append_agents_file'] = this.appendAgentsFile;
       json[r'models'] = this.models;
       json[r'reasoning'] = this.reasoning;
@@ -85,12 +92,13 @@ class Config {
         return true;
       }());
 
-      return Config(
-        appendAgentsFile: AppendFilesConfig.fromJson(json[r'append_agents_file'])!,
-        models: AgentModelOverrides.fromJson(json[r'models'])!,
-        reasoning: AgentReasoningOverrides.fromJson(json[r'reasoning'])!,
-        commands: CommandConfig.listFromJson(json[r'commands']),
-        postTurnChecks: json[r'post_turn_checks'] is Iterable
+    return Config(
+      workspacePath: json[r'workspace_path'] as String?,
+      appendAgentsFile: AppendFilesConfig.fromJson(json[r'append_agents_file'])!,
+      models: AgentModelOverrides.fromJson(json[r'models'])!,
+      reasoning: AgentReasoningOverrides.fromJson(json[r'reasoning'])!,
+      commands: CommandConfig.listFromJson(json[r'commands']),
+      postTurnChecks: json[r'post_turn_checks'] is Iterable
             ? (json[r'post_turn_checks'] as Iterable).cast<String>().toList(growable: false)
             : const [],
         dockerOverrides: DockerOverrides.fromJson(json[r'docker_overrides'])!,
@@ -149,4 +157,3 @@ class Config {
     'docker_overrides',
   };
 }
-

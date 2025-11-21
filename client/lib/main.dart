@@ -100,6 +100,7 @@ class ConnectionController extends GetxController {
   final RxList<robot_farm_api.Worker> workers = <robot_farm_api.Worker>[].obs;
   final RxBool isPlaying = true.obs;
   final Rxn<robot_farm_api.ActiveStrategy> activeStrategy = Rxn(null);
+  final Rxn<robot_farm_api.Config> config = Rxn(null);
   final StreamController<robot_farm_api.Feed> _feedController =
       StreamController<robot_farm_api.Feed>.broadcast();
   final StreamController<void> _feedClearedController =
@@ -159,6 +160,7 @@ class ConnectionController extends GetxController {
     _scheduleReconnect();
     await refreshQueueState();
     await refreshStrategy();
+    await refreshConfig();
     Get.offAllNamed('/home');
   }
 
@@ -429,6 +431,22 @@ class ConnectionController extends GetxController {
       }
     } catch (error) {
       debugPrint('Failed to refresh strategy: $error');
+    }
+  }
+
+  Future<void> refreshConfig() async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      return;
+    }
+    try {
+      final api = robot_farm_api.DefaultApi(
+        robot_farm_api.ApiClient(basePath: baseUrl),
+      );
+      final cfg = await api.getConfig();
+      config.value = cfg;
+    } catch (error) {
+      debugPrint('Failed to refresh config: $error');
     }
   }
 
@@ -2965,25 +2983,38 @@ class _HomeStatusBar extends StatelessWidget {
       final focus = focusList.isEmpty
           ? 'none'
           : focusList.map((id) => id.toString()).join(', ');
+      final workspacePath =
+          controller.config.value?.workspacePath ?? 'Unknown workspace';
       return Container(
         width: double.infinity,
         color: theme.colorScheme.surfaceContainerHighest,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Text(
-                'Active Strategy: $name | Focus: [$focus]',
-                style: theme.textTheme.labelSmall,
-              ),
-            ),
-            const SizedBox(width: 8),
             Text(
-              'Websocket: ${controller.websocketStatusLabel}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: controller.websocketStatusColor(theme),
-                fontWeight: FontWeight.bold,
-              ),
+              workspacePath,
+              style: theme.textTheme.labelSmall,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Active Strategy: $name | Focus: [$focus]',
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Websocket: ${controller.websocketStatusLabel}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: controller.websocketStatusColor(theme),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

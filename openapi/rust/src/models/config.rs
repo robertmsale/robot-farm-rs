@@ -14,6 +14,9 @@ use serde::{Deserialize, Serialize};
 /// Config : Workspace configuration stored on disk.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
+    /// Absolute path of the workspace the server is running in.
+    #[serde(rename = "workspace_path", skip_serializing_if = "Option::is_none")]
+    pub workspace_path: Option<String>,
     #[serde(rename = "append_agents_file")]
     pub append_agents_file: Box<models::AppendFilesConfig>,
     #[serde(rename = "models")]
@@ -32,6 +35,7 @@ pub struct Config {
 impl Config {
     /// Workspace configuration stored on disk.
     pub fn new(
+        workspace_path: Option<String>,
         append_agents_file: models::AppendFilesConfig,
         models: models::AgentModelOverrides,
         reasoning: models::AgentReasoningOverrides,
@@ -40,6 +44,7 @@ impl Config {
         docker_overrides: models::DockerOverrides,
     ) -> Config {
         Config {
+            workspace_path,
             append_agents_file: Box::new(append_agents_file),
             models: Box::new(models),
             reasoning: Box::new(reasoning),

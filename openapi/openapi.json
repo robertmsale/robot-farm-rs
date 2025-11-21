@@ -1539,6 +1539,11 @@
         "type": "object",
         "description": "Workspace configuration stored on disk.",
         "properties": {
+          "workspace_path": {
+            "type": "string",
+            "description": "Absolute path of the workspace the server is running in.",
+            "nullable": true
+          },
           "append_agents_file": {
             "$ref": "#/components/schemas/AppendFilesConfig"
           },
