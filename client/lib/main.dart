@@ -1217,6 +1217,8 @@ class _SystemFeed extends StatelessWidget {
                           children: [
                             Text(
                               viewModel.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
@@ -1346,9 +1348,7 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
         ),
       );
     } else {
-      body = SingleChildScrollView(
-        child: SelectionArea(child: _OutputBubble(text: _details)),
-      );
+      body = SelectionArea(child: _OutputBubble(text: _details));
     }
 
     return SafeArea(
@@ -1357,43 +1357,58 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: viewModel.color.withValues(alpha: 0.15),
-                  child: Icon(viewModel.icon, color: viewModel.color),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: SelectionArea(
-                    child: Column(
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          viewModel.title,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor:
+                              viewModel.color.withValues(alpha: 0.15),
+                          child: Icon(viewModel.icon, color: viewModel.color),
                         ),
-                        if (viewModel.subtitle != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            viewModel.subtitle!,
-                            style: Theme.of(context).textTheme.bodyMedium,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: SelectionArea(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  viewModel.title,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                if (viewModel.subtitle != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    viewModel.subtitle!,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    body,
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).maybePop(),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 16),
-            Expanded(child: body),
           ],
         ),
       ),

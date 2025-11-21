@@ -1546,6 +1546,25 @@ impl PostTurnJob {
             .await
             .map_err(QueueManagerError::from)?;
         QueueCoordinator::global().validation_failed(self.worker_id, &message);
+        self.record_worker_failure_feed(&message).await?;
+        Ok(())
+    }
+
+    async fn record_worker_failure_feed(&self, message: &str) -> Result<(), QueueManagerError> {
+        let entry = NewFeedEntry {
+            source: "System".to_string(),
+            target: format!("ws{}", self.worker_id),
+            level: FeedLevel::Error,
+            text: message.to_string(),
+            raw: String::new(),
+            category: "validation".to_string(),
+        };
+        let feed_entry = self
+            .db
+            .insert_feed_entry(entry)
+            .await
+            .map_err(QueueManagerError::from)?;
+        realtime::publish(RealtimeEvent::FeedEntry(feed_entry));
         Ok(())
     }
 
