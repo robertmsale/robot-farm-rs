@@ -846,8 +846,19 @@ impl QueueManagerRuntime {
             return Ok(false);
         }
 
-        let plan =
-            runner::plan_codex_run(Persona::Worker(worker_id), None, RunnerConfig::default());
+        let session_id = match db::session::get_session(&format!("ws{worker_id}")).await {
+            Ok(value) => value,
+            Err(err) => {
+                warn!(?err, worker_id, "failed to load worker session id");
+                None
+            }
+        };
+
+        let plan = runner::plan_codex_run(
+            Persona::Worker(worker_id),
+            session_id.as_deref(),
+            RunnerConfig::default(),
+        );
         let mut docker_args = plan.docker_args;
         if docker_args.is_empty() {
             warn!(worker_id, "docker run command missing for worker persona");
@@ -1435,6 +1446,8 @@ impl PostTurnJob {
                         "failed to mark task done after completion"
                     );
                 }
+                // Clear worker session only after full success (checks + merge/ff).
+                self.clear_worker_session().await;
                 if let Err(err) = self.notify_orchestrator_completion().await {
                     warn!(
                         worker_id = self.worker_id,
@@ -1442,7 +1455,6 @@ impl PostTurnJob {
                         "failed to notify orchestrator completion"
                     );
                 }
-                self.clear_worker_session().await;
             }
             Err(error) => {
                 if let Err(err) = self.notify_worker_failure(&error).await {

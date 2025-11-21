@@ -214,7 +214,6 @@ async fn run_manager(mut rx: mpsc::Receiver<DatabaseManagerCommand>) {
                 let _ = respond_to.send(result);
             }
             DatabaseManagerCommand::InsertFeedEntry { entry, respond_to } => {
-                info!(target = entry.target, category = %entry.category, "database manager: insert_feed_entry");
                 let result = feed::insert_feed_entry(entry)
                     .await
                     .map_err(DatabaseManagerError::from);
