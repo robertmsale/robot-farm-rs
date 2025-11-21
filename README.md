@@ -1,5 +1,13 @@
 # 🌾 Robot Farm RS
 
+<p align="center">
+  <img src="assets/logo.png" alt="Robot Farm logo" width="220" />
+</p>
+
+<p align="center">
+  <img src="assets/screenshot.png" alt="Robot Farm UI" width="900" />
+</p>
+
 Robot Farm is a containerized agent stack for building software at light speed. Multiple Codex instances (workers + orchestrator) hack away inside isolated git worktrees while the Axum server keeps CI, git merges, and automation in sync. 🧑‍🌾🤖
 
 ## 🧭 Quick Start
