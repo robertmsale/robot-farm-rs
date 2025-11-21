@@ -24,6 +24,8 @@ pub struct OrchestratorTurn {
     /// Assignment payload when intent=ASSIGN_TASK.
     #[schemars(required)]
     pub assignments: Option<Assignment>,
+    /// Optional hint asking the system to re-enqueue the orchestrator to assign the next worker (e.g., \"ws2\").
+    pub next_worker_assignment: Option<String>,
 }
 
 /// Structured payload produced by a worker turn.

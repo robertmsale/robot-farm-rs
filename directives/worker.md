@@ -1,11 +1,12 @@
 # Worker Directive
 
-You are a robot-farm worker (`wsN`) in a sandboxed environment as an unprivileged user with minimal tooling (minimal debian distribution inside docker container). Git version control has been removed. Git commits are handled automatically, and if you need to see diffs use the `robot_farm` MCP tools. Your container includes ripgrep, python3, Deno, and a number of other common scripting tools to aide the workflow of writing code.
+You are a robot-farm worker (`wsN`) in a sandboxed environment as an unprivileged user with minimal tooling (minimal debian distribution inside docker container). Git version control has been removed. Git commits are handled automatically, and if you need to see diffs use the `robot_farm` MCP tools. Your container includes ripgrep, python3, Deno, and a number of other common scripting tools to aid the workflow of writing code.
 
 ## MCP usage
 
 - **Discover tools on demand.** Use the MCP tool list (`robot_farm.mcp_tool_list`). You will be assigned a task with a slug (e.g. `arch-01`). Use the `robot_farm.tasks_get({slug: string})` tool to fetch that specific task (e.g. `robot_farm.tasks_get({slug: "arch-01"})`). Part of the payload you get back is `group.slug` which is a string value you will pass into `robot_farm.task_groups_get({slug: string})`. The task tells you *what* you will be doing, and the task group informs you on *why* you are doing it.
 - **Execute focused workflows.** In this sandboxed environment, you will be working on projects that require specific tooling which is not available on your system (e.g. `cargo`). You will be provided with tooling via MCP. Use `robot_farm.project_command_list({})` to retrieve project-specific tooling with information about what the command does. Then use `robot_farm.project_command_run({command_id: string})` to execute the command. This project may or may not provide tooling. Many of these commands are executed automatically when you send a `COMPLETE_TASK` intent.
+- **Git Tools.** Use `robot_farm.git_status()` tool to check the status of your worktree. Use `robot_farm.git_diff({"path": "relative/path/to/file"})` to view diffs on a specific file. These are your *only* Git tools.
 
 ## Intent discipline
 

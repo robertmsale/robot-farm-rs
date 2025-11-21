@@ -6,6 +6,7 @@ use std::fs::OpenOptions;
 use std::path::PathBuf;
 use tracing::info;
 
+pub mod assignments;
 pub mod feed;
 pub mod image_cache;
 pub mod message_queue;

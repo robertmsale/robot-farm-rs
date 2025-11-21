@@ -2,6 +2,7 @@ use crate::ai::schemas::{
     Assignment, OrchestratorIntent, OrchestratorTurn, WorkerCompletion, WorkerIntent, WorkerTurn,
 };
 use crate::db;
+use crate::db::assignments;
 use crate::db::feed::NewFeedEntry;
 use crate::db::message_queue::{MessageFilters, RelativePosition};
 use crate::db::task as task_db;
@@ -519,6 +520,26 @@ impl QueueManagerRuntime {
             }
             OrchestratorIntent::AckPause => {}
         }
+        if let Some(next_worker) = turn.next_worker_assignment.as_deref() {
+            self.enqueue_orchestrator_followup(next_worker).await?;
+        }
+        Ok(())
+    }
+
+    async fn enqueue_orchestrator_followup(
+        &self,
+        worker_label: &str,
+    ) -> Result<(), QueueManagerError> {
+        if !worker_label.to_ascii_lowercase().starts_with("ws") {
+            warn!(worker_label, "ignoring invalid next_worker_assignment");
+            return Ok(());
+        }
+        let body = format!(
+            "Continue assigning tasks; next worker requested: {}",
+            worker_label
+        );
+        self.enqueue_message(SystemActor::System, SystemActor::Orchestrator, &body)
+            .await?;
         Ok(())
     }
 
@@ -920,7 +941,7 @@ impl QueueManagerRuntime {
             working_dir: PathBuf::from(PROJECT_DIR.as_str()),
             stream_stdout: true,
             stream_stderr: true,
-            stdin: Some(Self::format_orchestrator_prompt(message).into_bytes()),
+            stdin: Some(self.format_orchestrator_prompt(message).await.into_bytes()),
         };
 
         let handle_rx = self
@@ -1115,9 +1136,9 @@ impl QueueManagerRuntime {
         }
     }
 
-    fn format_orchestrator_prompt(message: &Message) -> String {
+    async fn format_orchestrator_prompt(&self, message: &Message) -> String {
         let summary = message.message.trim();
-        let footer = Self::strategy_footer();
+        let footer = self.strategy_footer().await;
         format!(
             "Queue message #{id} from {from} to {to}:\n\n{summary}\n\nRespond with a JSON object matching the Robot Farm orchestrator turn schema.\n\n{footer}\n",
             id = message.id,
@@ -1128,7 +1149,7 @@ impl QueueManagerRuntime {
         )
     }
 
-    fn strategy_footer() -> String {
+    async fn strategy_footer(&self) -> String {
         let strategy = StrategyState::global().snapshot();
         let strategy_label = strategy.id.to_string();
         let focus = strategy
@@ -1143,9 +1164,32 @@ impl QueueManagerRuntime {
         } else {
             focus.join(", ")
         };
+
+        let assignments = match assignments::list_active_assignments().await {
+            Ok(rows) => rows,
+            Err(err) => {
+                warn!(?err, "failed to load active assignments");
+                Vec::new()
+            }
+        };
+        let total_workers = crate::db::worker::list_workers().await.len() as i64;
+        let active_workers: std::collections::HashSet<_> =
+            assignments.iter().map(|a| a.worker.clone()).collect();
+        let idle_workers = (total_workers - active_workers.len() as i64).max(0);
+        let assignments_str = if assignments.is_empty() {
+            "[]".to_string()
+        } else {
+            let items = assignments
+                .iter()
+                .map(|a| format!("{{worker: \"{}\", task: \"{}\"}}", a.worker, a.task_slug))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("[{items}]")
+        };
+
         format!(
-            "Active Strategy: {} | Focus Groups: {}",
-            strategy_label, focus_str
+            "Active Strategy: {} | Focus Groups: {} | Active Assignments: {} | Idle Workers: {}/{}",
+            strategy_label, focus_str, assignments_str, idle_workers, total_workers
         )
     }
 
