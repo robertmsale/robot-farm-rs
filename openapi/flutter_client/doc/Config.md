@@ -8,6 +8,7 @@ import 'package:my_api_client/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**workspacePath** | **String** | Absolute path of the workspace the server is running in. | [optional] 
 **appendAgentsFile** | [**AppendFilesConfig**](AppendFilesConfig.md) |  | 
 **models** | [**AgentModelOverrides**](AgentModelOverrides.md) |  | 
 **reasoning** | [**AgentReasoningOverrides**](AgentReasoningOverrides.md) |  | 

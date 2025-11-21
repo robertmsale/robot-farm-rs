@@ -23,6 +23,12 @@ class Config {
   });
 
   /// Absolute path of the workspace the server is running in.
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
   String? workspacePath;
 
   AppendFilesConfig appendAgentsFile;
@@ -64,7 +70,11 @@ class Config {
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+    if (this.workspacePath != null) {
       json[r'workspace_path'] = this.workspacePath;
+    } else {
+      json[r'workspace_path'] = null;
+    }
       json[r'append_agents_file'] = this.appendAgentsFile;
       json[r'models'] = this.models;
       json[r'reasoning'] = this.reasoning;
@@ -92,13 +102,13 @@ class Config {
         return true;
       }());
 
-    return Config(
-      workspacePath: json[r'workspace_path'] as String?,
-      appendAgentsFile: AppendFilesConfig.fromJson(json[r'append_agents_file'])!,
-      models: AgentModelOverrides.fromJson(json[r'models'])!,
-      reasoning: AgentReasoningOverrides.fromJson(json[r'reasoning'])!,
-      commands: CommandConfig.listFromJson(json[r'commands']),
-      postTurnChecks: json[r'post_turn_checks'] is Iterable
+      return Config(
+        workspacePath: mapValueOfType<String>(json, r'workspace_path'),
+        appendAgentsFile: AppendFilesConfig.fromJson(json[r'append_agents_file'])!,
+        models: AgentModelOverrides.fromJson(json[r'models'])!,
+        reasoning: AgentReasoningOverrides.fromJson(json[r'reasoning'])!,
+        commands: CommandConfig.listFromJson(json[r'commands']),
+        postTurnChecks: json[r'post_turn_checks'] is Iterable
             ? (json[r'post_turn_checks'] as Iterable).cast<String>().toList(growable: false)
             : const [],
         dockerOverrides: DockerOverrides.fromJson(json[r'docker_overrides'])!,
@@ -157,3 +167,4 @@ class Config {
     'docker_overrides',
   };
 }
+
