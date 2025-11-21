@@ -469,18 +469,35 @@ impl QueueManagerRuntime {
                         &message,
                     )
                     .await?;
+                    self.record_message_feed(
+                        &SystemActor::Worker(worker_id),
+                        &SystemActor::Orchestrator,
+                        &message,
+                        "routing",
+                    )
+                    .await?;
                 }
             }
             WorkerIntent::StatusUpdate => {
-                if let Some(message) = Self::format_status_update(worker_id, &turn) {
+                if let Some(mut message) = Self::format_status_update(worker_id, &turn) {
+                    if let Some(hints) = Self::render_support_hints(worker_id) {
+                        message.push_str("\n\n");
+                        message.push_str(&hints);
+                    }
                     self.enqueue_message(
                         SystemActor::Worker(worker_id),
                         SystemActor::Orchestrator,
                         &message,
                     )
                     .await?;
+                    self.record_message_feed(
+                        &SystemActor::Worker(worker_id),
+                        &SystemActor::Orchestrator,
+                        &message,
+                        "routing",
+                    )
+                    .await?;
                 }
-                Self::record_support_hint(worker_id);
             }
             WorkerIntent::AckPause => {}
         }
@@ -572,6 +589,13 @@ impl QueueManagerRuntime {
             &assignment_message,
         )
         .await?;
+        self.record_message_feed(
+            &SystemActor::Orchestrator,
+            &SystemActor::Worker(worker_id),
+            &assignment_message,
+            "routing",
+        )
+        .await?;
         Ok(())
     }
 
@@ -593,6 +617,13 @@ impl QueueManagerRuntime {
             SystemActor::Orchestrator,
             SystemActor::Worker(worker_id),
             &message,
+        )
+        .await?;
+        self.record_message_feed(
+            &SystemActor::Orchestrator,
+            &SystemActor::Worker(worker_id),
+            &message,
+            "routing",
         )
         .await?;
         Ok(())
@@ -638,6 +669,30 @@ impl QueueManagerRuntime {
             text: message.to_string(),
             raw: raw.to_string(),
             category: feed_category.to_string(),
+        };
+        let feed_entry = self
+            .db
+            .insert_feed_entry(entry)
+            .await
+            .map_err(QueueManagerError::from)?;
+        realtime::publish(RealtimeEvent::FeedEntry(sanitize_feed_entry(&feed_entry)));
+        Ok(())
+    }
+
+    async fn record_message_feed(
+        &self,
+        from: &SystemActor,
+        to: &SystemActor,
+        body: &str,
+        category: &str,
+    ) -> Result<(), QueueManagerError> {
+        let entry = NewFeedEntry {
+            source: from.label(),
+            target: to.label(),
+            level: FeedLevel::Info,
+            text: body.to_string(),
+            raw: String::new(),
+            category: category.to_string(),
         };
         let feed_entry = self
             .db
@@ -1117,7 +1172,7 @@ impl QueueManagerRuntime {
         Some(body)
     }
 
-    fn record_support_hint(worker_id: i64) {
+    fn render_support_hints(worker_id: i64) -> Option<String> {
         let strategy = StrategyState::global().snapshot();
         let mut hints = vec![OrchestratorHint::SendSupport {
             to_worker: worker_id,
@@ -1135,7 +1190,16 @@ impl QueueManagerRuntime {
                 from_groups: focus,
             });
         }
-        QueueCoordinator::global().record_assignment_hint(&hints);
+        if hints.is_empty() {
+            return None;
+        }
+        Some(
+            hints
+                .into_iter()
+                .map(|h| h.render())
+                .collect::<Vec<_>>()
+                .join("\n\n"),
+        )
     }
 
     async fn enqueue_intent(&mut self, intent: ProcessIntent) -> Result<(), QueueManagerError> {
@@ -1314,6 +1378,14 @@ impl PostTurnJob {
     async fn run(self) {
         match self.execute().await {
             Ok(_) => {
+                if let Err(err) = self.mark_task_done().await {
+                    warn!(
+                        worker_id = self.worker_id,
+                        task = self.completion.task_slug,
+                        ?err,
+                        "failed to mark task done after completion"
+                    );
+                }
                 if let Err(err) = self.notify_orchestrator_completion().await {
                     warn!(
                         worker_id = self.worker_id,
@@ -1338,6 +1410,16 @@ impl PostTurnJob {
     async fn execute(&self) -> Result<(), PostTurnError> {
         self.run_post_turn_checks().await?;
         auto_commit_and_merge(self.worker_id, &self.completion).await?;
+        Ok(())
+    }
+
+    async fn mark_task_done(&self) -> Result<(), QueueManagerError> {
+        if self.completion.task_slug.trim().is_empty() {
+            return Ok(());
+        }
+        db::task::mark_done_and_owner(&self.completion.task_slug, "Quality Assurance")
+            .await
+            .map_err(|err| QueueManagerError::Assignment(err.to_string()))?;
         Ok(())
     }
 
@@ -1520,7 +1602,13 @@ async fn auto_commit_and_merge(
 
     git::stage_all(&worker_root).map_err(PostTurnError::Git)?;
 
-    match git::commit(&worker_root, &completed.commit_summary) {
+    let commit_message = format!(
+        "{}: {}",
+        completed.task_slug.trim(),
+        completed.commit_summary.trim()
+    );
+
+    match git::commit(&worker_root, &commit_message) {
         Ok(_) => {}
         Err(git::GitError::CommandFailure { stderr }) if stderr.contains("nothing to commit") => {
             return Err(PostTurnError::NothingToCommit);

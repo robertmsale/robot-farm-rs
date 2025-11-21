@@ -170,17 +170,8 @@ impl QueueCoordinator {
     }
 
     pub fn record_assignment_hint(&self, hints: &[OrchestratorHint]) {
-        for hint in hints {
-            let event = SystemEvent::new(
-                FeedLevel::Info,
-                SystemActor::System,
-                SystemActor::Orchestrator,
-                SystemEventCategory::Strategy,
-                hint.render(),
-                json!({"hint": hint.render()}),
-            );
-            self.record_event(event);
-        }
+        // Hints are now injected directly into orchestrator-bound messages; no feed spam.
+        let _ = hints;
     }
 
     pub fn user_message(

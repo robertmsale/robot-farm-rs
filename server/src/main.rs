@@ -56,7 +56,7 @@ async fn main() -> Result<(), anyhow::Error> {
     system::init_system_state();
     realtime::init();
 
-    make_worker_image();
+    make_worker_image().await;
     threads::init_background_threads();
     let app: Router = routes::build_routes();
     let port = 8080;

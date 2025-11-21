@@ -139,12 +139,14 @@ class AgentModelOverridesOrchestratorEnum {
 
   String toJson() => value;
 
+  static const gpt5Period1CodexMax = AgentModelOverridesOrchestratorEnum._(r'gpt-5.1-codex-max');
   static const gpt5Period1Codex = AgentModelOverridesOrchestratorEnum._(r'gpt-5.1-codex');
   static const gpt5Period1CodexMini = AgentModelOverridesOrchestratorEnum._(r'gpt-5.1-codex-mini');
   static const gpt5Period1 = AgentModelOverridesOrchestratorEnum._(r'gpt-5.1');
 
   /// List of all possible values in this [enum][AgentModelOverridesOrchestratorEnum].
   static const values = <AgentModelOverridesOrchestratorEnum>[
+    gpt5Period1CodexMax,
     gpt5Period1Codex,
     gpt5Period1CodexMini,
     gpt5Period1,
@@ -186,6 +188,7 @@ class AgentModelOverridesOrchestratorEnumTypeTransformer {
   AgentModelOverridesOrchestratorEnum? decode(dynamic data, {bool allowNull = true}) {
     if (data != null) {
       switch (data) {
+        case r'gpt-5.1-codex-max': return AgentModelOverridesOrchestratorEnum.gpt5Period1CodexMax;
         case r'gpt-5.1-codex': return AgentModelOverridesOrchestratorEnum.gpt5Period1Codex;
         case r'gpt-5.1-codex-mini': return AgentModelOverridesOrchestratorEnum.gpt5Period1CodexMini;
         case r'gpt-5.1': return AgentModelOverridesOrchestratorEnum.gpt5Period1;
@@ -216,12 +219,14 @@ class AgentModelOverridesWorkerEnum {
 
   String toJson() => value;
 
+  static const gpt5Period1CodexMax = AgentModelOverridesWorkerEnum._(r'gpt-5.1-codex-max');
   static const gpt5Period1Codex = AgentModelOverridesWorkerEnum._(r'gpt-5.1-codex');
   static const gpt5Period1CodexMini = AgentModelOverridesWorkerEnum._(r'gpt-5.1-codex-mini');
   static const gpt5Period1 = AgentModelOverridesWorkerEnum._(r'gpt-5.1');
 
   /// List of all possible values in this [enum][AgentModelOverridesWorkerEnum].
   static const values = <AgentModelOverridesWorkerEnum>[
+    gpt5Period1CodexMax,
     gpt5Period1Codex,
     gpt5Period1CodexMini,
     gpt5Period1,
@@ -263,6 +268,7 @@ class AgentModelOverridesWorkerEnumTypeTransformer {
   AgentModelOverridesWorkerEnum? decode(dynamic data, {bool allowNull = true}) {
     if (data != null) {
       switch (data) {
+        case r'gpt-5.1-codex-max': return AgentModelOverridesWorkerEnum.gpt5Period1CodexMax;
         case r'gpt-5.1-codex': return AgentModelOverridesWorkerEnum.gpt5Period1Codex;
         case r'gpt-5.1-codex-mini': return AgentModelOverridesWorkerEnum.gpt5Period1CodexMini;
         case r'gpt-5.1': return AgentModelOverridesWorkerEnum.gpt5Period1;
@@ -293,12 +299,14 @@ class AgentModelOverridesWizardEnum {
 
   String toJson() => value;
 
+  static const gpt5Period1CodexMax = AgentModelOverridesWizardEnum._(r'gpt-5.1-codex-max');
   static const gpt5Period1Codex = AgentModelOverridesWizardEnum._(r'gpt-5.1-codex');
   static const gpt5Period1CodexMini = AgentModelOverridesWizardEnum._(r'gpt-5.1-codex-mini');
   static const gpt5Period1 = AgentModelOverridesWizardEnum._(r'gpt-5.1');
 
   /// List of all possible values in this [enum][AgentModelOverridesWizardEnum].
   static const values = <AgentModelOverridesWizardEnum>[
+    gpt5Period1CodexMax,
     gpt5Period1Codex,
     gpt5Period1CodexMini,
     gpt5Period1,
@@ -340,6 +348,7 @@ class AgentModelOverridesWizardEnumTypeTransformer {
   AgentModelOverridesWizardEnum? decode(dynamic data, {bool allowNull = true}) {
     if (data != null) {
       switch (data) {
+        case r'gpt-5.1-codex-max': return AgentModelOverridesWizardEnum.gpt5Period1CodexMax;
         case r'gpt-5.1-codex': return AgentModelOverridesWizardEnum.gpt5Period1Codex;
         case r'gpt-5.1-codex-mini': return AgentModelOverridesWizardEnum.gpt5Period1CodexMini;
         case r'gpt-5.1': return AgentModelOverridesWizardEnum.gpt5Period1;
@@ -355,5 +364,4 @@ class AgentModelOverridesWizardEnumTypeTransformer {
   /// Singleton [AgentModelOverridesWizardEnumTypeTransformer] instance.
   static AgentModelOverridesWizardEnumTypeTransformer? _instance;
 }
-
 

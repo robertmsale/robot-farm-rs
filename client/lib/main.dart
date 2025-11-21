@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -1428,7 +1427,7 @@ class _SystemEventViewModel {
 
     Widget? body;
     final subtitle =
-        'Source: ${event.source} • Target: ${event.target} • ${event.category}';
+        'Source: ${event.source} • Target: ${event.target} • ${event.category} • ${_formatTimestamp(event.timestamp)}';
 
     if (fullDetail) {
       body = _OutputBubble(text: event.details);
@@ -1444,6 +1443,12 @@ class _SystemEventViewModel {
       color: color,
     );
   }
+}
+
+String _formatTimestamp(DateTime ts) {
+  final local = ts.toLocal();
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${local.year}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}';
 }
 
 class _OutputBubble extends StatelessWidget {
@@ -1858,11 +1863,13 @@ class SettingsController extends GetxController {
       TextEditingController();
   final TextEditingController workerDockerController = TextEditingController();
   final TextEditingController wizardDockerController = TextEditingController();
+  static const String _modelCodexMax = 'gpt-5.1-codex-max';
   static const String _modelCodex = 'gpt-5.1-codex';
   static const String _modelCodexMini = 'gpt-5.1-codex-mini';
   static const String _modelGpt51 = 'gpt-5.1';
   static const String _defaultReasoning = 'medium';
   static const List<String> modelOptions = <String>[
+    _modelCodexMax,
     _modelCodex,
     _modelCodexMini,
     _modelGpt51,
@@ -2586,10 +2593,8 @@ class SettingsScreen extends StatelessWidget {
                 )
               else
                 SizedBox(
-                  height: math.min(
-                    360,
-                    controller.postTurnChecks.length * 70.0 + 24,
-                  ),
+                  // Expand to fit all checks (no internal scroll).
+                  height: controller.postTurnChecks.length * 70.0 + 24,
                   child: ReorderableListView.builder(
                     itemCount: controller.postTurnChecks.length,
                     shrinkWrap: true,

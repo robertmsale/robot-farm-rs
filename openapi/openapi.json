@@ -1617,6 +1617,7 @@
             "type": "string",
             "description": "Codex model used for the orchestrator persona.",
             "enum": [
+              "gpt-5.1-codex-max",
               "gpt-5.1-codex",
               "gpt-5.1-codex-mini",
               "gpt-5.1"
@@ -1626,6 +1627,7 @@
             "type": "string",
             "description": "Codex model used for worker personas.",
             "enum": [
+              "gpt-5.1-codex-max",
               "gpt-5.1-codex",
               "gpt-5.1-codex-mini",
               "gpt-5.1"
@@ -1635,6 +1637,7 @@
             "type": "string",
             "description": "Codex model used by the task wizard helper.",
             "enum": [
+              "gpt-5.1-codex-max",
               "gpt-5.1-codex",
               "gpt-5.1-codex-mini",
               "gpt-5.1"

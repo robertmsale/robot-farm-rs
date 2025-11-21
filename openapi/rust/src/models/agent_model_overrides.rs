@@ -38,6 +38,8 @@ impl AgentModelOverrides {
 /// Codex model used for the orchestrator persona.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Orchestrator {
+    #[serde(rename = "gpt-5.1-codex-max")]
+    Gpt5Period1CodexMax,
     #[serde(rename = "gpt-5.1-codex")]
     Gpt5Period1Codex,
     #[serde(rename = "gpt-5.1-codex-mini")]
@@ -54,6 +56,8 @@ impl Default for Orchestrator {
 /// Codex model used for worker personas.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Worker {
+    #[serde(rename = "gpt-5.1-codex-max")]
+    Gpt5Period1CodexMax,
     #[serde(rename = "gpt-5.1-codex")]
     Gpt5Period1Codex,
     #[serde(rename = "gpt-5.1-codex-mini")]
@@ -70,6 +74,8 @@ impl Default for Worker {
 /// Codex model used by the task wizard helper.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Wizard {
+    #[serde(rename = "gpt-5.1-codex-max")]
+    Gpt5Period1CodexMax,
     #[serde(rename = "gpt-5.1-codex")]
     Gpt5Period1Codex,
     #[serde(rename = "gpt-5.1-codex-mini")]

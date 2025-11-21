@@ -1,13 +1,16 @@
 use crate::ai::schemas::{OrchestratorTurn, WorkerTurn, generated_schema_for};
-use crate::globals::{PROJECT_DIR, PROJECT_NAME};
+use crate::db::image_cache;
+use crate::globals::PROJECT_NAME;
 use crate::routes::config::CONFIG_DIR;
 use schemars::JsonSchema;
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::LazyLock;
 use tempfile::TempDir;
-use tracing::info;
+use tracing::{debug, info};
 
 pub const DOCKER_PREFIX: &str = include_str!("../../images/Dockerfile");
 pub const DOCKER_SUFFIX: &str = include_str!("../../images/Dockerfile.cleanup");
@@ -39,7 +42,7 @@ impl ImageType {
 }
 
 /// Creates 3 docker images, one for each Codex executor
-pub fn make_worker_image() {
+pub async fn make_worker_image() {
     let p = PathBuf::from(format!("{}/Dockerfile", CONFIG_DIR.as_str()));
     if !p.exists() {
         if let Some(parent) = p.parent() {
@@ -57,14 +60,32 @@ pub fn make_worker_image() {
     let orch_image = DOCKER_IMAGE_ORCHESTRATOR.as_str();
     let work_image = DOCKER_IMAGE_WORKER.as_str();
     let tmp = TempDir::new().unwrap_or_else(|_| panic!("failed to create temporary directory"));
-    info!("Creating Orchestrator image");
-    generate_response_schema::<OrchestratorTurn>(&tmp);
-    run_docker_build(tmp.path(), &concatenated, orch_image);
-    info!("Creating Worker image");
-    generate_response_schema::<WorkerTurn>(&tmp);
-    run_docker_build(tmp.path(), &concatenated, work_image);
-    info!("Creating Wizard image");
-    run_docker_build(tmp.path(), DOCKER_WIZARD, DOCKER_IMAGE_WIZARD);
+    let concatenated_hash = hash_content(&concatenated);
+    let wizard_hash = hash_content(DOCKER_WIZARD);
+
+    if should_build_image(orch_image, &concatenated_hash).await {
+        info!("Creating Orchestrator image");
+        generate_response_schema::<OrchestratorTurn>(&tmp);
+        run_docker_build(tmp.path(), &concatenated, orch_image);
+        store_hash(orch_image, &concatenated_hash).await;
+    } else {
+        info!("Orchestrator image up-to-date; skipping build");
+    }
+    if should_build_image(work_image, &concatenated_hash).await {
+        info!("Creating Worker image");
+        generate_response_schema::<WorkerTurn>(&tmp);
+        run_docker_build(tmp.path(), &concatenated, work_image);
+        store_hash(work_image, &concatenated_hash).await;
+    } else {
+        info!("Worker image up-to-date; skipping build");
+    }
+    if should_build_image(DOCKER_IMAGE_WIZARD, &wizard_hash).await {
+        info!("Creating Wizard image");
+        run_docker_build(tmp.path(), DOCKER_WIZARD, DOCKER_IMAGE_WIZARD);
+        store_hash(DOCKER_IMAGE_WIZARD, &wizard_hash).await;
+    } else {
+        info!("Wizard image up-to-date; skipping build");
+    }
 }
 fn write_schema_file(tmp: &TempDir, schema: schemars::Schema) -> Result<(), anyhow::Error> {
     let bytes = serde_json::to_vec_pretty(&schema)?;
@@ -81,8 +102,6 @@ fn write_schema_file(tmp: &TempDir, schema: schemars::Schema) -> Result<(), anyh
     Ok(())
 }
 fn generate_response_schema<T: JsonSchema>(tmp: &TempDir) {
-    use crate::ai::schemas::{OrchestratorTurn, WorkerTurn, generated_schema_for};
-
     write_schema_file(&tmp, generated_schema_for::<T>())
         .unwrap_or_else(|_| panic!("failed to write schema file"));
 }
@@ -150,4 +169,38 @@ pub fn combine_image_name(workspace_name: &str, image_type: &ImageType) -> Strin
         workspace_name,
         image_type.as_str()
     )
+}
+
+fn hash_content(content: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn docker_image_exists(tag: &str) -> bool {
+    Command::new("docker")
+        .args(["image", "inspect", tag])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+async fn should_build_image(tag: &str, hash: &str) -> bool {
+    let cached = image_cache::get_hash(tag).await.ok().flatten();
+    let exists = docker_image_exists(tag);
+    match cached {
+        Some(stored) if stored == hash && exists => {
+            debug!(tag, "image matches cached hash; build skipped");
+            false
+        }
+        _ => true,
+    }
+}
+
+async fn store_hash(tag: &str, hash: &str) {
+    if let Err(err) = image_cache::upsert_hash(tag, hash).await {
+        debug!(%err, tag, "failed to record image hash");
+    }
 }

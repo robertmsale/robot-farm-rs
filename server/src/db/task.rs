@@ -3,6 +3,14 @@ use openapi::models::{Task, TaskCreateInput, TaskStatus, TaskUpdateInput};
 use sqlx::Row;
 use tracing::debug;
 
+fn normalize_owner(owner: Option<String>) -> Option<String> {
+    owner.map(|o| o.to_ascii_lowercase())
+}
+
+fn normalize_owner_owned(owner: String) -> String {
+    owner.to_ascii_lowercase()
+}
+
 fn parse_status(raw: &str) -> TaskStatus {
     match raw {
         "Blocked" => TaskStatus::Blocked,
@@ -51,6 +59,7 @@ pub async fn create_task(payload: TaskCreateInput) -> DbResult<Task> {
     } = payload;
 
     let status_str = status.to_string();
+    let owner = normalize_owner_owned(owner);
 
     let row = sqlx::query(
         r#"
@@ -112,6 +121,7 @@ pub async fn update_task(task_id: i64, payload: TaskUpdateInput) -> DbResult<Opt
     debug!(task_id, ?group_id, ?slug, ?title, ?status, owner = ?owner, "Applying task update");
 
     let status = status.map(|s| s.to_string());
+    let owner = normalize_owner(owner);
 
     let row = sqlx::query(
         r#"
@@ -168,4 +178,22 @@ pub async fn get_task_by_slug(slug: &str) -> DbResult<Option<Task>> {
     .await?;
 
     Ok(row.map(row_to_task))
+}
+
+/// Mark a task as Done and set its owner, matched by slug. Returns true if a row was updated.
+pub async fn mark_done_and_owner(slug: &str, owner: &str) -> DbResult<bool> {
+    let normalized_owner = owner.to_ascii_lowercase();
+    let result = sqlx::query(
+        r#"
+        UPDATE task
+        SET status = 'Done', owner = ?2
+        WHERE slug = ?1
+        "#,
+    )
+    .bind(slug)
+    .bind(normalized_owner)
+    .execute(db::pool())
+    .await?;
+
+    Ok(result.rows_affected() > 0)
 }

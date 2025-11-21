@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use tracing::info;
 
 pub mod feed;
+pub mod image_cache;
 pub mod message_queue;
 pub mod session;
 pub mod task;

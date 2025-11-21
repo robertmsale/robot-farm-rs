@@ -7,6 +7,7 @@ use openapi::models::{
 use parking_lot::RwLock;
 
 pub const MODEL_GPT_5_1_CODEX: &str = "gpt-5.1-codex";
+pub const MODEL_GPT_5_1_CODEX_MAX: &str = "gpt-5.1-codex-max";
 pub const MODEL_GPT_5_1_CODEX_MINI: &str = "gpt-5.1-codex-mini";
 pub const MODEL_GPT_5_1: &str = "gpt-5.1";
 pub const DEFAULT_REASONING: &str = "medium";
@@ -113,6 +114,7 @@ fn ensure_supported(
 
 fn orchestrator_model_name(model: &Orchestrator) -> &'static str {
     match model {
+        Orchestrator::Gpt5Period1CodexMax => MODEL_GPT_5_1_CODEX_MAX,
         Orchestrator::Gpt5Period1Codex => MODEL_GPT_5_1_CODEX,
         Orchestrator::Gpt5Period1CodexMini => MODEL_GPT_5_1_CODEX_MINI,
         Orchestrator::Gpt5Period1 => MODEL_GPT_5_1,
@@ -121,6 +123,7 @@ fn orchestrator_model_name(model: &Orchestrator) -> &'static str {
 
 fn worker_model_name(model: &Worker) -> &'static str {
     match model {
+        Worker::Gpt5Period1CodexMax => MODEL_GPT_5_1_CODEX_MAX,
         Worker::Gpt5Period1Codex => MODEL_GPT_5_1_CODEX,
         Worker::Gpt5Period1CodexMini => MODEL_GPT_5_1_CODEX_MINI,
         Worker::Gpt5Period1 => MODEL_GPT_5_1,
@@ -129,6 +132,7 @@ fn worker_model_name(model: &Worker) -> &'static str {
 
 fn wizard_model_name(model: &Wizard) -> &'static str {
     match model {
+        Wizard::Gpt5Period1CodexMax => MODEL_GPT_5_1_CODEX_MAX,
         Wizard::Gpt5Period1Codex => MODEL_GPT_5_1_CODEX,
         Wizard::Gpt5Period1CodexMini => MODEL_GPT_5_1_CODEX_MINI,
         Wizard::Gpt5Period1 => MODEL_GPT_5_1,
@@ -160,6 +164,7 @@ impl std::fmt::Display for ModelChoice {
 impl From<Orchestrator> for ModelChoice {
     fn from(value: Orchestrator) -> Self {
         match value {
+            Orchestrator::Gpt5Period1CodexMax => ModelChoice::new(MODEL_GPT_5_1_CODEX_MAX, false),
             Orchestrator::Gpt5Period1Codex => ModelChoice::new(MODEL_GPT_5_1_CODEX, false),
             Orchestrator::Gpt5Period1CodexMini => ModelChoice::new(MODEL_GPT_5_1_CODEX_MINI, true),
             Orchestrator::Gpt5Period1 => ModelChoice::new(MODEL_GPT_5_1, false),
@@ -170,6 +175,7 @@ impl From<Orchestrator> for ModelChoice {
 impl From<Worker> for ModelChoice {
     fn from(value: Worker) -> Self {
         match value {
+            Worker::Gpt5Period1CodexMax => ModelChoice::new(MODEL_GPT_5_1_CODEX_MAX, false),
             Worker::Gpt5Period1Codex => ModelChoice::new(MODEL_GPT_5_1_CODEX, false),
             Worker::Gpt5Period1CodexMini => ModelChoice::new(MODEL_GPT_5_1_CODEX_MINI, true),
             Worker::Gpt5Period1 => ModelChoice::new(MODEL_GPT_5_1, false),
@@ -180,6 +186,7 @@ impl From<Worker> for ModelChoice {
 impl From<Wizard> for ModelChoice {
     fn from(value: Wizard) -> Self {
         match value {
+            Wizard::Gpt5Period1CodexMax => ModelChoice::new(MODEL_GPT_5_1_CODEX_MAX, false),
             Wizard::Gpt5Period1Codex => ModelChoice::new(MODEL_GPT_5_1_CODEX, false),
             Wizard::Gpt5Period1CodexMini => ModelChoice::new(MODEL_GPT_5_1_CODEX_MINI, true),
             Wizard::Gpt5Period1 => ModelChoice::new(MODEL_GPT_5_1, false),
