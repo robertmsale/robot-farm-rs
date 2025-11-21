@@ -30,6 +30,7 @@ Method | HTTP request | Description
 [**execWorkerCommand**](DefaultApi.md#execworkercommand) | **POST** /workers/{workerId}/exec | Execute a shell command within a worker workspace
 [**getActiveStrategy**](DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 [**getConfig**](DefaultApi.md#getconfig) | **GET** /config | Get workspace config
+[**getFeedEntry**](DefaultApi.md#getfeedentry) | **GET** /feed/{feedId} | Get feed entry
 [**getGitStatusForWorktree**](DefaultApi.md#getgitstatusforworktree) | **GET** /git/status/{worktreeId} | Get full git status for a specific worktree, including diff hunks.
 [**getGitStatusSummary**](DefaultApi.md#getgitstatussummary) | **GET** /git/status | List git status information for all worktrees.
 [**getHealthz**](DefaultApi.md#gethealthz) | **GET** /healthz | Health check
@@ -866,6 +867,47 @@ This endpoint does not need any parameter.
 ### Return type
 
 [**Config**](Config.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getFeedEntry**
+> Feed getFeedEntry(feedId)
+
+Get feed entry
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final feedId = 789; // int | Feed entry identifier.
+
+try {
+    final result = api_instance.getFeedEntry(feedId);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getFeedEntry: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **feedId** | **int**| Feed entry identifier. | 
+
+### Return type
+
+[**Feed**](Feed.md)
 
 ### Authorization
 

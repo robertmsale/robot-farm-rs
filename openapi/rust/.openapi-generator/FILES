@@ -13,6 +13,7 @@ src/models/append_files_config.rs
 src/models/command_config.rs
 src/models/commit_info.rs
 src/models/config.rs
+src/models/docker_overrides.rs
 src/models/exec_command_input.rs
 src/models/exec_result.rs
 src/models/feed.rs

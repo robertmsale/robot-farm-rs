@@ -196,6 +196,8 @@ class ApiClient {
           return CommitInfo.fromJson(value);
         case 'Config':
           return Config.fromJson(value);
+        case 'DockerOverrides':
+          return DockerOverrides.fromJson(value);
         case 'ExecCommandInput':
           return ExecCommandInput.fromJson(value);
         case 'ExecResult':

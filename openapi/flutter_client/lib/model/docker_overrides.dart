@@ -13,9 +13,9 @@ part of openapi.api;
 class DockerOverrides {
   /// Returns a new [DockerOverrides] instance.
   DockerOverrides({
-    this.orchestrator = const <String>[],
-    this.worker = const <String>[],
-    this.wizard = const <String>[],
+    this.orchestrator = const [],
+    this.worker = const [],
+    this.wizard = const [],
   });
 
   List<String> orchestrator;
@@ -48,10 +48,16 @@ class DockerOverrides {
     return json;
   }
 
+  /// Returns a new [DockerOverrides] instance and imports its values from
+  /// [value] if it's a [Map], null otherwise.
+  // ignore: prefer_constructors_over_static_methods
   static DockerOverrides? fromJson(dynamic value) {
     if (value is Map) {
       final json = value.cast<String, dynamic>();
 
+      // Ensure that the map contains the required keys.
+      // Note 1: the values aren't checked for validity beyond being non-null.
+      // Note 2: this code is stripped in release mode!
       assert(() {
         requiredKeys.forEach((key) {
           assert(json.containsKey(key), 'Required key "DockerOverrides[$key]" is missing from JSON.');
@@ -102,6 +108,7 @@ class DockerOverrides {
     return map;
   }
 
+  // maps a json object with a list of DockerOverrides-objects as value to a dart map
   static Map<String, List<DockerOverrides>> mapListFromJson(dynamic json, {bool growable = false,}) {
     final map = <String, List<DockerOverrides>>{};
     if (json is Map && json.isNotEmpty) {
@@ -114,9 +121,11 @@ class DockerOverrides {
     return map;
   }
 
+  /// The list of required keys that must be present in a JSON.
   static const requiredKeys = <String>{
     'orchestrator',
     'worker',
     'wizard',
   };
 }
+

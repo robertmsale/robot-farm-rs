@@ -80,6 +80,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**execWorkerCommand**](doc//DefaultApi.md#execworkercommand) | **POST** /workers/{workerId}/exec | Execute a shell command within a worker workspace
 *DefaultApi* | [**getActiveStrategy**](doc//DefaultApi.md#getactivestrategy) | **GET** /strategy | Get active strategy
 *DefaultApi* | [**getConfig**](doc//DefaultApi.md#getconfig) | **GET** /config | Get workspace config
+*DefaultApi* | [**getFeedEntry**](doc//DefaultApi.md#getfeedentry) | **GET** /feed/{feedId} | Get feed entry
 *DefaultApi* | [**getGitStatusForWorktree**](doc//DefaultApi.md#getgitstatusforworktree) | **GET** /git/status/{worktreeId} | Get full git status for a specific worktree, including diff hunks.
 *DefaultApi* | [**getGitStatusSummary**](doc//DefaultApi.md#getgitstatussummary) | **GET** /git/status | List git status information for all worktrees.
 *DefaultApi* | [**getHealthz**](doc//DefaultApi.md#gethealthz) | **GET** /healthz | Health check
@@ -111,6 +112,7 @@ Class | Method | HTTP request | Description
  - [CommandConfig](doc//CommandConfig.md)
  - [CommitInfo](doc//CommitInfo.md)
  - [Config](doc//Config.md)
+ - [DockerOverrides](doc//DockerOverrides.md)
  - [ExecCommandInput](doc//ExecCommandInput.md)
  - [ExecResult](doc//ExecResult.md)
  - [Feed](doc//Feed.md)

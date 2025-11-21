@@ -26,36 +26,42 @@ class Worker {
 
   WorkerState state;
 
+  /// Most recent Codex thread id for this worker, if any.
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
   String? threadId;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Worker &&
-          other.id == id &&
-          other.lastSeen == lastSeen &&
-          other.state == state &&
-          other.threadId == threadId;
+  bool operator ==(Object other) => identical(this, other) || other is Worker &&
+    other.id == id &&
+    other.lastSeen == lastSeen &&
+    other.state == state &&
+    other.threadId == threadId;
 
   @override
   int get hashCode =>
-      // ignore: unnecessary_parenthesis
-      (id.hashCode) +
-      (lastSeen.hashCode) +
-      (state.hashCode) +
-      (threadId == null ? 0 : threadId!.hashCode);
+    // ignore: unnecessary_parenthesis
+    (id.hashCode) +
+    (lastSeen.hashCode) +
+    (state.hashCode) +
+    (threadId == null ? 0 : threadId!.hashCode);
 
   @override
-  String toString() =>
-      'Worker[id=$id, lastSeen=$lastSeen, state=$state, threadId=$threadId]';
+  String toString() => 'Worker[id=$id, lastSeen=$lastSeen, state=$state, threadId=$threadId]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
-    json[r'id'] = this.id;
-    json[r'last_seen'] = this.lastSeen;
-    json[r'state'] = this.state;
+      json[r'id'] = this.id;
+      json[r'last_seen'] = this.lastSeen;
+      json[r'state'] = this.state;
     if (this.threadId != null) {
       json[r'thread_id'] = this.threadId;
+    } else {
+      json[r'thread_id'] = null;
     }
     return json;
   }
@@ -72,10 +78,8 @@ class Worker {
       // Note 2: this code is stripped in release mode!
       assert(() {
         requiredKeys.forEach((key) {
-          assert(json.containsKey(key),
-              'Required key "Worker[$key]" is missing from JSON.');
-          assert(json[key] != null,
-              'Required key "Worker[$key]" has a null value in JSON.');
+          assert(json.containsKey(key), 'Required key "Worker[$key]" is missing from JSON.');
+          assert(json[key] != null, 'Required key "Worker[$key]" has a null value in JSON.');
         });
         return true;
       }());
@@ -90,10 +94,7 @@ class Worker {
     return null;
   }
 
-  static List<Worker> listFromJson(
-    dynamic json, {
-    bool growable = false,
-  }) {
+  static List<Worker> listFromJson(dynamic json, {bool growable = false,}) {
     final result = <Worker>[];
     if (json is List && json.isNotEmpty) {
       for (final row in json) {
@@ -121,19 +122,13 @@ class Worker {
   }
 
   // maps a json object with a list of Worker-objects as value to a dart map
-  static Map<String, List<Worker>> mapListFromJson(
-    dynamic json, {
-    bool growable = false,
-  }) {
+  static Map<String, List<Worker>> mapListFromJson(dynamic json, {bool growable = false,}) {
     final map = <String, List<Worker>>{};
     if (json is Map && json.isNotEmpty) {
       // ignore: parameter_assignments
       json = json.cast<String, dynamic>();
       for (final entry in json.entries) {
-        map[entry.key] = Worker.listFromJson(
-          entry.value,
-          growable: growable,
-        );
+        map[entry.key] = Worker.listFromJson(entry.value, growable: growable,);
       }
     }
     return map;
@@ -146,3 +141,4 @@ class Worker {
     'state',
   };
 }
+

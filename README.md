@@ -101,12 +101,20 @@ Stored in WORKSPACE_DIRECTORY/.robot-farm-rs (editable from Flutter UI, with hot
       ],
       "stdout_success_message": "Cargo workspace check reported no errors!", // Optional (exit 0) message instead of build warnings/info
       "hidden": true, // Optionally hide this tool from AIs 
-      "timeout_seconds": 999 // Specify timeout (required)
+      "timeout_seconds": 999, // Specify timeout (required)
+       "cwd": "./" // Optionally specify CWD for command invocation, relative to worktree folder
     }
   ],
   "post_turn_checks": ["cargo-test"] // Run these at the end of a worker's turn, send results to worker on failure
 }
 ```
+
+## 🎛️ Host Commands
+
+- You can specify commands that run on the host machine. Adding args is intentionally disabled so Codex cannot inject shell commands into the host.
+- You may choose to hide these commands so Codex cannot run them (strongly recommended in most cases). Some projects have a very specific order of operations for proper building and testing (e.g. migrating database before validating SQL queries, generating FFI before static analysis, etc.) and despite best efforts, Codex will eventually forget the precise order to run tooling, see errors due to missing previous steps, and runs the risk of fixing a problem that only required them to run a previous build step. Encouraging them to rely on COMPLETE_TASK intent and post turn validation enforces build order at the system level. Hiding tooling sometimes frustrates Codex and despite best efforts to inform them that testing and code validation is done automatically when they complete tasks, they might try to download SDKs into your software project. I recommend disabling networking, configuring MCP servers for fetching code docs, and setting sandbox to "danger-full-access". That way they have the autonomy to write code without approvals and can fetch information without CURL or downloading tooling into the project.
+- You can specify CWD of the command relative to the worktree. Some commands expect to be run inside specific folders which is why this setting exists.
+- I recommend keeping post-turn validation scripts outside of worktrees (`../scripts/your-script-here.sh`). You can design them to strip useless outputs (e.g. warnings from `cargo clippy`, DB migrations that ran without errors but produced 1000's of lines of output, etc.) so Codex only sees what's really important. This is extremely handy for optimizing token usage and maintaining focus. Storing the scripts inside the worktree can sometimes result in workers removing output sanitization code and go back to burning through tokens or pedantically chasing useless warnings. Command outputs are just as bad as prompt injection when you want AIs to maintain focus. If you have to put them inside the worktrees, consider using git submodules and maintaining a separate repo for them. This way you can check out any changes they might make using an external post validation script before the other scripts run. Doing that might cause workers to wonder why their edits are being undone automatically though, and the goal should be to remove any potential scheming opportunity.
 
 ## 🧩 Client Highlights
 
@@ -121,11 +129,19 @@ Stored in WORKSPACE_DIRECTORY/.robot-farm-rs (editable from Flutter UI, with hot
 - Flutter: `flutter analyze` and `dart fix --apply` keep the client lint-free.
 - Need extra tooling in Codex containers? Drop a Dockerfile fragment at `<WORKSPACE>/.robot-farm/Dockerfile`; the server folds it in when building the `robot-farm-orchestrator_*` & `robot-farm-worker_*` images.
 
+## 📖 Context Recommendations
+
+`append_agents_file` is a powerful config. For best results, follow these guidelines:
+
+- **Orchestrator:** Append an extremely condensed version of what you normally use in regular sessions. The orchestrator should be acutely aware of the project at an architectural level (enough to make task assignment decisions) and that's all. If you provide too much project information, the orchestrator will forget to assign tasks and in some cases begin editing code themselves. Start with an empty project-specific directive and build from there.
+- **Worker:** You typically provide a full-sized AGENTS file to workers. If your existing file is relatively large (>16KB), you may consider condensing it. Testing has shown that AGENTS chains exceeding 16KB results in "acknowledgement loops." Where instead of writing code the worker will tell the orchestrator about how it's going to write code but never actually writes anything. The orchestrator is aware of this situation and has special instructions for handling this automatically, but excessively large AGENTS files increases the risk of this substantially. Experiment with this by starting up the server and reading the AGENTS.override.md file size. Also look at the ratio of worker's built-in directive compared to the one you're providing. 50% robot farm and 50% project specific is a good balance.
+- **AGENTS Composition:** You can append multiple files and you can change this configuration during runtime. Files are canonically resolved relative to the worktree folder, so if you want to store directives in the workspace you may use `../` to escape the worktree. This canonicalization applies to other path-based configs including commands and post-turn validation.
+
 ## 🚗 Road Map
 
 - "Stakeholder" mode: a dedicated worktree where a stakeholder may iterate over UI design (use VPN, provide connection details), submits to code review bot who merges it into a worker tree, creates and assigns a task to that worker
 - Scheming watcher: a fast and dirt cheap API bot (like grok-code-fast-1 or gpt-5.1-codex-mini, or even gpt-5.1-nano) to watch reasoning messages and identify whether they are drifting from the task or scheming to break out of the sandbox. Can create scripted responses based on the category to automatically realign the worker.
-- 
+- Task-Specific AGENTS: the ability to inject additional, task-specific information about a task into the AGENTS pipeline for workers.
 
 ## 🤝 Contributing
 

@@ -10,6 +10,7 @@ doc/CommandConfig.md
 doc/CommitInfo.md
 doc/Config.md
 doc/DefaultApi.md
+doc/DockerOverrides.md
 doc/ExecCommandInput.md
 doc/ExecResult.md
 doc/Feed.md
@@ -58,6 +59,7 @@ lib/model/append_files_config.dart
 lib/model/command_config.dart
 lib/model/commit_info.dart
 lib/model/config.dart
+lib/model/docker_overrides.dart
 lib/model/exec_command_input.dart
 lib/model/exec_result.dart
 lib/model/feed.dart
@@ -89,3 +91,4 @@ lib/model/task_update_input.dart
 lib/model/worker.dart
 lib/model/worker_state.dart
 pubspec.yaml
+test/docker_overrides_test.dart
