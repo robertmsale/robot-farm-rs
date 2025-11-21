@@ -846,6 +846,16 @@ impl QueueManagerRuntime {
             return Ok(false);
         }
 
+        // Keep worker branch up to date with staging before starting a new task/run.
+        if let Err(err) = git::merge_ff_only(&worktree, "staging") {
+            warn!(
+                ?err,
+                worker_id,
+                "failed to fast-forward worker to staging before dispatch; skipping turn"
+            );
+            return Ok(false);
+        }
+
         let session_id = match db::session::get_session(&format!("ws{worker_id}")).await {
             Ok(value) => value,
             Err(err) => {

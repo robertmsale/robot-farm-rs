@@ -103,6 +103,19 @@ pub fn merge_ff_only(repo_root: &Path, revision: &str) -> Result<(), GitError> {
     Ok(())
 }
 
+pub fn pull_ff_only(repo_root: &Path, remote: &str, branch: &str) -> Result<(), GitError> {
+    run_git_command(
+        repo_root,
+        vec![
+            OsString::from("pull"),
+            OsString::from("--ff-only"),
+            OsString::from(remote),
+            OsString::from(branch),
+        ],
+    )?;
+    Ok(())
+}
+
 pub fn stage_all(repo_root: &Path) -> Result<(), GitError> {
     run_git_command(
         repo_root,

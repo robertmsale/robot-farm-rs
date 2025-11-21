@@ -462,6 +462,7 @@ class _TaskListView extends StatelessWidget {
         final task = tasks[index];
         return Card(
           child: ListTile(
+            onTap: () async => onEdit(task),
             title: Text(task.title),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,13 +476,6 @@ class _TaskListView extends StatelessWidget {
                     child: Text('Commit: ${task.commitHash}'),
                   ),
               ],
-            ),
-            trailing: IconButton(
-              tooltip: 'Edit task',
-              icon: const Icon(Icons.edit),
-              onPressed: () async {
-                await onEdit(task);
-              },
             ),
           ),
         );
