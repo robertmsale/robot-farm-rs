@@ -458,8 +458,15 @@ class ConnectionController extends GetxController {
     }
     try {
       final client = robot_farm_api.ApiClient(basePath: baseUrl);
-      final api = robot_farm_api.DefaultApi(client);
-      await api.fastForwardAllWorktrees();
+      await client.invokeAPI(
+        '/git/fast_forward_all',
+        'POST',
+        const <robot_farm_api.QueryParam>[],
+        null,
+        <String, String>{},
+        <String, String>{},
+        null,
+      );
       Get.snackbar('Fast-forward', 'All worktrees were fast-forwarded.');
     } on robot_farm_api.ApiException catch (err) {
       Get.snackbar(

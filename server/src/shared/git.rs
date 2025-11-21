@@ -116,6 +116,10 @@ pub fn pull_ff_only(repo_root: &Path, remote: &str, branch: &str) -> Result<(), 
     Ok(())
 }
 
+pub fn fast_forward_to_staging(worktree_path: &Path) -> Result<(), GitError> {
+    merge_ff_only(worktree_path, "staging")
+}
+
 pub fn stage_all(repo_root: &Path) -> Result<(), GitError> {
     run_git_command(
         repo_root,
@@ -232,6 +236,22 @@ pub fn collect_all_worktree_statuses(
     }
     statuses.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(statuses)
+}
+
+pub fn fast_forward_all_worktrees(project_root: &Path) -> Result<(), GitError> {
+    let staging_dir = project_root.join("staging");
+    let worktree_paths = list_worktrees(&staging_dir)?;
+    for path in worktree_paths {
+        let id = derive_worktree_id(&path);
+        if id == "staging" {
+            continue;
+        }
+        // Try to fast-forward worker branches to staging; skip on failure so others continue.
+        if let Err(err) = merge_ff_only(&path, "staging") {
+            return Err(err);
+        }
+    }
+    Ok(())
 }
 
 pub fn collect_worktree_status(

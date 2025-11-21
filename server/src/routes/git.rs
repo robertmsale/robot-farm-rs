@@ -7,6 +7,7 @@ use axum::{
     Json,
     extract::{Path, Query},
     http::StatusCode,
+    routing::post,
 };
 use openapi::models::{
     CommitInfo, GitStatusFileChange, GitStatusHunk, GitStatusSummary, GitWorktreeStatus,
@@ -96,6 +97,17 @@ pub async fn get_git_status_for_worktree(
         Err(GitError::NotFound(_)) => Err(StatusCode::NOT_FOUND),
         Err(err) => {
             error!(?err, worktree_id, "failed to collect git status");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn fast_forward_all_worktrees() -> Result<StatusCode, StatusCode> {
+    let project_dir = FsPath::new(PROJECT_DIR.as_str());
+    match shared_git::fast_forward_all_worktrees(project_dir) {
+        Ok(_) => Ok(StatusCode::NO_CONTENT),
+        Err(err) => {
+            error!(?err, "failed to fast-forward worktrees");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
