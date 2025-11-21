@@ -277,7 +277,12 @@ pub fn build_default_codex_exec_command(
     port: Option<u16>,
     resume_session: Option<&str>,
 ) -> Vec<String> {
-    let port = port.unwrap_or(8080);
+    let port = port.unwrap_or_else(|| {
+        std::env::var("PORT")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(8080)
+    });
     let builder = match resume_session {
         Some(id) => CodexExecBuilder::resume().session_id(id.to_string()),
         None => CodexExecBuilder::new(),

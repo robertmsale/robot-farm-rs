@@ -26,7 +26,7 @@ pub struct RunnerConfig {
 impl Default for RunnerConfig {
     fn default() -> Self {
         Self {
-            api_port: Some(8080),
+            api_port: Some(current_api_port()),
         }
     }
 }
@@ -34,6 +34,13 @@ impl Default for RunnerConfig {
 pub struct CommandPlan {
     pub docker_args: Vec<String>,
     pub codex_args: Vec<String>,
+}
+
+fn current_api_port() -> u16 {
+    std::env::var("PORT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(8080)
 }
 
 pub fn plan_codex_run(
@@ -56,7 +63,7 @@ pub fn plan_codex_run(
     };
     let launch_settings = codex_config::settings_for(agent_kind);
 
-    let api_port = config.api_port.unwrap_or(8080);
+    let api_port = config.api_port.unwrap_or_else(current_api_port);
     let mcp_url = ensure_default_mcp_url(api_port);
 
     codex = codex
