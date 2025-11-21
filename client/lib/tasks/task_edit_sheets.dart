@@ -45,118 +45,127 @@ Future<TaskGroupEditorResult?> showTaskGroupEditorSheet(
       return GetBuilder<TaskGroupEditorController>(
         init: TaskGroupEditorController(group: group),
         builder: (form) {
-          final padding = EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          );
+          final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-          return Padding(
-            padding: padding,
+          return AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(bottom: bottomInset),
             child: FractionallySizedBox(
               heightFactor: 0.85,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          isCreate ? 'Create Task Group' : 'Edit Task Group',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          tooltip: 'Close',
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(context).maybePop(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: form.slugController,
-                      decoration: const InputDecoration(
-                        labelText: 'Slug',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: form.titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Title',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: form.descriptionController,
-                      maxLines: 8,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                        border: OutlineInputBorder(),
-                      ),
-                      child: Text(
-                        group?.status.value ??
-                            robot_farm_api.TaskGroupStatus.ready.value,
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        if (!isCreate)
-                          Tooltip(
-                            message: _canDeleteGroup(group)
-                                ? 'Delete this task group'
-                                : 'Built-in groups cannot be deleted',
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.delete_outline),
-                              label: const Text('Delete'),
-                              onPressed: _canDeleteGroup(group)
-                                  ? () async {
-                                      final confirmed =
-                                          await _confirmDeletion(
-                                            context,
-                                            group?.title ?? 'this group',
-                                          ) ??
-                                          false;
-                                      if (!confirmed || !context.mounted) {
-                                        return;
-                                      }
-                                      Navigator.of(context).pop(
-                                        const TaskGroupEditorResult.delete(),
-                                      );
-                                    }
-                                  : null,
-                            ),
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            isCreate ? 'Create Task Group' : 'Edit Task Group',
+                            style: Theme.of(context).textTheme.titleLarge,
                           ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          child: const Text('Cancel'),
+                          const Spacer(),
+                          IconButton(
+                            tooltip: 'Close',
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context).maybePop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: form.slugController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Slug',
+                          border: OutlineInputBorder(),
                         ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          onPressed: form.isValid
-                              ? () => Navigator.of(context).pop(
-                                  TaskGroupEditorResult.save(
-                                    form.buildPayload(),
-                                  ),
-                                )
-                              : null,
-                          child: Text(isCreate ? 'Create' : 'Save changes'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: form.titleController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Title',
+                          border: OutlineInputBorder(),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: form.descriptionController,
+                        maxLines: null,
+                        minLines: 6,
+                        keyboardType: TextInputType.multiline,
+                        textAlignVertical: TextAlignVertical.top,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Status',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          group?.status.value ??
+                              robot_farm_api.TaskGroupStatus.ready.value,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          if (!isCreate)
+                            Tooltip(
+                              message: _canDeleteGroup(group)
+                                  ? 'Delete this task group'
+                                  : 'Built-in groups cannot be deleted',
+                              child: TextButton.icon(
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Delete'),
+                                onPressed: _canDeleteGroup(group)
+                                    ? () async {
+                                        final confirmed =
+                                            await _confirmDeletion(
+                                              context,
+                                              group?.title ?? 'this group',
+                                            ) ??
+                                            false;
+                                        if (!confirmed || !context.mounted) {
+                                          return;
+                                        }
+                                        Navigator.of(context).pop(
+                                          const TaskGroupEditorResult.delete(),
+                                        );
+                                      }
+                                    : null,
+                              ),
+                            ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton(
+                            onPressed: form.isValid
+                                ? () => Navigator.of(context).pop(
+                                    TaskGroupEditorResult.save(
+                                      form.buildPayload(),
+                                    ),
+                                  )
+                                : null,
+                            child: Text(isCreate ? 'Create' : 'Save changes'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -208,97 +217,102 @@ Future<TaskEditorResult?> showTaskEditorSheet(
       return GetBuilder<TaskEditorController>(
         init: TaskEditorController(task: task, workerHandles: workerHandles),
         builder: (form) {
-          final padding = EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          );
+          final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-          return Padding(
-            padding: padding,
+          return AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(bottom: bottomInset),
             child: FractionallySizedBox(
               heightFactor: 0.9,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          isCreate ? 'Create Task' : 'Edit Task',
-                          style: Theme.of(context).textTheme.titleLarge,
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            isCreate ? 'Create Task' : 'Edit Task',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            tooltip: 'Close',
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context).maybePop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: form.slugController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Slug',
+                          border: OutlineInputBorder(),
                         ),
-                        const Spacer(),
-                        IconButton(
-                          tooltip: 'Close',
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: form.titleController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Title',
+                          border: OutlineInputBorder(),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: form.slugController,
-                      decoration: const InputDecoration(
-                        labelText: 'Slug',
-                        border: OutlineInputBorder(),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: form.titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Title',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: form.commitController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Commit hash (optional)',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: form.commitController,
-                      decoration: const InputDecoration(
-                        labelText: 'Commit hash (optional)',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<robot_farm_api.TaskStatus>(
+                        initialValue: form.selectedStatus,
+                        items: robot_farm_api.TaskStatus.values
+                            .map(
+                              (status) => DropdownMenuItem(
+                                value: status,
+                                child: Text(status.value),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: form.updateStatus,
+                        decoration: const InputDecoration(
+                          labelText: 'Status',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<robot_farm_api.TaskStatus>(
-                      initialValue: form.selectedStatus,
-                      items: robot_farm_api.TaskStatus.values
-                          .map(
-                            (status) => DropdownMenuItem(
-                              value: status,
-                              child: Text(status.value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: form.updateStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: form.selectedOwner,
+                        items: form.ownerOptions
+                            .map(
+                              (owner) => DropdownMenuItem(
+                                value: owner,
+                                child: Text(owner),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: form.updateOwner,
+                        decoration: const InputDecoration(
+                          labelText: 'Owner',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: form.selectedOwner,
-                      items: form.ownerOptions
-                          .map(
-                            (owner) => DropdownMenuItem(
-                              value: owner,
-                              child: Text(owner),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: form.updateOwner,
-                      decoration: const InputDecoration(
-                        labelText: 'Owner',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: TextField(
+                      const SizedBox(height: 12),
+                      TextField(
                         controller: form.descriptionController,
                         maxLines: null,
-                        expands: true,
+                        minLines: 10,
                         keyboardType: TextInputType.multiline,
                         textAlignVertical: TextAlignVertical.top,
                         decoration: const InputDecoration(
@@ -307,69 +321,69 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                           alignLabelWithHint: true,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (!isCreate)
-                          TextButton.icon(
-                            icon: const Icon(Icons.delete_outline),
-                            label: const Text('Delete'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.error,
-                            ),
-                            onPressed: () async {
-                              final confirmed =
-                                  await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Delete task'),
-                                      content: Text(
-                                        'Delete ${task?.title ?? 'this task'} permanently?',
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (!isCreate)
+                            TextButton.icon(
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Delete'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.error,
+                              ),
+                              onPressed: () async {
+                                final confirmed =
+                                    await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Delete task'),
+                                        content: Text(
+                                          'Delete ${task?.title ?? 'this task'} permanently?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
                                       ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.of(context).pop(false),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        FilledButton(
-                                          onPressed: () =>
-                                              Navigator.of(context).pop(true),
-                                          child: const Text('Delete'),
-                                        ),
-                                      ],
-                                    ),
-                                  ) ??
-                                  false;
-                              if (!confirmed || !context.mounted) {
-                                return;
-                              }
-                              Navigator.of(
-                                context,
-                              ).pop(const TaskEditorResult.delete());
-                            },
+                                    ) ??
+                                    false;
+                                if (!confirmed || !context.mounted) {
+                                  return;
+                                }
+                                Navigator.of(
+                                  context,
+                                ).pop(const TaskEditorResult.delete());
+                              },
+                            ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            child: const Text('Cancel'),
                           ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          child: const Text('Cancel'),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          onPressed: form.isValid
-                              ? () => Navigator.of(context).pop(
-                                  TaskEditorResult.save(form.buildPayload()),
-                                )
-                              : null,
-                          child: Text(isCreate ? 'Create' : 'Save changes'),
-                        ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 12),
+                          FilledButton(
+                            onPressed: form.isValid
+                                ? () => Navigator.of(context).pop(
+                                    TaskEditorResult.save(form.buildPayload()),
+                                  )
+                                : null,
+                            child: Text(isCreate ? 'Create' : 'Save changes'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
