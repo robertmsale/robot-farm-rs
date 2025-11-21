@@ -59,7 +59,10 @@ async fn main() -> Result<(), anyhow::Error> {
     make_worker_image().await;
     threads::init_background_threads();
     let app: Router = routes::build_routes();
-    let port = 8080;
+    let port: u16 = env::var("PORT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(8080);
     let ipv6_addr = SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port);
     let ipv4_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
 

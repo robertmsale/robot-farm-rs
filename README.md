@@ -62,6 +62,8 @@ Robot Farm is a containerized agent stack for building software at light speed. 
 └── 📁 ws6               </
 ```
 
+- As long as you have a non-bare repository called `./staging` in the workspace you can launch the server. It will seed the database & configs, and from the UI you can add worktrees.
+
 ### 💾 Database Manager
 - Single-threaded broker for SQLx actions (message queue, feed entries). Other modules submit typed intents and await structured responses.
 - Guarantees order (write → realtime broadcast) and keeps axum handlers clean of SQL boilerplate.
