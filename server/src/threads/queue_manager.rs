@@ -514,14 +514,19 @@ impl QueueManagerRuntime {
         match turn.intent {
             OrchestratorIntent::AssignTask => {
                 self.handle_orchestrator_assignment(&turn).await?;
+                if let Some(next_worker) = turn.next_worker_assignment.as_deref() {
+                    self.enqueue_orchestrator_followup(next_worker).await?;
+                }
             }
             OrchestratorIntent::StatusUpdate => {
                 self.handle_orchestrator_status(&turn).await?;
+                if let Some(next_worker) = turn.next_worker_assignment.as_deref() {
+                    self.enqueue_orchestrator_followup(next_worker).await?;
+                }
             }
-            OrchestratorIntent::AckPause => {}
-        }
-        if let Some(next_worker) = turn.next_worker_assignment.as_deref() {
-            self.enqueue_orchestrator_followup(next_worker).await?;
+            OrchestratorIntent::AckPause => {
+                // Safeguard: do not enqueue follow-ups when acknowledging pause.
+            }
         }
         Ok(())
     }
