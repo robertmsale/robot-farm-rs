@@ -450,6 +450,27 @@ class ConnectionController extends GetxController {
     }
   }
 
+  Future<void> fastForwardAllWorktrees() async {
+    final baseUrl = _currentBaseUrl;
+    if (baseUrl == null) {
+      Get.snackbar('Not connected', 'Connect to a server first.');
+      return;
+    }
+    try {
+      final client = robot_farm_api.ApiClient(basePath: baseUrl);
+      final api = robot_farm_api.DefaultApi(client);
+      await api.fastForwardAllWorktrees();
+      Get.snackbar('Fast-forward', 'All worktrees were fast-forwarded.');
+    } on robot_farm_api.ApiException catch (err) {
+      Get.snackbar(
+        'Fast-forward failed',
+        err.message ?? 'Status ${err.code}',
+      );
+    } catch (err) {
+      Get.snackbar('Fast-forward failed', '$err');
+    }
+  }
+
   Future<bool?> _sendQueueStateRequest(
     String baseUrl, {
     required String method,
@@ -1032,6 +1053,9 @@ class HomeScreen extends GetView<ConnectionController> {
                 case _HomeMenuAction.clearFeeds:
                   controller.clearFeeds();
                   break;
+                case _HomeMenuAction.ffAllWorktrees:
+                  controller.fastForwardAllWorktrees();
+                  break;
               }
             },
             itemBuilder: (context) => const [
@@ -1070,6 +1094,13 @@ class HomeScreen extends GetView<ConnectionController> {
                   title: Text('Clear Feeds'),
                 ),
               ),
+              PopupMenuItem(
+                value: _HomeMenuAction.ffAllWorktrees,
+                child: ListTile(
+                  leading: Icon(Icons.download_done),
+                  title: Text('Fast-forward all worktrees'),
+                ),
+              ),
             ],
           ),
           IconButton(
@@ -1097,6 +1128,7 @@ enum _HomeMenuAction {
   taskWizard,
   changeStrategy,
   clearFeeds,
+  ffAllWorktrees,
 }
 
 class OrchestratorPane extends StatelessWidget {

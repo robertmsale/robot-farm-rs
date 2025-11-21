@@ -25,6 +25,7 @@ pub struct OrchestratorTurn {
     #[schemars(required)]
     pub assignments: Option<Assignment>,
     /// Optional hint asking the system to re-enqueue the orchestrator to assign the next worker (e.g., \"ws2\").
+    #[schemars(required)]
     pub next_worker_assignment: Option<String>,
 }
 
