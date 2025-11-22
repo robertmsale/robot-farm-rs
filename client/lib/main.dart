@@ -20,6 +20,7 @@ import 'task_wizard/task_wizard_controller.dart';
 import 'task_wizard/task_wizard_screen.dart';
 import 'tasks/tasks_controller.dart';
 import 'tasks/tasks_screen.dart';
+import 'services/notification_service.dart';
 
 const int kDefaultApiPort = 8080;
 const String kWebsocketPath = '/ws';
@@ -27,6 +28,7 @@ const String kPastLoginsKey = 'past_logins';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  NotificationService.instance.init();
   Get.put(ConnectionController(), permanent: true);
   runApp(const RobotFarmApp());
 }
@@ -105,6 +107,9 @@ class ConnectionController extends GetxController {
       StreamController<robot_farm_api.Feed>.broadcast();
   final StreamController<void> _feedClearedController =
       StreamController<void>.broadcast();
+  final Map<String, ws.WebSocket> _notificationSockets = {};
+  final Map<String, StreamSubscription<ws.WebSocketEvent>> _notificationSubs =
+      {};
   ws.WebSocket? _webSocket;
   StreamSubscription<ws.WebSocketEvent>? _webSocketSubscription;
   SharedPreferences? _prefs;
@@ -157,6 +162,8 @@ class ConnectionController extends GetxController {
     await _recordLogin(hostPort);
 
     _currentBaseUrl = baseUrl;
+    _ensureNotificationSubscription(hostPort);
+    _primeStoredNotificationSubscriptions(hostPort);
     _scheduleReconnect();
     await refreshQueueState();
     await refreshStrategy();
@@ -232,6 +239,74 @@ class ConnectionController extends GetxController {
     _webSocket?.close();
     _webSocketSubscription = null;
     _webSocket = null;
+  }
+
+  void _primeStoredNotificationSubscriptions(String justConnectedHost) {
+    for (final host in pastLogins) {
+      if (host == justConnectedHost) continue;
+      _ensureNotificationSubscription(host);
+    }
+  }
+
+  Future<void> _ensureNotificationSubscription(String hostPort) async {
+    if (_notificationSockets.containsKey(hostPort)) return;
+    final base = _buildBaseUrl(hostPort);
+    if (base == null) return;
+
+    final wsUri = _buildWebsocketUri(base);
+    try {
+      final socket = await ws.WebSocket.connect(wsUri);
+      _notificationSockets[hostPort] = socket;
+      final sub = socket.events.listen((event) {
+        if (event is ws.TextDataReceived) {
+          _handleNotificationText(hostPort, event.text);
+        }
+      }, onDone: () {
+        _notificationSockets.remove(hostPort);
+        _notificationSubs.remove(hostPort);
+      }, onError: (_) {
+        _notificationSockets.remove(hostPort);
+        _notificationSubs.remove(hostPort);
+      });
+      _notificationSubs[hostPort] = sub;
+    } catch (_) {
+      // ignore; will retry on next explicit connect
+    }
+  }
+
+  void _handleNotificationText(String hostPort, String text) async {
+    Map<String, dynamic>? decoded;
+    try {
+      decoded = jsonDecode(text) as Map<String, dynamic>;
+    } catch (_) {
+      return;
+    }
+    final type = decoded['type'];
+    if (type != 'feed_entry') return;
+    final entry = decoded['entry'];
+    if (entry is! Map<String, dynamic>) return;
+    final feed = robot_farm_api.Feed.fromJson(entry);
+    if (feed == null) return;
+
+    // Basic filtering to avoid noise.
+    final category = feed.category.toLowerCase();
+    final shouldNotify = category == 'validation' ||
+        category == 'turn' ||
+        category == 'blocked' ||
+        feed.text.toLowerCase().contains('blocked') ||
+        feed.text.toLowerCase().contains('completed');
+    if (!shouldNotify) return;
+
+    final granted = await NotificationService.instance.ensurePermission();
+    if (!granted) return;
+
+    final title = '[$hostPort] ${feed.source_} \u2192 ${feed.target}'.trim();
+    final body = feed.text;
+    NotificationService.instance.showLocal(
+      title: title,
+      body: body,
+      id: feed.id,
+    );
   }
 
   void _scheduleReconnect() {
@@ -777,6 +852,14 @@ class ConnectionController extends GetxController {
   void onClose() {
     urlController.dispose();
     _closeWebSocket();
+    for (final sub in _notificationSubs.values) {
+      sub.cancel();
+    }
+    for (final sock in _notificationSockets.values) {
+      sock.close();
+    }
+    _notificationSubs.clear();
+    _notificationSockets.clear();
     _currentBaseUrl = null;
     workers.clear();
     _feedController.close();
