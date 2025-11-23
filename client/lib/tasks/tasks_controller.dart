@@ -307,6 +307,18 @@ class TasksController extends GetxController {
     }
   }
 
+  Future<void> setStrategyForGroup(
+    robot_farm_api.Strategy strategy,
+    int groupId,
+  ) async {
+    final api = _apiOrThrow();
+    final payload = robot_farm_api.ActiveStrategy(
+      id: strategy,
+      focus: [groupId],
+    );
+    await api.updateActiveStrategy(payload);
+  }
+
   Future<void> deleteTask(int taskId) async {
     final api = _apiOrThrow();
     try {

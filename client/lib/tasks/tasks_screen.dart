@@ -88,6 +88,84 @@ class TasksScreen extends GetView<TasksController> {
       await controller.createTaskForActiveGroup(payload);
     } catch (error) {
       Get.snackbar('Creation failed', '$error');
+      return;
+    }
+
+    if (!context.mounted) return;
+    await _maybeOfferStrategySwitch(context, group);
+  }
+
+  Future<void> _maybeOfferStrategySwitch(
+    BuildContext context,
+    robot_farm_api.TaskGroup group,
+  ) async {
+    final slug = group.slug.toLowerCase();
+    if (slug == 'chores' || slug == 'bugs' || slug == 'hotfix') {
+      return;
+    }
+    final groupId = group.id;
+
+    final strategies = const [
+      robot_farm_api.Strategy.AGGRESSIVE,
+      robot_farm_api.Strategy.MODERATE,
+      robot_farm_api.Strategy.ECONOMICAL,
+    ];
+    var selected = strategies.first;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Switch strategy?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'You added a task outside chores/bugs/hotfix.\n'
+                'Would you like to switch strategy and focus on this group?',
+              ),
+              const SizedBox(height: 12),
+              DropdownButton<robot_farm_api.Strategy>(
+                value: selected,
+                isExpanded: true,
+                items: strategies
+                    .map(
+                      (s) => DropdownMenuItem(value: s, child: Text(s.value)),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    selected = value;
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('No'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Yes, switch'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await controller.setStrategyForGroup(selected, groupId);
+        Get.snackbar(
+          'Strategy updated',
+          '${selected.value} with focus on ${group.title}',
+        );
+      } catch (err) {
+        Get.snackbar('Strategy update failed', '$err');
+      }
     }
   }
 
