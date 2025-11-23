@@ -319,6 +319,30 @@ class TasksController extends GetxController {
     await api.updateActiveStrategy(payload);
   }
 
+  Future<void> enqueueOrchestratorSeed(
+    String groupTitle,
+    robot_farm_api.Strategy strategy,
+  ) async {
+    final api = _apiOrNull(setGroupError: true);
+    if (api == null) return;
+    final client = api.apiClient;
+    final payload = {
+      'from': 'System',
+      'to': 'Orchestrator',
+      'message':
+          'Strategy set to ${strategy.value}; new task added in group "$groupTitle".',
+    };
+    await client.invokeAPI(
+      '/message_queue',
+      'POST',
+      const <robot_farm_api.QueryParam>[],
+      payload,
+      <String, String>{},
+      <String, String>{},
+      'application/json',
+    );
+  }
+
   Future<void> deleteTask(int taskId) async {
     final api = _apiOrThrow();
     try {

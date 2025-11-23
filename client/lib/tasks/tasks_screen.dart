@@ -110,48 +110,63 @@ class TasksScreen extends GetView<TasksController> {
       robot_farm_api.Strategy.MODERATE,
       robot_farm_api.Strategy.ECONOMICAL,
     ];
-    var selected = strategies.first;
+    robot_farm_api.Strategy selected = strategies.first;
+    var sendSeedMessage = false;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Switch strategy?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'You added a task outside chores/bugs/hotfix.\n'
-                'Would you like to switch strategy and focus on this group?',
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text('Switch strategy?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'You added a task outside chores/bugs/hotfix.\n'
+                  'Would you like to switch strategy and focus on this group?',
+                ),
+                const SizedBox(height: 12),
+                DropdownButton<robot_farm_api.Strategy>(
+                  value: selected,
+                  isExpanded: true,
+                  items: strategies
+                      .map(
+                        (s) => DropdownMenuItem(value: s, child: Text(s.value)),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => selected = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: sendSeedMessage,
+                  onChanged: (checked) =>
+                      setState(() => sendSeedMessage = checked ?? false),
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text(
+                    'Enqueue a message to the orchestrator about this change',
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('No'),
               ),
-              const SizedBox(height: 12),
-              DropdownButton<robot_farm_api.Strategy>(
-                value: selected,
-                isExpanded: true,
-                items: strategies
-                    .map(
-                      (s) => DropdownMenuItem(value: s, child: Text(s.value)),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    selected = value;
-                  }
-                },
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Yes, switch'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('No'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Yes, switch'),
-            ),
-          ],
         );
       },
     );
@@ -159,6 +174,10 @@ class TasksScreen extends GetView<TasksController> {
     if (confirmed == true && context.mounted) {
       try {
         await controller.setStrategyForGroup(selected, groupId);
+        if (sendSeedMessage) {
+          await controller.enqueueOrchestratorSeed(group.title, selected);
+        }
+        Get.offAllNamed('/home');
         Get.snackbar(
           'Strategy updated',
           '${selected.value} with focus on ${group.title}',
