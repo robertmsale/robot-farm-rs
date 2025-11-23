@@ -26,7 +26,7 @@ RUN mkdir -p /etc/apt/keyrings && \
 
 RUN corepack enable && \
     corepack prepare pnpm@9.12.2 --activate && \
-    npm install -g @openai/codex@0.53.0
+    npm install -g @openai/codex@0.58.0
 
 RUN groupadd -g 3000 codex && \
     useradd -m -u 3000 -g codex codex && \
@@ -35,8 +35,5 @@ RUN groupadd -g 3000 codex && \
 
 USER codex
 WORKDIR /home/codex
-
-ENV PNPM_HOME=/home/codex/.local/share/pnpm \
-    PATH=/home/codex/.local/share/pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 ENTRYPOINT ["codex"]

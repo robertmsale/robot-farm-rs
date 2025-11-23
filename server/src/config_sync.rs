@@ -12,6 +12,7 @@ use crate::{
     globals::PROJECT_DIR,
     mcp::project_commands::ProjectCommandRegistry,
     post_turn_checks::PostTurnCheckRegistry,
+    system::staging_hooks,
     routes::config::{self, ConfigError},
     shared::git,
     system::{codex_config, docker_overrides},
@@ -40,6 +41,7 @@ pub fn reload_from_disk() -> Result<(), ConfigSyncError> {
 pub fn clear_state() -> Result<(), ConfigSyncError> {
     ProjectCommandRegistry::global().replace(Vec::new());
     PostTurnCheckRegistry::global().replace(Vec::new());
+    staging_hooks::replace(Vec::new());
     codex_config::reset();
     docker_overrides::reset();
     remove_agent_overrides()?;
@@ -53,6 +55,7 @@ fn apply_config(config: &WorkspaceConfig) -> Result<(), ConfigSyncError> {
     docker_overrides::replace((*config.docker_overrides).clone());
     ProjectCommandRegistry::global().replace(config.commands.clone());
     PostTurnCheckRegistry::global().replace(config.post_turn_checks.clone());
+    staging_hooks::replace(config.on_staging_change.clone().unwrap_or_default());
     regenerate_agent_overrides(&config.append_agents_file)?;
     // workspace_path is informational only; no runtime effect.
     Ok(())

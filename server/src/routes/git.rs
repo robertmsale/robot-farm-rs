@@ -17,6 +17,11 @@ use std::path::Path as FsPath;
 use tracing::error;
 
 #[derive(Debug, Deserialize)]
+pub struct CommitRequest {
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct TaskCommitDiffQuery {
     pub file: String,
 }
@@ -108,6 +113,33 @@ pub async fn fast_forward_all_worktrees() -> Result<StatusCode, StatusCode> {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
         Err(err) => {
             error!(?err, "failed to fast-forward worktrees");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn commit_worktree(
+    Path(worktree_id): Path<String>,
+    Json(payload): Json<CommitRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let project_dir = FsPath::new(PROJECT_DIR.as_str());
+    let worktree = project_dir.join(&worktree_id);
+    if !worktree.exists() {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let message = payload.message.trim();
+    if message.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    if let Err(err) = shared_git::stage_all(&worktree) {
+        error!(?err, worktree_id, "failed to stage all before commit");
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    match shared_git::commit(&worktree, message) {
+        Ok(_) => Ok(StatusCode::NO_CONTENT),
+        Err(GitError::CommandFailure { .. }) => Err(StatusCode::BAD_REQUEST),
+        Err(err) => {
+            error!(?err, worktree_id, "failed to commit worktree");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

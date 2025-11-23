@@ -61,6 +61,10 @@ pub fn build_routes() -> Router {
             "/git/status/{worktreeId}",
             get(git::get_git_status_for_worktree),
         )
+        .route(
+            "/git/commit/{worktreeId}",
+            post(git::commit_worktree),
+        )
         .route("/git/fast_forward_all", post(git::fast_forward_all_worktrees))
         .route(
             "/task-groups",

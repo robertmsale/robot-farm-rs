@@ -30,6 +30,18 @@ pub struct Config {
     pub post_turn_checks: Vec<String>,
     #[serde(rename = "docker_overrides")]
     pub docker_overrides: Box<models::DockerOverrides>,
+    /// Action to take when staging worktree is dirty during task completion.
+    #[serde(
+        rename = "dirty_staging_action",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub dirty_staging_action: Option<String>,
+    /// Commands to execute when staging is updated.
+    #[serde(
+        rename = "on_staging_change",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub on_staging_change: Option<Vec<String>>,
 }
 
 impl Config {
@@ -43,7 +55,8 @@ impl Config {
             commands,
             post_turn_checks,
             docker_overrides: Box::new(docker_overrides),
+            dirty_staging_action: None,
+            on_staging_change: None,
         }
     }
 }
-

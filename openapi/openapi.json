@@ -1179,6 +1179,53 @@
           }
         }
       }
+    },
+    "/git/commit/{worktreeId}": {
+      "post": {
+        "summary": "Commit all changes in a worktree",
+        "parameters": [
+          {
+            "name": "worktreeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Committed"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Worktree not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1569,6 +1616,23 @@
           },
           "docker_overrides": {
             "$ref": "#/components/schemas/DockerOverrides"
+          },
+          "dirty_staging_action": {
+            "type": "string",
+            "enum": [
+              "commit",
+              "stash"
+            ],
+            "description": "Action to take when staging worktree is dirty during task completion.",
+            "default": "commit"
+          },
+          "on_staging_change": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Command IDs to run after staging updates.",
+            "default": []
           }
         },
         "required": [
@@ -1855,15 +1919,15 @@
             "format": "int64",
             "description": "Unix timestamp in seconds when the worker last reported."
           },
-    "state": {
-      "$ref": "#/components/schemas/WorkerState"
-    },
-    "thread_id": {
-      "type": "string",
-      "nullable": true,
-      "description": "Most recent Codex thread id for this worker, if any."
-    }
-  },
+          "state": {
+            "$ref": "#/components/schemas/WorkerState"
+          },
+          "thread_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Most recent Codex thread id for this worker, if any."
+          }
+        },
         "required": [
           "id",
           "last_seen",

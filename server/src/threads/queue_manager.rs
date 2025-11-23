@@ -21,6 +21,7 @@ use crate::system::{
     events::{SystemActor, SystemEvent},
     queue::{QueueCoordinator, QueueError},
     runner::{self, Persona, RunnerConfig},
+    staging_hooks,
     strategy::StrategyState,
 };
 use crate::threads::database_manager::{DatabaseManagerError, DatabaseManagerHandle};
@@ -843,6 +844,13 @@ impl QueueManagerRuntime {
         let worktree = worker_worktree_path(worker_id);
         if !worktree.exists() {
             warn!(worker_id, path = %worktree.display(), "worker worktree missing; skipping queue entry");
+            return Ok(false);
+        }
+
+        // If staging is dirty, normalize it per config before trying to sync the worker.
+        let staging = staging_path();
+        if let Err(err) = ensure_clean_staging(worker_id, &staging) {
+            warn!(?err, worker_id, "failed to normalize dirty staging before dispatch; skipping turn");
             return Ok(false);
         }
 
@@ -1707,6 +1715,7 @@ async fn auto_commit_and_merge(
     }
 
     let staging = staging_path();
+    ensure_clean_staging(worker_id, &staging)?;
     let branch = format!("ws{worker_id}");
     if let Err(err) = git::merge_ff_only(&staging, &branch) {
         debug!(
@@ -1721,6 +1730,90 @@ async fn auto_commit_and_merge(
         }
     }
 
+    // Run staging hooks after staging has been updated.
+    if let Err(err) = run_staging_hooks().await {
+        warn!(?err, "on_staging_change hook(s) failed after merging ws{worker_id}");
+    }
+
+    // Keep worker branch aligned after staging is updated.
+    if let Err(err) = git::merge_ff_only(&worker_root, "staging") {
+        return Err(PostTurnError::Git(err));
+    }
+
+    Ok(())
+}
+
+fn ensure_clean_staging(worker_id: i64, staging: &Path) -> Result<(), PostTurnError> {
+    let dirty = git::is_dirty(staging).map_err(PostTurnError::Git)?;
+    if !dirty {
+        return Ok(());
+    }
+
+    let action = crate::system::dirty_staging::current();
+    match action {
+        crate::system::dirty_staging::DirtyStagingAction::Commit => {
+            git::stage_all(staging).map_err(PostTurnError::Git)?;
+            let msg = format!(
+                "Robot Farm auto-commit dirty staging before merging ws{worker_id}"
+            );
+            git::commit(staging, &msg).map_err(PostTurnError::Git)?;
+        }
+        crate::system::dirty_staging::DirtyStagingAction::Stash => {
+            let msg = format!(
+                "Robot Farm auto-stash dirty staging before merging ws{worker_id}"
+            );
+            git::stash_all(staging, &msg).map_err(PostTurnError::Git)?;
+        }
+    }
+    Ok(())
+}
+
+async fn run_staging_hooks() -> Result<(), PostTurnError> {
+    let commands = staging_hooks::list();
+    if commands.is_empty() {
+        return Ok(());
+    }
+    let registry = ProjectCommandRegistry::global();
+    let workspace_root = PathBuf::from(PROJECT_DIR.as_str());
+    for id in commands {
+        let Some(cmd) = registry.get(&id) else {
+            warn!(%id, "on_staging_change command not found");
+            continue;
+        };
+        if cmd.exec.is_empty() {
+            warn!(%id, "on_staging_change command has empty exec");
+            continue;
+        }
+        // run locally on host (same as post_turn_checks)
+        let working_dir = shell::resolve_working_dir(
+            &workspace_root,
+            &staging_path(),
+            cmd.cwd.as_deref(),
+        )
+        .map_err(|err| PostTurnError::InvalidWorkingDir(err.to_string()))?;
+
+        let child = tokio::process::Command::new(&cmd.exec[0])
+            .args(&cmd.exec[1..])
+            .current_dir(&working_dir)
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| PostTurnError::Spawn(e.to_string()))?;
+
+        let output = child.wait_with_output().await.map_err(|e| PostTurnError::Spawn(e.to_string()))?;
+        if !output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            error!(
+                command_id = %id,
+                exit = ?output.status.code(),
+                %stdout,
+                %stderr,
+                "on_staging_change command failed"
+            );
+        }
+    }
     Ok(())
 }
 

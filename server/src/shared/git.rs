@@ -140,6 +140,25 @@ pub fn commit(repo_root: &Path, message: &str) -> Result<(), GitError> {
     Ok(())
 }
 
+pub fn is_dirty(repo_root: &Path) -> Result<bool, GitError> {
+    let status = collect_status_for_path("staging".to_string(), repo_root.to_path_buf(), false)?;
+    Ok(status.is_dirty)
+}
+
+pub fn stash_all(repo_root: &Path, message: &str) -> Result<(), GitError> {
+    run_git_command(
+        repo_root,
+        vec![
+            OsString::from("stash"),
+            OsString::from("push"),
+            OsString::from("-u"),
+            OsString::from("-m"),
+            OsString::from(message),
+        ],
+    )?;
+    Ok(())
+}
+
 pub fn abort_merge(repo_root: &Path) -> Result<(), GitError> {
     run_git_command(
         repo_root,

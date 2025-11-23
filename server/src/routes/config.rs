@@ -1,4 +1,8 @@
-use crate::{config_sync, globals::PROJECT_DIR, system::codex_config};
+use crate::{
+    config_sync,
+    globals::PROJECT_DIR,
+    system::{codex_config, dirty_staging::DirtyStagingAction},
+};
 use axum::{Json, http::StatusCode};
 use openapi::models::{AppendFilesConfig, Config as WorkspaceConfig, DockerOverrides};
 use serde_json::{Error as SerdeError, Value};
@@ -39,6 +43,15 @@ pub fn load_config_from_disk() -> Result<WorkspaceConfig, ConfigError> {
 
     let mut value: Value = serde_json::from_str(&raw)?;
     let defaults_added = hydrate_new_fields(&mut value)?;
+    if let Some(action) = value
+        .get("dirty_staging_action")
+        .and_then(|v| v.as_str())
+        .and_then(DirtyStagingAction::from_str)
+    {
+        crate::system::dirty_staging::set(action);
+    } else {
+        crate::system::dirty_staging::set(DirtyStagingAction::Commit);
+    }
     let config: WorkspaceConfig = serde_json::from_value(value)?;
     if defaults_added {
         write_config_to_disk(&config)?;
@@ -74,6 +87,8 @@ fn default_config() -> WorkspaceConfig {
         commands: vec![],
         post_turn_checks: vec![],
         docker_overrides: Box::new(default_docker_overrides()),
+        dirty_staging_action: Some(DirtyStagingAction::Commit.as_str().to_string()),
+        on_staging_change: Some(vec![]),
     }
 }
 
@@ -173,6 +188,20 @@ fn hydrate_new_fields(value: &mut Value) -> Result<bool, SerdeError> {
         object.insert(
             "docker_overrides".to_string(),
             serde_json::to_value(default_docker_overrides())?,
+        );
+        changed = true;
+    }
+    if !object.contains_key("dirty_staging_action") {
+        object.insert(
+            "dirty_staging_action".to_string(),
+            serde_json::to_value(DirtyStagingAction::Commit.as_str())?,
+        );
+        changed = true;
+    }
+    if !object.contains_key("on_staging_change") {
+        object.insert(
+            "on_staging_change".to_string(),
+            serde_json::to_value(Vec::<String>::new())?,
         );
         changed = true;
     }

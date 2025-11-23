@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:my_api_client/api.dart' as robot_farm_api;
@@ -257,17 +256,21 @@ class ConnectionController extends GetxController {
     try {
       final socket = await ws.WebSocket.connect(wsUri);
       _notificationSockets[hostPort] = socket;
-      final sub = socket.events.listen((event) {
-        if (event is ws.TextDataReceived) {
-          _handleNotificationText(hostPort, event.text);
-        }
-      }, onDone: () {
-        _notificationSockets.remove(hostPort);
-        _notificationSubs.remove(hostPort);
-      }, onError: (_) {
-        _notificationSockets.remove(hostPort);
-        _notificationSubs.remove(hostPort);
-      });
+      final sub = socket.events.listen(
+        (event) {
+          if (event is ws.TextDataReceived) {
+            _handleNotificationText(hostPort, event.text);
+          }
+        },
+        onDone: () {
+          _notificationSockets.remove(hostPort);
+          _notificationSubs.remove(hostPort);
+        },
+        onError: (_) {
+          _notificationSockets.remove(hostPort);
+          _notificationSubs.remove(hostPort);
+        },
+      );
       _notificationSubs[hostPort] = sub;
     } catch (_) {
       // ignore; will retry on next explicit connect
@@ -290,7 +293,8 @@ class ConnectionController extends GetxController {
 
     // Basic filtering to avoid noise.
     final category = feed.category.toLowerCase();
-    final shouldNotify = category == 'validation' ||
+    final shouldNotify =
+        category == 'validation' ||
         category == 'turn' ||
         category == 'blocked' ||
         feed.text.toLowerCase().contains('blocked') ||
@@ -384,8 +388,8 @@ class ConnectionController extends GetxController {
     final threadId = rawThread == null
         ? null
         : rawThread.toString().trim().isEmpty
-            ? null
-            : rawThread.toString();
+        ? null
+        : rawThread.toString();
     final index = workers.indexWhere((w) => w.id == workerId);
     if (index == -1) {
       return;
@@ -408,8 +412,8 @@ class ConnectionController extends GetxController {
     final value = rawThread == null
         ? null
         : rawThread.toString().trim().isEmpty
-            ? null
-            : rawThread.toString();
+        ? null
+        : rawThread.toString();
     orchestratorThreadId.value = value;
   }
 
@@ -544,10 +548,7 @@ class ConnectionController extends GetxController {
       );
       Get.snackbar('Fast-forward', 'All worktrees were fast-forwarded.');
     } on robot_farm_api.ApiException catch (err) {
-      Get.snackbar(
-        'Fast-forward failed',
-        err.message ?? 'Status ${err.code}',
-      );
+      Get.snackbar('Fast-forward failed', err.message ?? 'Status ${err.code}');
     } catch (err) {
       Get.snackbar('Fast-forward failed', '$err');
     }
@@ -637,7 +638,10 @@ class ConnectionController extends GetxController {
   Future<void> terminateWorker(int workerId) async {
     final baseUrl = _currentBaseUrl;
     if (baseUrl == null) {
-      Get.snackbar('Not connected', 'Connect to a server before terminating workers.');
+      Get.snackbar(
+        'Not connected',
+        'Connect to a server before terminating workers.',
+      );
       return;
     }
 
@@ -668,7 +672,10 @@ class ConnectionController extends GetxController {
   Future<void> terminateOrchestrator() async {
     final baseUrl = _currentBaseUrl;
     if (baseUrl == null) {
-      Get.snackbar('Not connected', 'Connect to a server before terminating the orchestrator.');
+      Get.snackbar(
+        'Not connected',
+        'Connect to a server before terminating the orchestrator.',
+      );
       return;
     }
 
@@ -1507,8 +1514,9 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
                       children: [
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor:
-                              viewModel.color.withValues(alpha: 0.15),
+                          backgroundColor: viewModel.color.withValues(
+                            alpha: 0.15,
+                          ),
                           child: Icon(viewModel.icon, color: viewModel.color),
                         ),
                         const SizedBox(width: 16),
@@ -1519,18 +1527,16 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
                               children: [
                                 Text(
                                   viewModel.title,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
+                                  style: Theme.of(context).textTheme.bodyLarge
                                       ?.copyWith(fontWeight: FontWeight.w600),
                                 ),
                                 if (viewModel.subtitle != null) ...[
                                   const SizedBox(height: 4),
                                   Text(
                                     viewModel.subtitle!,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium,
                                   ),
                                 ],
                               ],
@@ -2011,6 +2017,7 @@ class SettingsController extends GetxController {
   final ConnectionController _connection;
   final Rx<robot_farm_api.Config?> config = Rx<robot_farm_api.Config?>(null);
   final RxBool isLoading = false.obs;
+  final RxBool hasChanges = false.obs;
   final RxnString error = RxnString();
   final TextEditingController orchestratorController = TextEditingController();
   final TextEditingController workerController = TextEditingController();
@@ -2110,12 +2117,11 @@ class SettingsController extends GetxController {
           ', ',
         );
         workerController.text = result.appendAgentsFile.worker.join(', ');
-        orchestratorDockerController.text =
-            result.dockerOverrides.orchestrator.join('\n');
-        workerDockerController.text =
-            result.dockerOverrides.worker.join('\n');
-        wizardDockerController.text =
-            result.dockerOverrides.wizard.join('\n');
+        orchestratorDockerController.text = result.dockerOverrides.orchestrator
+            .join('\n');
+        workerDockerController.text = result.dockerOverrides.worker.join('\n');
+        wizardDockerController.text = result.dockerOverrides.wizard.join('\n');
+        hasChanges.value = false;
       }
     } on robot_farm_api.ApiException catch (err) {
       error.value = err.message ?? 'Failed to load config: ${err.code}';
@@ -2141,6 +2147,7 @@ class SettingsController extends GetxController {
       final client = robot_farm_api.ApiClient(basePath: baseUrl);
       final api = robot_farm_api.DefaultApi(client);
       await api.updateConfig(current);
+      hasChanges.value = false;
     } on robot_farm_api.ApiException catch (err) {
       error.value = err.message ?? 'Failed to save config: ${err.code}';
     } catch (err) {
@@ -2375,6 +2382,7 @@ class SettingsController extends GetxController {
       dockerOverrides: appliedDockerOverrides,
     );
     config.refresh();
+    hasChanges.value = true;
   }
 
   robot_farm_api.AgentModelOverrides _currentModels() {
@@ -2540,7 +2548,23 @@ class SettingsScreen extends StatelessWidget {
         : Get.put(SettingsController(connection));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        title: const Text('Settings'),
+        actions: [
+          Obx(
+            () => IconButton(
+              tooltip: 'Save',
+              icon: const Icon(Icons.save),
+              onPressed:
+                  controller.hasChanges.value &&
+                      !controller.isLoading.value &&
+                      controller.config.value != null
+                  ? controller.saveConfig
+                  : null,
+            ),
+          ),
+        ],
+      ),
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -2589,8 +2613,9 @@ class SettingsScreen extends StatelessWidget {
               Text('Docker Overrides', style: theme.textTheme.titleLarge),
               const SizedBox(height: 12),
               ...CodexPersona.values.map((persona) {
-                final dockerController =
-                    controller.dockerControllerFor(persona);
+                final dockerController = controller.dockerControllerFor(
+                  persona,
+                );
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: TextField(
@@ -2770,11 +2795,6 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: controller.saveConfig,
-                icon: const Icon(Icons.save),
-                label: const Text('Save Config'),
-              ),
             ],
           ),
         );
@@ -2797,11 +2817,17 @@ class SettingsScreen extends StatelessWidget {
       return;
     }
 
+    String? error;
     if (command == null) {
-      controller.addCommand(result);
+      error = controller.addCommand(result);
     } else {
-      controller.updateCommand(command.id, result);
+      error = controller.updateCommand(command.id, result);
     }
+    if (error != null) {
+      Get.snackbar('Command', error);
+      return;
+    }
+    await controller.saveConfig();
   }
 }
 
@@ -3074,7 +3100,13 @@ class _FeedActionsMenu extends StatelessWidget {
   }
 }
 
-enum _FeedMenuAction { runCommand, enqueueMessage, editQueue, addWorker, terminate }
+enum _FeedMenuAction {
+  runCommand,
+  enqueueMessage,
+  editQueue,
+  addWorker,
+  terminate,
+}
 
 class _FeedActionItem {
   const _FeedActionItem({

@@ -17,12 +17,12 @@ class TasksController extends GetxController {
 
   final RxString groupSearchQuery = ''.obs;
   final Rx<robot_farm_api.TaskGroupStatus?> groupStatusFilter =
-      Rx<robot_farm_api.TaskGroupStatus?>(robot_farm_api.TaskGroupStatus.ready);
+      Rx<robot_farm_api.TaskGroupStatus?>(null);
 
   final RxString taskSearchQuery = ''.obs;
   final Rx<robot_farm_api.TaskStatus?> taskStatusFilter =
-      Rx<robot_farm_api.TaskStatus?>(robot_farm_api.TaskStatus.ready);
-  final RxnString taskOwnerFilter = RxnString('Orchestrator');
+      Rx<robot_farm_api.TaskStatus?>(null);
+  final RxnString taskOwnerFilter = RxnString(null);
 
   final RxBool isLoadingGroups = false.obs;
   final RxBool isLoadingTasks = false.obs;
