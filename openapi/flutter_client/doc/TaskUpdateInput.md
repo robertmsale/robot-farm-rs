@@ -15,6 +15,8 @@ Name | Type | Description | Notes
 **status** | [**TaskStatus**](TaskStatus.md) |  | [optional] 
 **owner** | **String** | Owner information encoded as display text (\"Orchestrator\", \"Quality Assurance\", or worker handles like \"ws42\"). | [optional] 
 **description** | **String** | Detailed description of the task. | [optional] 
+**modelOverride** | **String** |  | [optional] 
+**reasoningOverride** | **String** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

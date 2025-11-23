@@ -20,6 +20,8 @@ class TaskUpdateInput {
     this.status,
     this.owner,
     this.description,
+    this.modelOverride,
+    this.reasoningOverride,
   });
 
   ///
@@ -81,6 +83,22 @@ class TaskUpdateInput {
   ///
   String? description;
 
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? modelOverride;
+
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? reasoningOverride;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is TaskUpdateInput &&
     other.groupId == groupId &&
@@ -89,7 +107,9 @@ class TaskUpdateInput {
     other.commitHash == commitHash &&
     other.status == status &&
     other.owner == owner &&
-    other.description == description;
+    other.description == description &&
+    other.modelOverride == modelOverride &&
+    other.reasoningOverride == reasoningOverride;
 
   @override
   int get hashCode =>
@@ -100,10 +120,12 @@ class TaskUpdateInput {
     (commitHash == null ? 0 : commitHash!.hashCode) +
     (status == null ? 0 : status!.hashCode) +
     (owner == null ? 0 : owner!.hashCode) +
-    (description == null ? 0 : description!.hashCode);
+    (description == null ? 0 : description!.hashCode) +
+    (modelOverride == null ? 0 : modelOverride!.hashCode) +
+    (reasoningOverride == null ? 0 : reasoningOverride!.hashCode);
 
   @override
-  String toString() => 'TaskUpdateInput[groupId=$groupId, slug=$slug, title=$title, commitHash=$commitHash, status=$status, owner=$owner, description=$description]';
+  String toString() => 'TaskUpdateInput[groupId=$groupId, slug=$slug, title=$title, commitHash=$commitHash, status=$status, owner=$owner, description=$description, modelOverride=$modelOverride, reasoningOverride=$reasoningOverride]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -142,6 +164,16 @@ class TaskUpdateInput {
     } else {
       json[r'description'] = null;
     }
+    if (this.modelOverride != null) {
+      json[r'model_override'] = this.modelOverride;
+    } else {
+      json[r'model_override'] = null;
+    }
+    if (this.reasoningOverride != null) {
+      json[r'reasoning_override'] = this.reasoningOverride;
+    } else {
+      json[r'reasoning_override'] = null;
+    }
     return json;
   }
 
@@ -171,6 +203,8 @@ class TaskUpdateInput {
         status: TaskStatus.fromJson(json[r'status']),
         owner: mapValueOfType<String>(json, r'owner'),
         description: mapValueOfType<String>(json, r'description'),
+        modelOverride: mapValueOfType<String>(json, r'model_override'),
+        reasoningOverride: mapValueOfType<String>(json, r'reasoning_override'),
       );
     }
     return null;

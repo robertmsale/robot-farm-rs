@@ -39,6 +39,7 @@ Method | HTTP request | Description
 [**getTaskCommitDiff**](DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
 [**getTaskCommitInfo**](DefaultApi.md#gettaskcommitinfo) | **GET** /tasks/{taskId}/commit | Get task commit info
 [**getTaskGroup**](DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
+[**gitCommitWorktreeIdPost**](DefaultApi.md#gitcommitworktreeidpost) | **POST** /git/commit/{worktreeId} | Commit all changes in a worktree
 [**insertMessageRelative**](DefaultApi.md#insertmessagerelative) | **PATCH** /message_queue/{messageId}/insert | Insert a message relative to another message
 [**listFeed**](DefaultApi.md#listfeed) | **GET** /feed | List feed events
 [**listMessages**](DefaultApi.md#listmessages) | **GET** /message_queue | List messages in the queue
@@ -1235,6 +1236,48 @@ No authorization required
 
  - **Content-Type**: Not defined
  - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **gitCommitWorktreeIdPost**
+> gitCommitWorktreeIdPost(worktreeId, gitCommitWorktreeIdPostRequest)
+
+Commit all changes in a worktree
+
+### Example
+```dart
+import 'package:my_api_client/api.dart';
+
+final api_instance = DefaultApi();
+final worktreeId = worktreeId_example; // String | 
+final gitCommitWorktreeIdPostRequest = GitCommitWorktreeIdPostRequest(); // GitCommitWorktreeIdPostRequest | 
+
+try {
+    api_instance.gitCommitWorktreeIdPost(worktreeId, gitCommitWorktreeIdPostRequest);
+} catch (e) {
+    print('Exception when calling DefaultApi->gitCommitWorktreeIdPost: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **worktreeId** | **String**|  | 
+ **gitCommitWorktreeIdPostRequest** | [**GitCommitWorktreeIdPostRequest**](GitCommitWorktreeIdPostRequest.md)|  | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

@@ -20,6 +20,8 @@ class TaskEditPayload {
     required this.status,
     required this.owner,
     required this.description,
+    this.modelOverride,
+    this.reasoningOverride,
   });
 
   final String slug;
@@ -28,10 +30,38 @@ class TaskEditPayload {
   final robot_farm_api.TaskStatus status;
   final String owner;
   final String description;
+  final String? modelOverride;
+  final String? reasoningOverride;
 
   String toStringForLog() {
     return '{slug: $slug, title: $title, commit: ${commitHash ?? '—'}, '
         'status: ${status.value}, owner: $owner, '
+        'modelOverride: ${modelOverride ?? 'default'}, '
+        'reasoningOverride: ${reasoningOverride ?? 'default'}, '
         'descriptionLength: ${description.length}}';
   }
+}
+
+class TaskCreatePayload {
+  const TaskCreatePayload({
+    required this.groupId,
+    required this.slug,
+    required this.title,
+    this.commitHash,
+    required this.status,
+    required this.owner,
+    required this.description,
+    this.modelOverride,
+    this.reasoningOverride,
+  });
+
+  final int groupId;
+  final String slug;
+  final String title;
+  final String? commitHash;
+  final robot_farm_api.TaskStatus status;
+  final String owner;
+  final String description;
+  final String? modelOverride;
+  final String? reasoningOverride;
 }

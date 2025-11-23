@@ -6,6 +6,7 @@ git_push.sh
 src/apis/configuration.rs
 src/apis/mod.rs
 src/lib.rs
+src/models/_git_commit__worktree_id__post_request.rs
 src/models/active_strategy.rs
 src/models/agent_model_overrides.rs
 src/models/agent_reasoning_overrides.rs

@@ -2,6 +2,7 @@ use crate::ai::schemas::{
     Assignment, OrchestratorIntent, OrchestratorTurn, WorkerCompletion, WorkerIntent, WorkerTurn,
 };
 use crate::db;
+use crate::db::task_group;
 use crate::db::assignments;
 use crate::db::feed::NewFeedEntry;
 use crate::db::message_queue::{MessageFilters, RelativePosition};
@@ -1661,6 +1662,11 @@ impl PostTurnJob {
             message.push_str(": ");
             message.push_str(notes);
         }
+        if let Some(extra) = self.extra_tasks_hint().await? {
+            message.push_str("\n");
+            message.push_str(&extra);
+        }
+
         self.db
             .enqueue_message(
                 SystemActor::System.label(),
@@ -1670,6 +1676,33 @@ impl PostTurnJob {
             .await
             .map_err(QueueManagerError::from)?;
         Ok(())
+    }
+
+    async fn extra_tasks_hint(&self) -> Result<Option<String>, QueueManagerError> {
+        let Some(task) = task_db::get_task_by_slug(&self.completion.task_slug)
+            .await
+            .map_err(DatabaseManagerError::from)
+            .map_err(QueueManagerError::from)?
+        else {
+            return Ok(None);
+        };
+        let group_id = task.group_id;
+        let remaining = task_db::count_ready_in_group(group_id)
+            .await
+            .map_err(DatabaseManagerError::from)
+            .map_err(QueueManagerError::from)?;
+        if remaining == 0 {
+            return Ok(None);
+        }
+        let group_title = task_group::get_task_group(group_id)
+            .await
+            .map_err(DatabaseManagerError::from)
+            .map_err(QueueManagerError::from)?
+            .map(|g| g.title)
+            .unwrap_or_else(|| format!("group {group_id}"));
+        Ok(Some(format!(
+            "More tasks are available in the focused group \"{group_title}\" ({remaining} remaining)."
+        )))
     }
 
     async fn clear_worker_session(&self) {

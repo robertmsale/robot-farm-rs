@@ -209,6 +209,8 @@ Future<TaskEditorResult?> showTaskEditorSheet(
   robot_farm_api.Task? task,
   bool isCreate = false,
   List<String> workerHandles = const <String>[],
+  String? defaultWorkerModel,
+  List<String> modelOptions = const [],
 }) {
   return showModalBottomSheet<TaskEditorResult>(
     context: context,
@@ -275,12 +277,12 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                         ),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<robot_farm_api.TaskStatus>(
-                        initialValue: form.selectedStatus,
-                        items: robot_farm_api.TaskStatus.values
-                            .map(
-                              (status) => DropdownMenuItem(
-                                value: status,
+                    DropdownButtonFormField<robot_farm_api.TaskStatus>(
+                      initialValue: form.selectedStatus,
+                      items: robot_farm_api.TaskStatus.values
+                          .map(
+                            (status) => DropdownMenuItem(
+                              value: status,
                                 child: Text(status.value),
                               ),
                             )
@@ -292,12 +294,12 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                         ),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: form.selectedOwner,
-                        items: form.ownerOptions
-                            .map(
-                              (owner) => DropdownMenuItem(
-                                value: owner,
+                    DropdownButtonFormField<String>(
+                      initialValue: form.selectedOwner,
+                      items: form.ownerOptions
+                          .map(
+                            (owner) => DropdownMenuItem(
+                              value: owner,
                                 child: Text(owner),
                               ),
                             )
@@ -437,10 +439,17 @@ class TaskGroupEditorController extends GetxController {
 }
 
 class TaskEditorController extends GetxController {
-  TaskEditorController({this.task, required this.workerHandles});
+  TaskEditorController({
+    this.task,
+    required this.workerHandles,
+    this.defaultWorkerModel,
+    this.modelOptions = const <String>[],
+  });
 
   final robot_farm_api.Task? task;
   final List<String> workerHandles;
+  final String? defaultWorkerModel;
+  final List<String> modelOptions;
   late final TextEditingController slugController;
   late final TextEditingController titleController;
   late final TextEditingController commitController;
@@ -448,6 +457,8 @@ class TaskEditorController extends GetxController {
   late robot_farm_api.TaskStatus selectedStatus;
   late final List<String> ownerOptions;
   late String selectedOwner;
+  String? modelOverride;
+  String? reasoningOverride;
   static const int _workerHandleCount = 50;
 
   @override
@@ -470,6 +481,9 @@ class TaskEditorController extends GetxController {
     if (!ownerOptions.contains(selectedOwner)) {
       ownerOptions.add(selectedOwner);
     }
+
+    modelOverride = task?.modelOverride;
+    reasoningOverride = task?.reasoningOverride;
   }
 
   void updateStatus(robot_farm_api.TaskStatus? status) {
@@ -505,6 +519,8 @@ class TaskEditorController extends GetxController {
     status: selectedStatus,
     owner: selectedOwner.trim(),
     description: descriptionController.text.trim(),
+    modelOverride: modelOverride,
+    reasoningOverride: reasoningOverride,
   );
 
   @override
@@ -551,4 +567,64 @@ class TaskEditorController extends GetxController {
 
     return <String>['Orchestrator', ...handles, 'Quality Assurance'];
   }
+
+  List<String> get reasoningOptions {
+    final model = modelOverride ?? defaultWorkerModel ?? '';
+    final disallowLow = model.toLowerCase().contains('codex-mini');
+    return disallowLow ? <String>['medium', 'high'] : <String>['low', 'medium', 'high'];
+  }
+
+  void updateModelOverride(String? value) {
+    modelOverride = value;
+    // reset reasoning if incompatible
+    if (modelOverride != null &&
+        modelOverride!.toLowerCase().contains('codex-mini') &&
+        reasoningOverride == 'low') {
+      reasoningOverride = 'medium';
+    }
+    update();
+  }
+
+  void updateReasoningOverride(String? value) {
+    reasoningOverride = value;
+    update();
+  }
 }
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: form.modelOverride,
+                      decoration: const InputDecoration(
+                        labelText: 'Worker model override',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Use config default'),
+                        ),
+                        ...form.modelOptions.map(
+                          (model) => DropdownMenuItem(
+                            value: model,
+                            child: Text(model),
+                          ),
+                        ),
+                      ],
+                      onChanged: form.updateModelOverride,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: form.reasoningOverride,
+                      decoration: const InputDecoration(
+                        labelText: 'Reasoning override',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: form.reasoningOptions
+                          .map(
+                            (level) => DropdownMenuItem(
+                              value: level,
+                              child: Text(_formatReasoningLabel(level)),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: form.updateReasoningOverride,
+                    ),

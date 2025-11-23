@@ -31,6 +31,10 @@ pub struct TaskCreateInput {
     /// Detailed description of the task.
     #[serde(rename = "description")]
     pub description: String,
+    #[serde(rename = "model_override", skip_serializing_if = "Option::is_none")]
+    pub model_override: Option<String>,
+    #[serde(rename = "reasoning_override", skip_serializing_if = "Option::is_none")]
+    pub reasoning_override: Option<String>,
 }
 
 impl TaskCreateInput {
@@ -44,6 +48,8 @@ impl TaskCreateInput {
             status,
             owner,
             description,
+            model_override: None,
+            reasoning_override: None,
         }
     }
 }

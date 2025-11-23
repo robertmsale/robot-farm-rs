@@ -44,6 +44,7 @@ part 'model/feed.dart';
 part 'model/feed_level.dart';
 part 'model/feed_order_field.dart';
 part 'model/get_healthz200_response.dart';
+part 'model/git_commit_worktree_id_post_request.dart';
 part 'model/git_status_file_change.dart';
 part 'model/git_status_hunk.dart';
 part 'model/git_status_summary.dart';

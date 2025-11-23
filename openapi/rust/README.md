@@ -44,6 +44,7 @@ Class | Method | HTTP request | Description
  - [FeedLevel](docs/FeedLevel.md)
  - [FeedOrderField](docs/FeedOrderField.md)
  - [GetHealthz200Response](docs/GetHealthz200Response.md)
+ - [GitCommitWorktreeIdPostRequest](docs/GitCommitWorktreeIdPostRequest.md)
  - [GitStatusFileChange](docs/GitStatusFileChange.md)
  - [GitStatusHunk](docs/GitStatusHunk.md)
  - [GitStatusSummary](docs/GitStatusSummary.md)

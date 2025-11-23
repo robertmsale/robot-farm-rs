@@ -31,16 +31,10 @@ pub struct Config {
     #[serde(rename = "docker_overrides")]
     pub docker_overrides: Box<models::DockerOverrides>,
     /// Action to take when staging worktree is dirty during task completion.
-    #[serde(
-        rename = "dirty_staging_action",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub dirty_staging_action: Option<String>,
-    /// Commands to execute when staging is updated.
-    #[serde(
-        rename = "on_staging_change",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(rename = "dirty_staging_action", skip_serializing_if = "Option::is_none")]
+    pub dirty_staging_action: Option<DirtyStagingAction>,
+    /// Command IDs to run after staging updates.
+    #[serde(rename = "on_staging_change", skip_serializing_if = "Option::is_none")]
     pub on_staging_change: Option<Vec<String>>,
 }
 
@@ -60,3 +54,18 @@ impl Config {
         }
     }
 }
+/// Action to take when staging worktree is dirty during task completion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum DirtyStagingAction {
+    #[serde(rename = "commit")]
+    Commit,
+    #[serde(rename = "stash")]
+    Stash,
+}
+
+impl Default for DirtyStagingAction {
+    fn default() -> DirtyStagingAction {
+        Self::Commit
+    }
+}
+

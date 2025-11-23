@@ -26,6 +26,8 @@ pub mod feed_order_field;
 pub use self::feed_order_field::FeedOrderField;
 pub mod get_healthz_200_response;
 pub use self::get_healthz_200_response::GetHealthz200Response;
+pub mod _git_commit__worktree_id__post_request;
+pub use self::_git_commit__worktree_id__post_request::GitCommitWorktreeIdPostRequest;
 pub mod git_status_file_change;
 pub use self::git_status_file_change::GitStatusFileChange;
 pub mod git_status_hunk;

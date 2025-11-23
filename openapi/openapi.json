@@ -1820,6 +1820,12 @@
           "description": {
             "type": "string",
             "description": "Detailed description of the task."
+          },
+          "model_override": {
+            "type": "string"
+          },
+          "reasoning_override": {
+            "type": "string"
           }
         },
         "required": [
@@ -1861,6 +1867,12 @@
           "description": {
             "type": "string",
             "description": "Detailed description of the task."
+          },
+          "model_override": {
+            "type": "string"
+          },
+          "reasoning_override": {
+            "type": "string"
           }
         },
         "required": [
@@ -1901,6 +1913,12 @@
           "description": {
             "type": "string",
             "description": "Detailed description of the task."
+          },
+          "model_override": {
+            "type": "string"
+          },
+          "reasoning_override": {
+            "type": "string"
           }
         },
         "additionalProperties": false,

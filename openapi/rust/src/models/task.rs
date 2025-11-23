@@ -33,6 +33,10 @@ pub struct Task {
     /// Detailed description of the task.
     #[serde(rename = "description")]
     pub description: String,
+    #[serde(rename = "model_override", skip_serializing_if = "Option::is_none")]
+    pub model_override: Option<String>,
+    #[serde(rename = "reasoning_override", skip_serializing_if = "Option::is_none")]
+    pub reasoning_override: Option<String>,
 }
 
 impl Task {
@@ -47,6 +51,8 @@ impl Task {
             status,
             owner,
             description,
+            model_override: None,
+            reasoning_override: None,
         }
     }
 }

@@ -89,6 +89,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**getTaskCommitDiff**](doc//DefaultApi.md#gettaskcommitdiff) | **GET** /tasks/{taskId}/commit/diff | Get diff for a file within the task commit
 *DefaultApi* | [**getTaskCommitInfo**](doc//DefaultApi.md#gettaskcommitinfo) | **GET** /tasks/{taskId}/commit | Get task commit info
 *DefaultApi* | [**getTaskGroup**](doc//DefaultApi.md#gettaskgroup) | **GET** /task-groups/{taskGroupId} | Get task group
+*DefaultApi* | [**gitCommitWorktreeIdPost**](doc//DefaultApi.md#gitcommitworktreeidpost) | **POST** /git/commit/{worktreeId} | Commit all changes in a worktree
 *DefaultApi* | [**insertMessageRelative**](doc//DefaultApi.md#insertmessagerelative) | **PATCH** /message_queue/{messageId}/insert | Insert a message relative to another message
 *DefaultApi* | [**listFeed**](doc//DefaultApi.md#listfeed) | **GET** /feed | List feed events
 *DefaultApi* | [**listMessages**](doc//DefaultApi.md#listmessages) | **GET** /message_queue | List messages in the queue
@@ -119,6 +120,7 @@ Class | Method | HTTP request | Description
  - [FeedLevel](doc//FeedLevel.md)
  - [FeedOrderField](doc//FeedOrderField.md)
  - [GetHealthz200Response](doc//GetHealthz200Response.md)
+ - [GitCommitWorktreeIdPostRequest](doc//GitCommitWorktreeIdPostRequest.md)
  - [GitStatusFileChange](doc//GitStatusFileChange.md)
  - [GitStatusHunk](doc//GitStatusHunk.md)
  - [GitStatusSummary](doc//GitStatusSummary.md)

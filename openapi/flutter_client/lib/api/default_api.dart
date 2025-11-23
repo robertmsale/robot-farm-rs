@@ -1469,6 +1469,55 @@ class DefaultApi {
     return null;
   }
 
+  /// Commit all changes in a worktree
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] worktreeId (required):
+  ///
+  /// * [GitCommitWorktreeIdPostRequest] gitCommitWorktreeIdPostRequest (required):
+  Future<Response> gitCommitWorktreeIdPostWithHttpInfo(String worktreeId, GitCommitWorktreeIdPostRequest gitCommitWorktreeIdPostRequest,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/git/commit/{worktreeId}'
+      .replaceAll('{worktreeId}', worktreeId);
+
+    // ignore: prefer_final_locals
+    Object? postBody = gitCommitWorktreeIdPostRequest;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Commit all changes in a worktree
+  ///
+  /// Parameters:
+  ///
+  /// * [String] worktreeId (required):
+  ///
+  /// * [GitCommitWorktreeIdPostRequest] gitCommitWorktreeIdPostRequest (required):
+  Future<void> gitCommitWorktreeIdPost(String worktreeId, GitCommitWorktreeIdPostRequest gitCommitWorktreeIdPostRequest,) async {
+    final response = await gitCommitWorktreeIdPostWithHttpInfo(worktreeId, gitCommitWorktreeIdPostRequest,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+  }
+
   /// Insert a message relative to another message
   ///
   /// Note: This method returns the HTTP [Response].

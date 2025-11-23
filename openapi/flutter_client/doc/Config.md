@@ -15,6 +15,8 @@ Name | Type | Description | Notes
 **commands** | [**List<CommandConfig>**](CommandConfig.md) |  | [default to const []]
 **postTurnChecks** | **List<String>** | Commands executed after each turn. | [default to const []]
 **dockerOverrides** | [**DockerOverrides**](DockerOverrides.md) |  | 
+**dirtyStagingAction** | **String** | Action to take when staging worktree is dirty during task completion. | [optional] [default to 'commit']
+**onStagingChange** | **List<String>** | Command IDs to run after staging updates. | [optional] [default to const []]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 
