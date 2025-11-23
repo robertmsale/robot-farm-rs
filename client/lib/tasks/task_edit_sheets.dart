@@ -217,7 +217,12 @@ Future<TaskEditorResult?> showTaskEditorSheet(
     isScrollControlled: true,
     builder: (_) {
       return GetBuilder<TaskEditorController>(
-        init: TaskEditorController(task: task, workerHandles: workerHandles),
+        init: TaskEditorController(
+          task: task,
+          workerHandles: workerHandles,
+          defaultWorkerModel: defaultWorkerModel,
+          modelOptions: modelOptions,
+        ),
         builder: (form) {
           final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
@@ -277,12 +282,12 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                         ),
                       ),
                       const SizedBox(height: 12),
-                    DropdownButtonFormField<robot_farm_api.TaskStatus>(
-                      initialValue: form.selectedStatus,
-                      items: robot_farm_api.TaskStatus.values
-                          .map(
-                            (status) => DropdownMenuItem(
-                              value: status,
+                      DropdownButtonFormField<robot_farm_api.TaskStatus>(
+                        initialValue: form.selectedStatus,
+                        items: robot_farm_api.TaskStatus.values
+                            .map(
+                              (status) => DropdownMenuItem(
+                                value: status,
                                 child: Text(status.value),
                               ),
                             )
@@ -294,12 +299,12 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                         ),
                       ),
                       const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: form.selectedOwner,
-                      items: form.ownerOptions
-                          .map(
-                            (owner) => DropdownMenuItem(
-                              value: owner,
+                      DropdownButtonFormField<String>(
+                        initialValue: form.selectedOwner,
+                        items: form.ownerOptions
+                            .map(
+                              (owner) => DropdownMenuItem(
+                                value: owner,
                                 child: Text(owner),
                               ),
                             )
@@ -309,6 +314,44 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                           labelText: 'Owner',
                           border: OutlineInputBorder(),
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: form.modelOverride,
+                        decoration: const InputDecoration(
+                          labelText: 'Worker model override',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('Use config default'),
+                          ),
+                          ...form.modelOptions.map(
+                            (model) => DropdownMenuItem(
+                              value: model,
+                              child: Text(model),
+                            ),
+                          ),
+                        ],
+                        onChanged: form.updateModelOverride,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: form.reasoningOverride,
+                        decoration: const InputDecoration(
+                          labelText: 'Reasoning override',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: form.reasoningOptions
+                            .map(
+                              (level) => DropdownMenuItem(
+                                value: level,
+                                child: Text(_formatReasoningLabel(level)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: form.updateReasoningOverride,
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -347,8 +390,9 @@ Future<TaskEditorResult?> showTaskEditorSheet(
                                         ),
                                         actions: [
                                           TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(false),
+                                            onPressed: () => Navigator.of(
+                                              context,
+                                            ).pop(false),
                                             child: const Text('Cancel'),
                                           ),
                                           FilledButton(
@@ -571,7 +615,9 @@ class TaskEditorController extends GetxController {
   List<String> get reasoningOptions {
     final model = modelOverride ?? defaultWorkerModel ?? '';
     final disallowLow = model.toLowerCase().contains('codex-mini');
-    return disallowLow ? <String>['medium', 'high'] : <String>['low', 'medium', 'high'];
+    return disallowLow
+        ? <String>['medium', 'high']
+        : <String>['low', 'medium', 'high'];
   }
 
   void updateModelOverride(String? value) {
@@ -590,41 +636,8 @@ class TaskEditorController extends GetxController {
     update();
   }
 }
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: form.modelOverride,
-                      decoration: const InputDecoration(
-                        labelText: 'Worker model override',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem<String>(
-                          value: null,
-                          child: Text('Use config default'),
-                        ),
-                        ...form.modelOptions.map(
-                          (model) => DropdownMenuItem(
-                            value: model,
-                            child: Text(model),
-                          ),
-                        ),
-                      ],
-                      onChanged: form.updateModelOverride,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: form.reasoningOverride,
-                      decoration: const InputDecoration(
-                        labelText: 'Reasoning override',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: form.reasoningOptions
-                          .map(
-                            (level) => DropdownMenuItem(
-                              value: level,
-                              child: Text(_formatReasoningLabel(level)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: form.updateReasoningOverride,
-                    ),
+
+String _formatReasoningLabel(String value) {
+  if (value.isEmpty) return value;
+  return '${value[0].toUpperCase()}${value.substring(1)}';
+}

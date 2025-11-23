@@ -64,4 +64,16 @@ class TaskCreatePayload {
   final String description;
   final String? modelOverride;
   final String? reasoningOverride;
+
+  robot_farm_api.TaskCreateInput toApi() => robot_farm_api.TaskCreateInput(
+        groupId: groupId,
+        slug: slug,
+        title: title,
+        commitHash: commitHash,
+        status: status,
+        owner: owner,
+        description: description,
+        modelOverride: modelOverride,
+        reasoningOverride: reasoningOverride,
+      );
 }

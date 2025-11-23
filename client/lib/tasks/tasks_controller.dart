@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:my_api_client/api.dart' as robot_farm_api;
+import '../main.dart';
 
 import 'task_edit_payloads.dart';
 
@@ -91,6 +92,11 @@ class TasksController extends GetxController {
       return matchesQuery && matchesStatus && matchesOwner;
     }).toList();
   }
+
+  String? get defaultWorkerModel =>
+      Get.find<ConnectionController>().config.value?.models.worker.value;
+
+  List<String> get workerModelOptions => SettingsController.modelOptions;
 
   List<String> get ownerFilterOptions {
     final workerHandles = <String>{};
@@ -278,6 +284,8 @@ class TasksController extends GetxController {
       status: payload.status,
       owner: payload.owner,
       description: payload.description,
+      modelOverride: payload.modelOverride,
+      reasoningOverride: payload.reasoningOverride,
     );
 
     try {
@@ -395,6 +403,8 @@ class TasksController extends GetxController {
       status: payload.status,
       owner: payload.owner,
       description: payload.description,
+      modelOverride: payload.modelOverride,
+      reasoningOverride: payload.reasoningOverride,
     );
 
     try {

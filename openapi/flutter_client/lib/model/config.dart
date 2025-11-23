@@ -53,32 +53,35 @@ class Config {
   List<String> onStagingChange;
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is Config &&
-    other.workspacePath == workspacePath &&
-    other.appendAgentsFile == appendAgentsFile &&
-    other.models == models &&
-    other.reasoning == reasoning &&
-    _deepEquality.equals(other.commands, commands) &&
-    _deepEquality.equals(other.postTurnChecks, postTurnChecks) &&
-    other.dockerOverrides == dockerOverrides &&
-    other.dirtyStagingAction == dirtyStagingAction &&
-    _deepEquality.equals(other.onStagingChange, onStagingChange);
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Config &&
+          other.workspacePath == workspacePath &&
+          other.appendAgentsFile == appendAgentsFile &&
+          other.models == models &&
+          other.reasoning == reasoning &&
+          _deepEquality.equals(other.commands, commands) &&
+          _deepEquality.equals(other.postTurnChecks, postTurnChecks) &&
+          other.dockerOverrides == dockerOverrides &&
+          other.dirtyStagingAction == dirtyStagingAction &&
+          _deepEquality.equals(other.onStagingChange, onStagingChange);
 
   @override
   int get hashCode =>
-    // ignore: unnecessary_parenthesis
-    (workspacePath == null ? 0 : workspacePath!.hashCode) +
-    (appendAgentsFile.hashCode) +
-    (models.hashCode) +
-    (reasoning.hashCode) +
-    (commands.hashCode) +
-    (postTurnChecks.hashCode) +
-    (dockerOverrides.hashCode) +
-    (dirtyStagingAction.hashCode) +
-    (onStagingChange.hashCode);
+      // ignore: unnecessary_parenthesis
+      (workspacePath == null ? 0 : workspacePath!.hashCode) +
+      (appendAgentsFile.hashCode) +
+      (models.hashCode) +
+      (reasoning.hashCode) +
+      (commands.hashCode) +
+      (postTurnChecks.hashCode) +
+      (dockerOverrides.hashCode) +
+      (dirtyStagingAction.hashCode) +
+      (onStagingChange.hashCode);
 
   @override
-  String toString() => 'Config[workspacePath=$workspacePath, appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks, dockerOverrides=$dockerOverrides, dirtyStagingAction=$dirtyStagingAction, onStagingChange=$onStagingChange]';
+  String toString() =>
+      'Config[workspacePath=$workspacePath, appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks, dockerOverrides=$dockerOverrides, dirtyStagingAction=$dirtyStagingAction, onStagingChange=$onStagingChange]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -87,14 +90,14 @@ class Config {
     } else {
       json[r'workspace_path'] = null;
     }
-      json[r'append_agents_file'] = this.appendAgentsFile;
-      json[r'models'] = this.models;
-      json[r'reasoning'] = this.reasoning;
-      json[r'commands'] = this.commands;
-      json[r'post_turn_checks'] = this.postTurnChecks;
-      json[r'docker_overrides'] = this.dockerOverrides;
-      json[r'dirty_staging_action'] = this.dirtyStagingAction;
-      json[r'on_staging_change'] = this.onStagingChange;
+    json[r'append_agents_file'] = this.appendAgentsFile;
+    json[r'models'] = this.models;
+    json[r'reasoning'] = this.reasoning;
+    json[r'commands'] = this.commands;
+    json[r'post_turn_checks'] = this.postTurnChecks;
+    json[r'docker_overrides'] = this.dockerOverrides;
+    json[r'dirty_staging_action'] = this.dirtyStagingAction;
+    json[r'on_staging_change'] = this.onStagingChange;
     return json;
   }
 
@@ -110,32 +113,44 @@ class Config {
       // Note 2: this code is stripped in release mode!
       assert(() {
         requiredKeys.forEach((key) {
-          assert(json.containsKey(key), 'Required key "Config[$key]" is missing from JSON.');
-          assert(json[key] != null, 'Required key "Config[$key]" has a null value in JSON.');
+          assert(json.containsKey(key),
+              'Required key "Config[$key]" is missing from JSON.');
+          assert(json[key] != null,
+              'Required key "Config[$key]" has a null value in JSON.');
         });
         return true;
       }());
 
       return Config(
         workspacePath: mapValueOfType<String>(json, r'workspace_path'),
-        appendAgentsFile: AppendFilesConfig.fromJson(json[r'append_agents_file'])!,
+        appendAgentsFile:
+            AppendFilesConfig.fromJson(json[r'append_agents_file'])!,
         models: AgentModelOverrides.fromJson(json[r'models'])!,
         reasoning: AgentReasoningOverrides.fromJson(json[r'reasoning'])!,
         commands: CommandConfig.listFromJson(json[r'commands']),
         postTurnChecks: json[r'post_turn_checks'] is Iterable
-            ? (json[r'post_turn_checks'] as Iterable).cast<String>().toList(growable: false)
+            ? (json[r'post_turn_checks'] as Iterable)
+                .cast<String>()
+                .toList(growable: false)
             : const [],
         dockerOverrides: DockerOverrides.fromJson(json[r'docker_overrides'])!,
-        dirtyStagingAction: ConfigDirtyStagingActionEnum.fromJson(json[r'dirty_staging_action']) ?? 'commit',
+        dirtyStagingAction: ConfigDirtyStagingActionEnum.fromJson(
+                json[r'dirty_staging_action']) ??
+            ConfigDirtyStagingActionEnum.commit,
         onStagingChange: json[r'on_staging_change'] is Iterable
-            ? (json[r'on_staging_change'] as Iterable).cast<String>().toList(growable: false)
+            ? (json[r'on_staging_change'] as Iterable)
+                .cast<String>()
+                .toList(growable: false)
             : const [],
       );
     }
     return null;
   }
 
-  static List<Config> listFromJson(dynamic json, {bool growable = false,}) {
+  static List<Config> listFromJson(
+    dynamic json, {
+    bool growable = false,
+  }) {
     final result = <Config>[];
     if (json is List && json.isNotEmpty) {
       for (final row in json) {
@@ -163,13 +178,19 @@ class Config {
   }
 
   // maps a json object with a list of Config-objects as value to a dart map
-  static Map<String, List<Config>> mapListFromJson(dynamic json, {bool growable = false,}) {
+  static Map<String, List<Config>> mapListFromJson(
+    dynamic json, {
+    bool growable = false,
+  }) {
     final map = <String, List<Config>>{};
     if (json is Map && json.isNotEmpty) {
       // ignore: parameter_assignments
       json = json.cast<String, dynamic>();
       for (final entry in json.entries) {
-        map[entry.key] = Config.listFromJson(entry.value, growable: growable,);
+        map[entry.key] = Config.listFromJson(
+          entry.value,
+          growable: growable,
+        );
       }
     }
     return map;
@@ -208,9 +229,13 @@ class ConfigDirtyStagingActionEnum {
     stash,
   ];
 
-  static ConfigDirtyStagingActionEnum? fromJson(dynamic value) => ConfigDirtyStagingActionEnumTypeTransformer().decode(value);
+  static ConfigDirtyStagingActionEnum? fromJson(dynamic value) =>
+      ConfigDirtyStagingActionEnumTypeTransformer().decode(value);
 
-  static List<ConfigDirtyStagingActionEnum> listFromJson(dynamic json, {bool growable = false,}) {
+  static List<ConfigDirtyStagingActionEnum> listFromJson(
+    dynamic json, {
+    bool growable = false,
+  }) {
     final result = <ConfigDirtyStagingActionEnum>[];
     if (json is List && json.isNotEmpty) {
       for (final row in json) {
@@ -227,7 +252,8 @@ class ConfigDirtyStagingActionEnum {
 /// Transformation class that can [encode] an instance of [ConfigDirtyStagingActionEnum] to String,
 /// and [decode] dynamic data back to [ConfigDirtyStagingActionEnum].
 class ConfigDirtyStagingActionEnumTypeTransformer {
-  factory ConfigDirtyStagingActionEnumTypeTransformer() => _instance ??= const ConfigDirtyStagingActionEnumTypeTransformer._();
+  factory ConfigDirtyStagingActionEnumTypeTransformer() =>
+      _instance ??= const ConfigDirtyStagingActionEnumTypeTransformer._();
 
   const ConfigDirtyStagingActionEnumTypeTransformer._();
 
@@ -244,8 +270,10 @@ class ConfigDirtyStagingActionEnumTypeTransformer {
   ConfigDirtyStagingActionEnum? decode(dynamic data, {bool allowNull = true}) {
     if (data != null) {
       switch (data) {
-        case r'commit': return ConfigDirtyStagingActionEnum.commit;
-        case r'stash': return ConfigDirtyStagingActionEnum.stash;
+        case r'commit':
+          return ConfigDirtyStagingActionEnum.commit;
+        case r'stash':
+          return ConfigDirtyStagingActionEnum.stash;
         default:
           if (!allowNull) {
             throw ArgumentError('Unknown enum value to decode: $data');
@@ -258,5 +286,3 @@ class ConfigDirtyStagingActionEnumTypeTransformer {
   /// Singleton [ConfigDirtyStagingActionEnumTypeTransformer] instance.
   static ConfigDirtyStagingActionEnumTypeTransformer? _instance;
 }
-
-

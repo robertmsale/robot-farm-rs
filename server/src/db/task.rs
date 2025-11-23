@@ -68,8 +68,17 @@ pub async fn create_task(payload: TaskCreateInput) -> DbResult<Task> {
 
     let row = sqlx::query(
         r#"
-        INSERT INTO task (group_id, slug, title, commit_hash, status, owner, description)
-        , model_override, reasoning_override)
+        INSERT INTO task (
+            group_id,
+            slug,
+            title,
+            commit_hash,
+            status,
+            owner,
+            description,
+            model_override,
+            reasoning_override
+        )
         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
         RETURNING id, group_id, slug, title, commit_hash, status, owner, description, model_override, reasoning_override
         "#,
