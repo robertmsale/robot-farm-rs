@@ -1,0 +1,26 @@
+{
+  "workspace_path": "/Users/robertsale/Code/robot-farm-rs",
+  "append_agents_file": {
+    "orchestrator": [],
+    "worker": []
+  },
+  "models": {
+    "orchestrator": "gpt-5.1-codex",
+    "worker": "gpt-5.1-codex",
+    "wizard": "gpt-5.1-codex"
+  },
+  "reasoning": {
+    "orchestrator": "medium",
+    "worker": "medium",
+    "wizard": "medium"
+  },
+  "commands": [],
+  "post_turn_checks": [],
+  "docker_overrides": {
+    "orchestrator": [],
+    "worker": [],
+    "wizard": []
+  },
+  "dirty_staging_action": "commit",
+  "on_staging_change": []
+}

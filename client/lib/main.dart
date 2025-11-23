@@ -2052,6 +2052,9 @@ class SettingsController extends GetxController {
     config.value?.postTurnChecks ?? const <String>[],
   );
 
+  List<String> get onStagingChange =>
+      List<String>.unmodifiable(config.value?.onStagingChange ?? const []);
+
   String modelFor(CodexPersona persona) {
     final models = _currentModels();
     switch (persona) {
@@ -2231,6 +2234,7 @@ class SettingsController extends GetxController {
   }
 
   bool isCommandSelected(String id) => postTurnChecks.contains(id);
+  bool isStagingHookSelected(String id) => onStagingChange.contains(id);
 
   void toggleCommandSelection(String id, bool selected) {
     final current = config.value;
@@ -2244,6 +2248,20 @@ class SettingsController extends GetxController {
       updated.removeWhere((entry) => entry == id);
     }
     _assignConfig(postTurnChecks: updated);
+  }
+
+  void toggleStagingHook(String id, bool selected) {
+    final current = config.value;
+    if (current == null) return;
+    final updated = List<String>.from(current.onStagingChange);
+    if (selected) {
+      if (!updated.contains(id)) {
+        updated.add(id);
+      }
+    } else {
+      updated.removeWhere((entry) => entry == id);
+    }
+    _assignConfig(onStagingChange: updated);
   }
 
   void reorderPostChecks(int oldIndex, int newIndex) {
@@ -2295,15 +2313,25 @@ class SettingsController extends GetxController {
     updatedCommands[index] = updated;
 
     final updatedChecks = List<String>.from(current.postTurnChecks);
+    final updatedHooks = List<String>.from(current.onStagingChange);
     if (originalId != updated.id) {
       for (var i = 0; i < updatedChecks.length; i++) {
         if (updatedChecks[i] == originalId) {
           updatedChecks[i] = updated.id;
         }
       }
+      for (var i = 0; i < updatedHooks.length; i++) {
+        if (updatedHooks[i] == originalId) {
+          updatedHooks[i] = updated.id;
+        }
+      }
     }
 
-    _assignConfig(commands: updatedCommands, postTurnChecks: updatedChecks);
+    _assignConfig(
+      commands: updatedCommands,
+      postTurnChecks: updatedChecks,
+      onStagingChange: updatedHooks,
+    );
     error.value = null;
     return null;
   }
@@ -2316,7 +2344,13 @@ class SettingsController extends GetxController {
     )..removeWhere((command) => command.id == id);
     final updatedChecks = List<String>.from(current.postTurnChecks)
       ..removeWhere((entry) => entry == id);
-    _assignConfig(commands: updatedCommands, postTurnChecks: updatedChecks);
+    final updatedHooks = List<String>.from(current.onStagingChange)
+      ..removeWhere((entry) => entry == id);
+    _assignConfig(
+      commands: updatedCommands,
+      postTurnChecks: updatedChecks,
+      onStagingChange: updatedHooks,
+    );
   }
 
   robot_farm_api.CommandConfig? commandById(String id) {
@@ -2335,6 +2369,7 @@ class SettingsController extends GetxController {
     robot_farm_api.AppendFilesConfig? appendAgentsFile,
     List<robot_farm_api.CommandConfig>? commands,
     List<String>? postTurnChecks,
+    List<String>? onStagingChange,
     robot_farm_api.AgentModelOverrides? models,
     robot_farm_api.AgentReasoningOverrides? reasoning,
     robot_farm_api.DockerOverrides? dockerOverrides,
@@ -2373,6 +2408,7 @@ class SettingsController extends GetxController {
     final cmds =
         commands ?? List<robot_farm_api.CommandConfig>.from(current.commands);
     final checks = postTurnChecks ?? List<String>.from(current.postTurnChecks);
+    final hooks = onStagingChange ?? List<String>.from(current.onStagingChange);
     config.value = robot_farm_api.Config(
       appendAgentsFile: append,
       models: appliedModels,
@@ -2380,6 +2416,8 @@ class SettingsController extends GetxController {
       commands: cmds,
       postTurnChecks: checks,
       dockerOverrides: appliedDockerOverrides,
+      onStagingChange: hooks,
+      dirtyStagingAction: current.dirtyStagingAction,
     );
     config.refresh();
     hasChanges.value = true;
@@ -2792,6 +2830,28 @@ class SettingsScreen extends StatelessWidget {
                         trailing: const Icon(Icons.drag_handle),
                       );
                     },
+                  ),
+                ),
+              const SizedBox(height: 24),
+              Text('On staging change', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 8),
+              if (controller.commands.isEmpty)
+                const Text('Define commands first to select hooks.')
+              else
+                ...controller.commands.map(
+                  (command) => CheckboxListTile(
+                    value: controller.isStagingHookSelected(command.id),
+                    onChanged: (checked) => controller.toggleStagingHook(
+                      command.id,
+                      checked ?? false,
+                    ),
+                    title: Text(command.id),
+                    subtitle: Text(
+                      command.exec.join(' '),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
                 ),
               const SizedBox(height: 24),
