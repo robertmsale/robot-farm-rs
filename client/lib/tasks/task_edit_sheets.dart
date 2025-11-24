@@ -614,10 +614,16 @@ class TaskEditorController extends GetxController {
 
   List<String> get reasoningOptions {
     final model = modelOverride ?? defaultWorkerModel ?? '';
-    final disallowLow = model.toLowerCase().contains('codex-mini');
-    return disallowLow
-        ? <String>['medium', 'high']
-        : <String>['low', 'medium', 'high'];
+    final lower = model.toLowerCase();
+    final isMini = lower.contains('codex-mini');
+    final isMax = lower.contains('codex-max');
+    if (isMini) {
+      return const <String>['medium', 'high'];
+    }
+    if (isMax) {
+      return const <String>['low', 'medium', 'high', 'xhigh'];
+    }
+    return const <String>['low', 'medium', 'high'];
   }
 
   void updateModelOverride(String? value) {

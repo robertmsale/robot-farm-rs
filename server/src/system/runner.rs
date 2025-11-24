@@ -21,12 +21,16 @@ pub enum Persona {
 #[derive(Debug, Clone, Copy)]
 pub struct RunnerConfig {
     pub api_port: Option<u16>,
+    pub model_override: Option<String>,
+    pub reasoning_override: Option<String>,
 }
 
 impl Default for RunnerConfig {
     fn default() -> Self {
         Self {
             api_port: Some(current_api_port()),
+            model_override: None,
+            reasoning_override: None,
         }
     }
 }
@@ -62,6 +66,14 @@ pub fn plan_codex_run(
         Persona::Worker(id) => format!("ws{id}"),
     };
     let launch_settings = codex_config::settings_for(agent_kind);
+    let model = config
+        .model_override
+        .clone()
+        .unwrap_or_else(|| launch_settings.model.clone());
+    let reasoning = config
+        .reasoning_override
+        .clone()
+        .unwrap_or_else(|| launch_settings.reasoning.clone());
 
     let api_port = config.api_port.unwrap_or_else(current_api_port);
     let mcp_url = ensure_default_mcp_url(api_port);
@@ -76,10 +88,8 @@ pub fn plan_codex_run(
             "mcp_servers.robot_farm.http_headers.AGENT=\"{agent_label}\""
         ))
         .config_override(format!("model=\"{}\"", launch_settings.model))
-        .config_override(format!(
-            "model_reasoning_effort=\"{}\"",
-            launch_settings.reasoning
-        ));
+        .config_override(format!("model=\"{}\"", model))
+        .config_override(format!("model_reasoning_effort=\"{}\"", reasoning));
 
     let project_root = PathBuf::from(PROJECT_DIR.as_str());
     let (workspace_host, workspace_container) = match persona {

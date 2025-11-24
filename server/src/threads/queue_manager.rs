@@ -873,10 +873,18 @@ impl QueueManagerRuntime {
             }
         };
 
+        let mut runner_cfg = RunnerConfig::default();
+        if let Some(assigned) = QueueCoordinator::global().assigned_task(worker_id) {
+            if let Ok(Some(task)) = task_db::get_task(assigned.task_id).await {
+                runner_cfg.model_override = task.model_override.clone();
+                runner_cfg.reasoning_override = task.reasoning_override.clone();
+            }
+        }
+
         let plan = runner::plan_codex_run(
             Persona::Worker(worker_id),
             session_id.as_deref(),
-            RunnerConfig::default(),
+            runner_cfg,
         );
         let mut docker_args = plan.docker_args;
         if docker_args.is_empty() {
