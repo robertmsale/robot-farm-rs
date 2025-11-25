@@ -15,6 +15,7 @@ import 'sheets/command_sheet.dart';
 import 'sheets/message/message_sheet.dart';
 import 'sheets/queue/queue_sheet.dart';
 import 'sheets/strategy/strategy_sheet.dart';
+import 'sheets/quick_task_sheet.dart';
 import 'task_wizard/task_wizard_controller.dart';
 import 'task_wizard/task_wizard_screen.dart';
 import 'tasks/tasks_controller.dart';
@@ -24,6 +25,7 @@ import 'services/notification_service.dart';
 const int kDefaultApiPort = 8080;
 const String kWebsocketPath = '/ws';
 const String kPastLoginsKey = 'past_logins';
+const String kQuickTaskGroupKey = 'quick_task_group_id';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -106,6 +108,7 @@ class ConnectionController extends GetxController {
       StreamController<robot_farm_api.Feed>.broadcast();
   final StreamController<void> _feedClearedController =
       StreamController<void>.broadcast();
+  final RxnInt preferredQuickTaskGroupId = RxnInt();
   final Map<String, ws.WebSocket> _notificationSockets = {};
   final Map<String, StreamSubscription<ws.WebSocketEvent>> _notificationSubs =
       {};
@@ -836,6 +839,8 @@ class ConnectionController extends GetxController {
     _prefs ??= await SharedPreferences.getInstance();
     final stored = _prefs!.getStringList(kPastLoginsKey) ?? <String>[];
     pastLogins.assignAll(stored);
+    final groupId = _prefs!.getInt(kQuickTaskGroupKey);
+    preferredQuickTaskGroupId.value = groupId;
   }
 
   Future<void> _recordLogin(String hostPort) async {
@@ -853,6 +858,17 @@ class ConnectionController extends GetxController {
 
   void usePastLogin(String hostPort) {
     urlController.text = hostPort;
+  }
+
+  Future<void> setPreferredQuickTaskGroup(int? id) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    if (id == null) {
+      await _prefs!.remove(kQuickTaskGroupKey);
+      preferredQuickTaskGroupId.value = null;
+      return;
+    }
+    await _prefs!.setInt(kQuickTaskGroupKey, id);
+    preferredQuickTaskGroupId.value = id;
   }
 
   @override
@@ -1052,6 +1068,29 @@ class HomeScreen extends GetView<ConnectionController> {
     );
   }
 
+  void _openQuickTaskSheet(BuildContext context) {
+    final baseUrl = controller.currentBaseUrl;
+    if (baseUrl == null) {
+      Get.snackbar('Not connected', 'Connect to a server first.');
+      return;
+    }
+    final tasksController = Get.isRegistered<TasksController>()
+        ? Get.find<TasksController>()
+        : null;
+    final groups =
+        tasksController?.taskGroups.toList() ?? <robot_farm_api.TaskGroup>[];
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => QuickTaskSheet(
+        baseUrl: baseUrl,
+        taskGroups: groups,
+        initialGroupId: controller.preferredQuickTaskGroupId.value,
+        onGroupPersist: (id) => controller.setPreferredQuickTaskGroup(id),
+      ),
+    );
+  }
+
   void _openQueueSheet(BuildContext context, {int? workerId}) {
     showModalBottomSheet(
       context: context,
@@ -1130,6 +1169,11 @@ class HomeScreen extends GetView<ConnectionController> {
               ),
               onPressed: controller.togglePlayPause,
             ),
+          ),
+          IconButton(
+            tooltip: 'Quick task',
+            icon: const Icon(Icons.playlist_add),
+            onPressed: () => _openQuickTaskSheet(context),
           ),
           PopupMenuButton<_HomeMenuAction>(
             tooltip: 'More actions',

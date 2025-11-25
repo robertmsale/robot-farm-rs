@@ -18,7 +18,7 @@ pub enum Persona {
     Worker(i64),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct RunnerConfig {
     pub api_port: Option<u16>,
     pub model_override: Option<String>,
