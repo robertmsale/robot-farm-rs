@@ -373,7 +373,36 @@ class SystemFeedEvent {
   final DateTime timestamp;
   final robot_farm_api.Feed? feed;
 
-  static const String noDetailsLabel = 'No additional details.';
+  /// Identifies feed entries that need special styling in the UI.
+  SystemFeedSpecialType? get specialType {
+    final categoryLower = category.toLowerCase();
+    if (categoryLower == 'thread') {
+      return SystemFeedSpecialType.threadStarted;
+    }
+
+    final fromRaw = _specialTypeFromRaw(feed?.raw);
+    if (fromRaw != null) {
+      return fromRaw;
+    }
+
+    final summaryLower = summary.toLowerCase();
+    if (summaryLower.startsWith('reasoning')) {
+      return SystemFeedSpecialType.reasoning;
+    }
+    if (summaryLower.startsWith('mcp tool call')) {
+      return SystemFeedSpecialType.mcpToolCall;
+    }
+    if (summaryLower.startsWith('command `')) {
+      return SystemFeedSpecialType.commandExecution;
+    }
+    if (summaryLower.startsWith('thread started')) {
+      return SystemFeedSpecialType.threadStarted;
+    }
+
+    return null;
+  }
+
+  static const String noDetailsLabel = '';
 
   static String formatDetails(String raw) {
     final trimmed = raw.trim();
@@ -387,6 +416,47 @@ class SystemFeedEvent {
     } catch (_) {
       return raw;
     }
+  }
+
+  static SystemFeedSpecialType? _specialTypeFromRaw(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+
+      final type = decoded['type']?.toString() ?? '';
+      if (type == 'thread.started') {
+        return SystemFeedSpecialType.threadStarted;
+      }
+
+      if (!type.startsWith('item.')) {
+        return null;
+      }
+
+      final item = decoded['item'];
+      if (item is! Map<String, dynamic>) {
+        return null;
+      }
+
+      final detailType = item['type']?.toString();
+      switch (detailType) {
+        case 'reasoning':
+          return SystemFeedSpecialType.reasoning;
+        case 'mcp_tool_call':
+          return SystemFeedSpecialType.mcpToolCall;
+        case 'command_execution':
+          return SystemFeedSpecialType.commandExecution;
+      }
+    } catch (_) {
+      return null;
+    }
+
+    return null;
   }
 
   factory SystemFeedEvent.fromFeed(robot_farm_api.Feed entry) {
@@ -454,6 +524,14 @@ class SystemFeedEvent {
 }
 
 enum SystemFeedLevel { info, warning, error }
+
+/// Visual overrides for certain feed types that should stand out in the UI.
+enum SystemFeedSpecialType {
+  reasoning,
+  mcpToolCall,
+  threadStarted,
+  commandExecution,
+}
 
 SystemFeedLevel _mapFeedLevel(robot_farm_api.FeedLevel level) {
   switch (level) {

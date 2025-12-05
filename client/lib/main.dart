@@ -1383,6 +1383,7 @@ class _SystemFeed extends StatelessWidget {
 
         return Card(
           margin: EdgeInsets.zero,
+          color: viewModel.cardColor,
           child: InkWell(
             borderRadius: radius,
             onTap: () => _showEventDetails(context, event),
@@ -1395,11 +1396,10 @@ class _SystemFeed extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       CircleAvatar(
-                        radius: 18,
-                        backgroundColor: viewModel.color.withValues(
-                          alpha: 0.15,
-                        ),
-                        child: Icon(viewModel.icon, color: viewModel.color),
+                        radius: viewModel.compactIcon ? 10 : 18,
+                        backgroundColor: viewModel.avatarBackgroundColor ??
+                            viewModel.color.withOpacity(0.15),
+                        child: Icon(viewModel.icon, color: viewModel.color, size: viewModel.compactIcon ? 16 : null),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1408,7 +1408,7 @@ class _SystemFeed extends StatelessWidget {
                           children: [
                             Text(
                               viewModel.title,
-                              maxLines: 2,
+                              maxLines: viewModel.titleMaxLines,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.bold),
@@ -1531,15 +1531,22 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
       body = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
       body = Center(child: SelectionArea(child: Text(_error!)));
-    } else if (_details.trim().isEmpty ||
-        _details == SystemFeedEvent.noDetailsLabel) {
-      body = const Center(
+    } else if (_details.trim().isEmpty) {
+      body = Center(
         child: SelectionArea(
-          child: Text('No additional details for this event.'),
+          child: Text(
+            'No details available for this entry.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
         ),
       );
     } else {
-      body = SelectionArea(child: _OutputBubble(text: _details));
+      body = SelectionArea(
+        child: _OutputBubble(
+          text: _details,
+          backgroundColor: viewModel.bubbleColor,
+        ),
+      );
     }
 
     return SafeArea(
@@ -1557,11 +1564,10 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         CircleAvatar(
-                          radius: 24,
-                          backgroundColor: viewModel.color.withValues(
-                            alpha: 0.15,
-                          ),
-                          child: Icon(viewModel.icon, color: viewModel.color),
+                          radius: viewModel.compactIcon ? 14 : 24,
+                          backgroundColor: viewModel.avatarBackgroundColor ??
+                              viewModel.color.withOpacity(0.15),
+                          child: Icon(viewModel.icon, color: viewModel.color, size: viewModel.compactIcon ? 18 : null),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -1571,6 +1577,8 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
                               children: [
                                 Text(
                                   viewModel.title,
+                                  maxLines: viewModel.titleMaxLines,
+                                  overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.bodyLarge
                                       ?.copyWith(fontWeight: FontWeight.w600),
                                 ),
@@ -1606,6 +1614,15 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
   }
 }
 
+const Color _reasoningCardColor = Color(0xFFE8F4FF);
+const Color _reasoningAccentColor = Color(0xFF1E88E5);
+const Color _mcpCardColor = Color(0xFFDDEFFF);
+const Color _mcpAccentColor = Color(0xFF1565C0);
+const Color _commandCardColor = Color(0xFFF1E6FF);
+const Color _commandAccentColor = Color(0xFF8E24AA);
+const Color _threadCardColor = Color(0xFFE8F9EE);
+const Color _threadAccentColor = Color(0xFF2E7D32);
+
 class _SystemEventViewModel {
   _SystemEventViewModel({
     required this.title,
@@ -1613,6 +1630,11 @@ class _SystemEventViewModel {
     this.body,
     required this.icon,
     required this.color,
+    this.cardColor,
+    this.avatarBackgroundColor,
+    this.bubbleColor,
+    this.compactIcon = false,
+    this.titleMaxLines = 2,
   });
 
   final String title;
@@ -1620,6 +1642,11 @@ class _SystemEventViewModel {
   final Widget? body;
   final IconData icon;
   final Color color;
+  final Color? cardColor;
+  final Color? avatarBackgroundColor;
+  final Color? bubbleColor;
+  final bool compactIcon;
+  final int titleMaxLines;
 
   factory _SystemEventViewModel.fromEvent(
     BuildContext context,
@@ -1627,47 +1654,149 @@ class _SystemEventViewModel {
     required bool fullDetail,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    final color = event.badgeColor(scheme);
-    final icon = event.iconForCategory();
+    final special = event.specialType;
+
+    Color color = event.badgeColor(scheme);
+    Color? cardColor;
+    Color? avatarBackgroundColor;
+    Color? bubbleColor;
+    IconData icon = event.iconForCategory();
+    bool compactIcon = false;
+    int titleMaxLines = 2;
+
+    String? subtitle;
+    final sourceLower = event.source.toLowerCase();
+    final targetLower = event.target.toLowerCase();
+    if (sourceLower != targetLower) {
+      subtitle = '${event.source} → ${event.target} • ${event.category}';
+    }
+
+    switch (special) {
+      case SystemFeedSpecialType.reasoning:
+        icon = Icons.psychology_alt;
+        color = _reasoningAccentColor;
+        cardColor = _reasoningCardColor;
+        bubbleColor = _reasoningCardColor;
+        avatarBackgroundColor = _reasoningAccentColor.withOpacity(0.18);
+        compactIcon = true;
+        titleMaxLines = 1;
+        break;
+      case SystemFeedSpecialType.mcpToolCall:
+        icon = Icons.build_circle;
+        color = _mcpAccentColor;
+        cardColor = _mcpCardColor;
+        bubbleColor = _mcpCardColor;
+        avatarBackgroundColor = _mcpAccentColor.withOpacity(0.18);
+        compactIcon = true;
+        break;
+      case SystemFeedSpecialType.threadStarted:
+        icon = Icons.flag;
+        color = _threadAccentColor;
+        cardColor = _threadCardColor;
+        bubbleColor = _threadCardColor;
+        avatarBackgroundColor = _threadAccentColor.withOpacity(0.18);
+        compactIcon = true;
+        titleMaxLines = 1;
+        break;
+      case SystemFeedSpecialType.commandExecution:
+        icon = Icons.terminal;
+        color = _commandAccentColor;
+        cardColor = _commandCardColor;
+        bubbleColor = _commandCardColor;
+        avatarBackgroundColor = _commandAccentColor.withOpacity(0.18);
+        break;
+      case null:
+        break;
+    }
+
+    final isError = event.level == SystemFeedLevel.error;
+    final isFinalResponse = _isFinalResponseCategory(event.category);
+
+    if (!isFinalResponse && !isError) {
+      compactIcon = true;
+    }
+
+    final hasDetails = _hasMeaningfulDetails(event.details);
 
     Widget? body;
-    final subtitle =
-        'Source: ${event.source} • Target: ${event.target} • ${event.category} • ${_formatTimestamp(event.timestamp)}';
+    if (hasDetails) {
+      if (fullDetail) {
+        body = _OutputBubble(text: event.details, backgroundColor: bubbleColor);
+      } else if (event.details.length > 160) {
+        body = _OutputBubble(
+          text: event.details,
+          maxLines: compactIcon ? 2 : 4,
+          backgroundColor: bubbleColor,
+        );
+      } else if (special == SystemFeedSpecialType.reasoning) {
+        body = _OutputBubble(
+          text: event.details,
+          maxLines: 1,
+          backgroundColor: bubbleColor,
+        );
+      } else if (compactIcon) {
+        body = _OutputBubble(
+          text: event.details,
+          maxLines: 2,
+          backgroundColor: bubbleColor,
+        );
+      }
+    }
 
-    if (fullDetail) {
-      body = _OutputBubble(text: event.details);
-    } else if (event.details.length > 160) {
-      body = _OutputBubble(text: event.details, maxLines: 4);
+    String displayTitle = event.summary;
+    if (special == SystemFeedSpecialType.reasoning || compactIcon) {
+      displayTitle = displayTitle.replaceAll(RegExp(r'\s+'), ' ').trim();
     }
 
     return _SystemEventViewModel(
-      title: event.summary,
+      title: displayTitle,
       subtitle: subtitle,
       body: body,
       icon: icon,
       color: color,
+      cardColor: cardColor,
+      avatarBackgroundColor: avatarBackgroundColor,
+      bubbleColor: bubbleColor,
+      compactIcon: compactIcon,
+      titleMaxLines: titleMaxLines,
     );
   }
 }
 
-String _formatTimestamp(DateTime ts) {
-  final local = ts.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${local.year}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}';
+bool _isFinalResponseCategory(String category) {
+  final normalized = category.toLowerCase();
+  return normalized == 'worker_turn' ||
+      normalized == 'orchestrator_turn' ||
+      normalized == 'agent_turn' ||
+      normalized == 'worker' ||
+      normalized == 'orchestrator';
+}
+
+bool _hasMeaningfulDetails(String details) {
+  final normalized = details.trim().toLowerCase();
+  if (normalized.isEmpty) return false;
+  if (normalized.startsWith('no additional details')) return false;
+  return true;
 }
 
 class _OutputBubble extends StatelessWidget {
-  const _OutputBubble({required this.text, this.maxLines});
+  const _OutputBubble({
+    required this.text,
+    this.maxLines,
+    this.backgroundColor,
+  });
 
   final String text;
   final int? maxLines;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color:
+            backgroundColor ?? Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.all(12),
