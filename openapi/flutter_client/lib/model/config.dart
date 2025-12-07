@@ -22,6 +22,9 @@ class Config {
     required this.dockerOverrides,
     this.dirtyStagingAction = const ConfigDirtyStagingActionEnum._('commit'),
     this.onStagingChange = const [],
+    this.persistentThreads = false,
+    this.ghostCommits = false,
+    this.driftManager = false,
   });
 
   /// Absolute path of the workspace the server is running in.
@@ -52,6 +55,15 @@ class Config {
   /// Command IDs to run after staging updates.
   List<String> onStagingChange;
 
+  /// Keep worker threads after task completion; still cleared when the feed is cleared.
+  bool persistentThreads;
+
+  /// Automatically commit worker changes after every turn.
+  bool ghostCommits;
+
+  /// (experimental) Attach worker reasoning traces to messages sent to the orchestrator.
+  bool driftManager;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -64,7 +76,10 @@ class Config {
           _deepEquality.equals(other.postTurnChecks, postTurnChecks) &&
           other.dockerOverrides == dockerOverrides &&
           other.dirtyStagingAction == dirtyStagingAction &&
-          _deepEquality.equals(other.onStagingChange, onStagingChange);
+          _deepEquality.equals(other.onStagingChange, onStagingChange) &&
+          other.persistentThreads == persistentThreads &&
+          other.ghostCommits == ghostCommits &&
+          other.driftManager == driftManager;
 
   @override
   int get hashCode =>
@@ -77,11 +92,14 @@ class Config {
       (postTurnChecks.hashCode) +
       (dockerOverrides.hashCode) +
       (dirtyStagingAction.hashCode) +
-      (onStagingChange.hashCode);
+      (onStagingChange.hashCode) +
+      (persistentThreads.hashCode) +
+      (ghostCommits.hashCode) +
+      (driftManager.hashCode);
 
   @override
   String toString() =>
-      'Config[workspacePath=$workspacePath, appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks, dockerOverrides=$dockerOverrides, dirtyStagingAction=$dirtyStagingAction, onStagingChange=$onStagingChange]';
+      'Config[workspacePath=$workspacePath, appendAgentsFile=$appendAgentsFile, models=$models, reasoning=$reasoning, commands=$commands, postTurnChecks=$postTurnChecks, dockerOverrides=$dockerOverrides, dirtyStagingAction=$dirtyStagingAction, onStagingChange=$onStagingChange, persistentThreads=$persistentThreads, ghostCommits=$ghostCommits, driftManager=$driftManager]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -98,6 +116,9 @@ class Config {
     json[r'docker_overrides'] = this.dockerOverrides;
     json[r'dirty_staging_action'] = this.dirtyStagingAction;
     json[r'on_staging_change'] = this.onStagingChange;
+    json[r'persistent_threads'] = this.persistentThreads;
+    json[r'ghost_commits'] = this.ghostCommits;
+    json[r'drift_manager'] = this.driftManager;
     return json;
   }
 
@@ -142,6 +163,10 @@ class Config {
                 .cast<String>()
                 .toList(growable: false)
             : const [],
+        persistentThreads:
+            mapValueOfType<bool>(json, r'persistent_threads') ?? false,
+        ghostCommits: mapValueOfType<bool>(json, r'ghost_commits') ?? false,
+        driftManager: mapValueOfType<bool>(json, r'drift_manager') ?? false,
       );
     }
     return null;

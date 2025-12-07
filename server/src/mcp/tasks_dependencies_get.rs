@@ -58,6 +58,8 @@ impl McpTool for TasksDependenciesGetTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Task whose dependencies should be listed.")]
 struct TasksDependenciesInput {
+    /// Slug of the task to inspect.
     pub slug: String,
 }

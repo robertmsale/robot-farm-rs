@@ -1397,9 +1397,14 @@ class _SystemFeed extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: viewModel.compactIcon ? 10 : 18,
-                        backgroundColor: viewModel.avatarBackgroundColor ??
+                        backgroundColor:
+                            viewModel.avatarBackgroundColor ??
                             viewModel.color.withOpacity(0.15),
-                        child: Icon(viewModel.icon, color: viewModel.color, size: viewModel.compactIcon ? 16 : null),
+                        child: Icon(
+                          viewModel.icon,
+                          color: viewModel.color,
+                          size: viewModel.compactIcon ? 16 : null,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1565,9 +1570,14 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
                       children: [
                         CircleAvatar(
                           radius: viewModel.compactIcon ? 14 : 24,
-                          backgroundColor: viewModel.avatarBackgroundColor ??
+                          backgroundColor:
+                              viewModel.avatarBackgroundColor ??
                               viewModel.color.withOpacity(0.15),
-                          child: Icon(viewModel.icon, color: viewModel.color, size: viewModel.compactIcon ? 18 : null),
+                          child: Icon(
+                            viewModel.icon,
+                            color: viewModel.color,
+                            size: viewModel.compactIcon ? 18 : null,
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -1622,6 +1632,14 @@ const Color _commandCardColor = Color(0xFFF1E6FF);
 const Color _commandAccentColor = Color(0xFF8E24AA);
 const Color _threadCardColor = Color(0xFFE8F9EE);
 const Color _threadAccentColor = Color(0xFF2E7D32);
+const Color _pauseCardColor = Color(0xFFFFF2E6);
+const Color _pauseAccentColor = Color(0xFFEF6C00);
+const Color _statusCardColor = Color(0xFFFFF7E0);
+const Color _statusAccentColor = Color(0xFFF9A825);
+const Color _assignCardColor = Color(0xFFE6F7ED);
+const Color _assignAccentColor = Color(0xFF1B5E20);
+const Color _completeCardColor = Color(0xFFE7F9E8);
+const Color _completeAccentColor = Color(0xFF2E7D32);
 
 class _SystemEventViewModel {
   _SystemEventViewModel({
@@ -1689,6 +1707,34 @@ class _SystemEventViewModel {
         avatarBackgroundColor = _mcpAccentColor.withOpacity(0.18);
         compactIcon = true;
         break;
+      case SystemFeedSpecialType.ackPause:
+        icon = Icons.pause_circle_filled;
+        color = _pauseAccentColor;
+        cardColor = _pauseCardColor;
+        bubbleColor = _pauseCardColor;
+        avatarBackgroundColor = _pauseAccentColor.withOpacity(0.18);
+        break;
+      case SystemFeedSpecialType.statusUpdate:
+        icon = Icons.update;
+        color = _statusAccentColor;
+        cardColor = _statusCardColor;
+        bubbleColor = _statusCardColor;
+        avatarBackgroundColor = _statusAccentColor.withOpacity(0.18);
+        break;
+      case SystemFeedSpecialType.assignTask:
+        icon = Icons.assignment_ind;
+        color = _assignAccentColor;
+        cardColor = _assignCardColor;
+        bubbleColor = _assignCardColor;
+        avatarBackgroundColor = _assignAccentColor.withOpacity(0.18);
+        break;
+      case SystemFeedSpecialType.completeTask:
+        icon = Icons.check_circle;
+        color = _completeAccentColor;
+        cardColor = _completeCardColor;
+        bubbleColor = _completeCardColor;
+        avatarBackgroundColor = _completeAccentColor.withOpacity(0.18);
+        break;
       case SystemFeedSpecialType.threadStarted:
         icon = Icons.flag;
         color = _threadAccentColor;
@@ -1748,6 +1794,15 @@ class _SystemEventViewModel {
       displayTitle = displayTitle.replaceAll(RegExp(r'\s+'), ' ').trim();
     }
 
+    if (event.category.toLowerCase() == 'validation') {
+      color = Theme.of(context).colorScheme.error;
+      cardColor = Color.fromRGBO(255, 220, 220, 1);
+      bubbleColor = cardColor;
+      avatarBackgroundColor = Theme.of(
+        context,
+      ).colorScheme.error.withOpacity(0.18);
+    }
+
     return _SystemEventViewModel(
       title: displayTitle,
       subtitle: subtitle,
@@ -1796,7 +1851,8 @@ class _OutputBubble extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color:
-            backgroundColor ?? Theme.of(context).colorScheme.surfaceContainerHighest,
+            backgroundColor ??
+            Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.all(12),
@@ -2406,6 +2462,18 @@ class SettingsController extends GetxController {
     _assignConfig(reasoning: updatedReasoning);
   }
 
+  void updateFeatureToggle({
+    bool? persistentThreads,
+    bool? ghostCommits,
+    bool? driftManager,
+  }) {
+    _assignConfig(
+      persistentThreads: persistentThreads,
+      ghostCommits: ghostCommits,
+      driftManager: driftManager,
+    );
+  }
+
   bool isCommandSelected(String id) => postTurnChecks.contains(id);
   bool isStagingHookSelected(String id) => onStagingChange.contains(id);
 
@@ -2546,6 +2614,9 @@ class SettingsController extends GetxController {
     robot_farm_api.AgentModelOverrides? models,
     robot_farm_api.AgentReasoningOverrides? reasoning,
     robot_farm_api.DockerOverrides? dockerOverrides,
+    bool? persistentThreads,
+    bool? ghostCommits,
+    bool? driftManager,
   }) {
     final current = config.value;
     if (current == null) return;
@@ -2582,6 +2653,9 @@ class SettingsController extends GetxController {
         commands ?? List<robot_farm_api.CommandConfig>.from(current.commands);
     final checks = postTurnChecks ?? List<String>.from(current.postTurnChecks);
     final hooks = onStagingChange ?? List<String>.from(current.onStagingChange);
+    final keepThreads = persistentThreads ?? current.persistentThreads;
+    final autoCommit = ghostCommits ?? current.ghostCommits;
+    final driftWatch = driftManager ?? current.driftManager;
     config.value = robot_farm_api.Config(
       appendAgentsFile: append,
       models: appliedModels,
@@ -2591,6 +2665,9 @@ class SettingsController extends GetxController {
       dockerOverrides: appliedDockerOverrides,
       onStagingChange: hooks,
       dirtyStagingAction: current.dirtyStagingAction,
+      persistentThreads: keepThreads,
+      ghostCommits: autoCommit,
+      driftManager: driftWatch,
     );
     config.refresh();
     hasChanges.value = true;
@@ -3027,6 +3104,38 @@ class SettingsScreen extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
+              const SizedBox(height: 24),
+              Text('Features', style: theme.textTheme.titleLarge),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Persistent threads'),
+                subtitle: const Text(
+                  'Keep worker threads after task completion; clearing the feed still resets them.',
+                ),
+                value: controller.config.value?.persistentThreads ?? false,
+                onChanged: (value) =>
+                    controller.updateFeatureToggle(persistentThreads: value),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Ghost commits'),
+                subtitle: const Text(
+                  'Commit worker changes after every turn automatically.',
+                ),
+                value: controller.config.value?.ghostCommits ?? false,
+                onChanged: (value) =>
+                    controller.updateFeatureToggle(ghostCommits: value),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Drift manager (experimental)'),
+                subtitle: const Text(
+                  'Attach worker reasoning traces to messages sent to the orchestrator.',
+                ),
+                value: controller.config.value?.driftManager ?? false,
+                onChanged: (value) =>
+                    controller.updateFeatureToggle(driftManager: value),
+              ),
               const SizedBox(height: 24),
             ],
           ),

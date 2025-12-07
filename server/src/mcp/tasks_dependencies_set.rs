@@ -93,8 +93,11 @@ impl McpTool for TasksDependenciesSetTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Replace the dependency list for a task.")]
 struct TasksDependenciesSetInput {
+    /// Slug of the task whose dependencies are being updated.
     pub slug: String,
+    /// List of task slugs that this task should depend on.
     #[serde(default)]
     pub depends_on: Vec<String>,
 }

@@ -2,6 +2,8 @@ use once_cell::sync::OnceCell;
 use openapi::models::CommandConfig;
 use parking_lot::RwLock;
 
+use crate::post_turn_checks::PostTurnCheckRegistry;
+
 use super::AgentRole;
 
 pub struct ProjectCommandRegistry {
@@ -36,8 +38,18 @@ impl ProjectCommandRegistry {
 
 pub fn command_visible_for_role(role: AgentRole, command: &CommandConfig) -> bool {
     if command.hidden.unwrap_or(false) {
-        !matches!(role, AgentRole::Worker | AgentRole::Orchestrator)
+        if matches!(role, AgentRole::Worker | AgentRole::Orchestrator) {
+            return is_post_turn_check(&command.id);
+        }
+        false
     } else {
         true
     }
+}
+
+pub fn is_post_turn_check(id: &str) -> bool {
+    PostTurnCheckRegistry::global()
+        .list()
+        .iter()
+        .any(|check| check == id)
 }

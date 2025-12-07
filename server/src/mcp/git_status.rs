@@ -3,7 +3,7 @@ use std::path::Path;
 use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 use tokio::process::Command;
 
 use super::Agent;
@@ -50,7 +50,20 @@ impl McpTool for GitStatusTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(
+    description = "No parameters required for git status.",
+    schema_with = "empty_object_schema"
+)]
 struct GitStatusInput {}
+
+fn empty_object_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    serde_json::from_value(json!({
+        "type": "object",
+        "properties": {},
+        "description": "No parameters required for git status."
+    }))
+    .expect("valid empty object schema")
+}
 
 async fn run_git_command<const N: usize>(
     ctx: &ToolContext,

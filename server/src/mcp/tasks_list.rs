@@ -98,10 +98,16 @@ impl McpTool for TasksListTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Filter parameters for listing tasks.")]
 struct TasksListInput {
+    /// Optional task group slug to filter by.
     pub group_slug: Option<String>,
+    /// Exact task slug to include (exclusive filter).
     pub slug: Option<String>,
+    /// Case-insensitive substring match on task title.
     pub title: Option<String>,
+    /// Exact owner label to match (e.g., 'orchestrator', 'ws3').
     pub owner: Option<String>,
+    /// Task status name (READY, IN_PROGRESS, BLOCKED, COMPLETED, etc.).
     pub status: Option<String>,
 }

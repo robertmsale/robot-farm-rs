@@ -60,6 +60,8 @@ impl McpTool for TaskGroupsListTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Optional filters for listing task groups.")]
 struct TaskGroupsListInput {
+    /// Filter by task group status.
     pub status: Option<String>,
 }

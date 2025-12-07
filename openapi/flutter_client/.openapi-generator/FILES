@@ -93,4 +93,3 @@ lib/model/task_update_input.dart
 lib/model/worker.dart
 lib/model/worker_state.dart
 pubspec.yaml
-test/git_commit_worktree_id_post_request_test.dart

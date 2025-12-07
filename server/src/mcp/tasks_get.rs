@@ -47,6 +47,8 @@ impl McpTool for TasksGetTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Lookup parameters for a single task.")]
 struct TasksGetInput {
+    /// Slug of the task to fetch.
     pub slug: String,
 }

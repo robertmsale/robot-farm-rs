@@ -1,7 +1,6 @@
-use schemars::{JsonSchema, Schema, schema_for};
+use schema_strict::{strict_schema_for_type, strip_sibling_keywords_from_ref};
+use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::convert::TryFrom;
 
 /// Structured payload produced by the orchestrator turn loop.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -114,43 +113,22 @@ pub struct BlockedEntry {
 }
 
 /// Generate a JSON Schema for `T` with OpenAI-specific cleanup applied.
-pub fn generated_schema_for<T: JsonSchema + ?Sized>() -> Schema {
-    let mut schema = schema_for!(T);
-    strip_keywords_from_refs(&mut schema);
+pub fn generated_schema_for<T: JsonSchema>() -> Schema {
+    let (mut schema, report) = strict_schema_for_type::<T>();
+    debug_assert!(
+        report.is_valid(),
+        "strict schema for {} reported issues: {:?}",
+        std::any::type_name::<T>(),
+        report
+    );
+    strip_sibling_keywords_from_ref(&mut schema);
     schema
-}
-
-fn strip_keywords_from_refs(schema: &mut Schema) {
-    let mut value = serde_json::to_value(&*schema).expect("schema serialization succeeds");
-    scrub_ref_nodes(&mut value);
-    *schema = Schema::try_from(value).expect("scrubbed schema remains valid");
-}
-
-fn scrub_ref_nodes(value: &mut Value) {
-    match value {
-        Value::Object(map) => {
-            if let Some(reference) = map.get("$ref").cloned() {
-                map.clear();
-                map.insert("$ref".into(), reference);
-                return;
-            }
-            for child in map.values_mut() {
-                scrub_ref_nodes(child);
-            }
-        }
-        Value::Array(items) => {
-            for child in items {
-                scrub_ref_nodes(child);
-            }
-        }
-        _ => {}
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oai_strict_schema::{StrictProfile, harden_root_schema, validate_schema};
+    use schema_strict::strict_schema_for_type;
 
     #[test]
     fn orchestrator_schema_is_strict_valid() {
@@ -163,14 +141,7 @@ mod tests {
     }
 
     fn assert_schema_is_strict_valid<T: JsonSchema>() {
-        let mut schema = generated_schema_for::<T>();
-        harden_root_schema(&mut schema);
-        let rules = StrictProfile::OpenAI2025.default_rules();
-        let report = validate_schema(&schema, &rules);
-        assert!(
-            report.is_ok(),
-            "Strict validation failed with findings: {}",
-            report
-        );
+        let (_schema, report) = strict_schema_for_type::<T>();
+        assert!(report.is_valid(), "Strict validation failed: {:?}", report);
     }
 }

@@ -42,6 +42,8 @@ impl McpTool for TaskGroupsGetTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Lookup parameters for a task group.")]
 struct TaskGroupsGetInput {
+    /// Slug of the task group to fetch.
     pub slug: String,
 }

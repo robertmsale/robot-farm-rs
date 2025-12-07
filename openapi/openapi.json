@@ -24,9 +24,7 @@
                       "description": "Indicates the server is running."
                     }
                   },
-                  "required": [
-                    "status"
-                  ]
+                  "required": ["status"]
                 },
                 "examples": {
                   "healthy": {
@@ -1204,9 +1202,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "message"
-                ]
+                "required": ["message"]
               }
             }
           }
@@ -1233,20 +1229,12 @@
       "TaskStatus": {
         "type": "string",
         "description": "High-level state for a task.",
-        "enum": [
-          "Ready",
-          "Blocked",
-          "Done"
-        ]
+        "enum": ["Ready", "Blocked", "Done"]
       },
       "FeedLevel": {
         "type": "string",
         "description": "Severity of the feed entry.",
-        "enum": [
-          "info",
-          "warning",
-          "error"
-        ]
+        "enum": ["info", "warning", "error"]
       },
       "FeedOrderField": {
         "type": "string",
@@ -1278,20 +1266,12 @@
       "WorkerState": {
         "type": "string",
         "description": "State reported by the worker.",
-        "enum": [
-          "Ready",
-          "Working",
-          "Blocked",
-          "Done"
-        ]
+        "enum": ["Ready", "Working", "Blocked", "Done"]
       },
       "TaskGroupStatus": {
         "type": "string",
         "description": "Derived status for a task group: Done when it has no tasks or every task is Done, otherwise Ready.",
-        "enum": [
-          "Ready",
-          "Done"
-        ]
+        "enum": ["Ready", "Done"]
       },
       "Owner": {
         "type": "string",
@@ -1325,13 +1305,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "id",
-          "slug",
-          "title",
-          "description",
-          "status"
-        ],
+        "required": ["id", "slug", "title", "description", "status"],
         "additionalProperties": false
       },
       "TaskGroupCreateInput": {
@@ -1348,11 +1322,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "slug",
-          "title",
-          "description"
-        ],
+        "required": ["slug", "title", "description"],
         "additionalProperties": false
       },
       "TaskGroupUpdateInput": {
@@ -1395,13 +1365,7 @@
             "description": "Unix timestamp (seconds) when the message was queued."
           }
         },
-        "required": [
-          "id",
-          "from",
-          "to",
-          "message",
-          "inserted_at"
-        ],
+        "required": ["id", "from", "to", "message", "inserted_at"],
         "additionalProperties": false
       },
       "MessageEnqueueInput": {
@@ -1417,11 +1381,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "from",
-          "to",
-          "message"
-        ],
+        "required": ["from", "to", "message"],
         "additionalProperties": false
       },
       "QueueState": {
@@ -1431,9 +1391,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "paused"
-        ],
+        "required": ["paused"],
         "additionalProperties": false
       },
       "InsertMessage": {
@@ -1447,9 +1405,7 @@
                 "format": "int64"
               }
             },
-            "required": [
-              "before"
-            ],
+            "required": ["before"],
             "additionalProperties": false
           },
           {
@@ -1460,9 +1416,7 @@
                 "format": "int64"
               }
             },
-            "required": [
-              "after"
-            ],
+            "required": ["after"],
             "additionalProperties": false
           }
         ]
@@ -1535,10 +1489,7 @@
             }
           }
         },
-        "required": [
-          "orchestrator",
-          "worker"
-        ],
+        "required": ["orchestrator", "worker"],
         "additionalProperties": false
       },
       "CommandConfig": {
@@ -1576,10 +1527,7 @@
             "description": "Override working directory for this command. Paths may be absolute or relative to the workspace root."
           }
         },
-        "required": [
-          "id",
-          "exec"
-        ],
+        "required": ["id", "exec"],
         "additionalProperties": false
       },
       "Config": {
@@ -1619,10 +1567,7 @@
           },
           "dirty_staging_action": {
             "type": "string",
-            "enum": [
-              "commit",
-              "stash"
-            ],
+            "enum": ["commit", "stash"],
             "description": "Action to take when staging worktree is dirty during task completion.",
             "default": "commit"
           },
@@ -1633,6 +1578,21 @@
             },
             "description": "Command IDs to run after staging updates.",
             "default": []
+          },
+          "persistent_threads": {
+            "type": "boolean",
+            "description": "Keep worker threads after task completion; still cleared when the feed is cleared.",
+            "default": false
+          },
+          "ghost_commits": {
+            "type": "boolean",
+            "description": "Automatically commit worker changes after every turn.",
+            "default": false
+          },
+          "drift_manager": {
+            "type": "boolean",
+            "description": "(experimental) Attach worker reasoning traces to messages sent to the orchestrator.",
+            "default": false
           }
         },
         "required": [
@@ -1671,11 +1631,7 @@
             "default": []
           }
         },
-        "required": [
-          "orchestrator",
-          "worker",
-          "wizard"
-        ],
+        "required": ["orchestrator", "worker", "wizard"],
         "additionalProperties": false
       },
       "AgentModelOverrides": {
@@ -1713,11 +1669,7 @@
             ]
           }
         },
-        "required": [
-          "orchestrator",
-          "worker",
-          "wizard"
-        ],
+        "required": ["orchestrator", "worker", "wizard"],
         "additionalProperties": false
       },
       "AgentReasoningOverrides": {
@@ -1734,21 +1686,13 @@
             "$ref": "#/components/schemas/ReasoningEffort"
           }
         },
-        "required": [
-          "orchestrator",
-          "worker",
-          "wizard"
-        ],
+        "required": ["orchestrator", "worker", "wizard"],
         "additionalProperties": false
       },
       "ReasoningEffort": {
         "type": "string",
         "description": "Codex reasoning effort to request when launching a persona.",
-        "enum": [
-          "low",
-          "medium",
-          "high"
-        ]
+        "enum": ["low", "medium", "high"]
       },
       "TaskDependency": {
         "type": "object",
@@ -1763,10 +1707,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "task_id",
-          "depends_on_task_id"
-        ],
+        "required": ["task_id", "depends_on_task_id"],
         "additionalProperties": false
       },
       "TaskDependencyCreateInput": {
@@ -1782,10 +1723,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "task_id",
-          "depends_on_task_id"
-        ],
+        "required": ["task_id", "depends_on_task_id"],
         "additionalProperties": false
       },
       "Task": {
@@ -1946,11 +1884,7 @@
             "description": "Most recent Codex thread id for this worker, if any."
           }
         },
-        "required": [
-          "id",
-          "last_seen",
-          "state"
-        ],
+        "required": ["id", "last_seen", "state"],
         "additionalProperties": false
       },
       "ActiveStrategy": {
@@ -1970,9 +1904,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       },
       "CommitInfo": {
@@ -1992,11 +1924,7 @@
             "description": "Output of `git diff --stat {hash}^!`."
           }
         },
-        "required": [
-          "hash",
-          "message",
-          "diff"
-        ],
+        "required": ["hash", "message", "diff"],
         "additionalProperties": false
       },
       "GitStatusSummary": {
@@ -2010,9 +1938,7 @@
             }
           }
         },
-        "required": [
-          "worktrees"
-        ],
+        "required": ["worktrees"],
         "additionalProperties": false
       },
       "GitWorktreeStatus": {
@@ -2105,12 +2031,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "path",
-          "status_code",
-          "additions",
-          "deletions"
-        ],
+        "required": ["path", "status_code", "additions", "deletions"],
         "additionalProperties": false
       },
       "GitStatusHunk": {
@@ -2129,10 +2050,7 @@
             }
           }
         },
-        "required": [
-          "header",
-          "lines"
-        ],
+        "required": ["header", "lines"],
         "additionalProperties": false
       },
       "ExecResult": {
@@ -2151,12 +2069,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "command",
-          "exit_code",
-          "stdout",
-          "stderr"
-        ],
+        "required": ["command", "exit_code", "stdout", "stderr"],
         "additionalProperties": false
       },
       "ExecCommandInput": {
@@ -2173,9 +2086,7 @@
             "description": "Optional working directory override relative to the workspace root."
           }
         },
-        "required": [
-          "command"
-        ],
+        "required": ["command"],
         "additionalProperties": false
       }
     }

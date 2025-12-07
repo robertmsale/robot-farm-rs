@@ -95,13 +95,22 @@ impl McpTool for TasksUpdateTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Fields that may be updated on an existing task.")]
 struct TasksUpdateInputPayload {
+    /// Current task slug to locate the record.
     pub slug: String,
+    /// Optional new slug to set.
     pub new_slug: Option<String>,
+    /// Optional new task group slug.
     pub group_slug: Option<String>,
+    /// Optional new title.
     pub title: Option<String>,
+    /// Optional commit hash to associate.
     pub commit_hash: Option<String>,
+    /// Optional new status value.
     pub status: Option<String>,
+    /// Optional new owner label.
     pub owner: Option<String>,
+    /// Optional updated description.
     pub description: Option<String>,
 }

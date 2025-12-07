@@ -62,8 +62,12 @@ impl McpTool for TaskGroupsCreateTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Parameters for creating a task group.")]
 struct TaskGroupsCreateInput {
+    /// Unique slug for the task group.
     pub slug: String,
+    /// Human-readable title for the group.
     pub title: String,
+    /// Description and scope for the group.
     pub description: String,
 }

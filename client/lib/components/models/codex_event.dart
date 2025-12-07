@@ -434,6 +434,34 @@ class SystemFeedEvent {
         return SystemFeedSpecialType.threadStarted;
       }
 
+      if (type == 'item.completed') {
+        final item = decoded['item'];
+        if (item is Map<String, dynamic>) {
+          final detailType = item['type']?.toString();
+          if (detailType == 'agent_message') {
+            final text = item['text']?.toString();
+            if (text != null && text.isNotEmpty) {
+              try {
+                final parsed = jsonDecode(text);
+                if (parsed is Map<String, dynamic>) {
+                  final intent = parsed['intent']?.toString().toUpperCase();
+                  switch (intent) {
+                    case 'ACK_PAUSE':
+                      return SystemFeedSpecialType.ackPause;
+                    case 'STATUS_UPDATE':
+                      return SystemFeedSpecialType.statusUpdate;
+                    case 'ASSIGN_TASK':
+                      return SystemFeedSpecialType.assignTask;
+                    case 'COMPLETE_TASK':
+                      return SystemFeedSpecialType.completeTask;
+                  }
+                }
+              } catch (_) {}
+            }
+          }
+        }
+      }
+
       if (!type.startsWith('item.')) {
         return null;
       }
@@ -531,6 +559,10 @@ enum SystemFeedSpecialType {
   mcpToolCall,
   threadStarted,
   commandExecution,
+  ackPause,
+  statusUpdate,
+  assignTask,
+  completeTask,
 }
 
 SystemFeedLevel _mapFeedLevel(robot_farm_api.FeedLevel level) {

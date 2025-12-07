@@ -54,4 +54,17 @@ impl McpTool for ProjectCommandListTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(
+    description = "No parameters are required to list project commands.",
+    schema_with = "empty_object_schema"
+)]
 struct ProjectCommandListInput {}
+
+fn empty_object_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    serde_json::from_value(json!({
+        "type": "object",
+        "properties": {},
+        "description": "No parameters are required to list project commands."
+    }))
+    .expect("valid empty object schema")
+}

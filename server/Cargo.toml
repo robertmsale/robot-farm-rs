@@ -51,12 +51,13 @@ schemars = { workspace = true }
 futures = { workspace = true }
 percent-encoding = "2.3.2"
 openapi = { path = "../openapi/rust" }
-oai_strict_schema = { path = "../oai_strict_schema" }
 path-clean = "1.0.1"
 tempfile = "3.23.0"
 gix = { version = "0.60.0", features = ["blob-diff", "revparse-regex"] }
 tera = "1.19.1"
 sha2 = "0.10.8"
+schema_strict = { git = "https://github.com/robertmsale/schema_strict.git" }
+schema_strict_macros = { git = "https://github.com/robertmsale/schema_strict.git" }
 
 
 [build-dependencies]

@@ -5,7 +5,7 @@ use crate::{
 };
 use axum::{Json, http::StatusCode};
 use openapi::models::{
-    config::DirtyStagingAction, AppendFilesConfig, Config as WorkspaceConfig, DockerOverrides,
+    AppendFilesConfig, Config as WorkspaceConfig, DockerOverrides, config::DirtyStagingAction,
 };
 use serde_json::{Error as SerdeError, Value};
 use std::fs;
@@ -88,6 +88,9 @@ fn default_config() -> WorkspaceConfig {
         docker_overrides: Box::new(default_docker_overrides()),
         dirty_staging_action: Some(DirtyStagingAction::Commit),
         on_staging_change: Some(vec![]),
+        persistent_threads: Some(false),
+        ghost_commits: Some(false),
+        drift_manager: Some(false),
     }
 }
 
@@ -202,6 +205,21 @@ fn hydrate_new_fields(value: &mut Value) -> Result<bool, SerdeError> {
             "on_staging_change".to_string(),
             serde_json::to_value(Vec::<String>::new())?,
         );
+        changed = true;
+    }
+    if !object.contains_key("persistent_threads") {
+        object.insert(
+            "persistent_threads".to_string(),
+            serde_json::Value::Bool(false),
+        );
+        changed = true;
+    }
+    if !object.contains_key("ghost_commits") {
+        object.insert("ghost_commits".to_string(), serde_json::Value::Bool(false));
+        changed = true;
+    }
+    if !object.contains_key("drift_manager") {
+        object.insert("drift_manager".to_string(), serde_json::Value::Bool(false));
         changed = true;
     }
 

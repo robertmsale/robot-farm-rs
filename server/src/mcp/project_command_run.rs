@@ -14,7 +14,7 @@ use crate::{globals::PROJECT_DIR, shared::shell};
 use super::{
     Agent, AgentRole, McpTool, ToolContext, ToolInvocationError, ToolInvocationResponse,
     parse_params,
-    project_commands::{ProjectCommandRegistry, command_visible_for_role},
+    project_commands::{ProjectCommandRegistry, command_visible_for_role, is_post_turn_check},
     roles_all, schema_for_type, serialize_json,
 };
 
@@ -54,7 +54,9 @@ impl McpTool for ProjectCommandRunTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Run a declared project command by id.")]
 struct ProjectCommandRunInput {
+    /// Identifier of the project command to execute (from config.json).
     pub command_id: String,
 }
 
@@ -66,9 +68,19 @@ async fn run_command(
         .get(&input.command_id)
         .ok_or_else(|| ToolInvocationError::NotFound(format!("command {}", input.command_id)))?;
 
-    if !command_visible_for_role(agent.role(), &command) {
+    let role = agent.role();
+    if !command_visible_for_role(role, &command) {
         return Err(ToolInvocationError::Unauthorized(
             "command is hidden for this agent".to_string(),
+        ));
+    }
+
+    if command.hidden.unwrap_or(false)
+        && matches!(role, AgentRole::Worker | AgentRole::Orchestrator)
+        && is_post_turn_check(&command.id)
+    {
+        return Ok(ToolInvocationResponse::text_error(
+            "Finish your turn with COMPLETE_TASK intent to use this tool.",
         ));
     }
 

@@ -50,6 +50,7 @@ impl McpTool for GitDiffTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Parameters for fetching a git diff.")]
 struct GitDiffInput {
     /// Relative path to show diff for. When omitted, shows the full diff.
     pub path: Option<String>,

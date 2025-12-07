@@ -259,18 +259,56 @@ pub fn collect_all_worktree_statuses(
 
 pub fn fast_forward_all_worktrees(project_root: &Path) -> Result<(), GitError> {
     let staging_dir = project_root.join("staging");
+    if !staging_dir.exists() {
+        return Err(GitError::NotFound(staging_dir.display().to_string()));
+    }
+
+    // Staging is authoritative; normalize it before syncing workers.
+    if is_dirty(&staging_dir)? {
+        stage_all(&staging_dir)?;
+        commit(
+            &staging_dir,
+            "Robot Farm auto-commit dirty staging before fast-forwarding worktrees",
+        )?;
+    }
+
     let worktree_paths = list_worktrees(&staging_dir)?;
     for path in worktree_paths {
         let id = derive_worktree_id(&path);
-        if id == "staging" {
+        if id == "staging" || !is_worker_branch(&id) {
             continue;
         }
-        // Try to fast-forward worker branches to staging; skip on failure so others continue.
-        if let Err(err) = merge_ff_only(&path, "staging") {
-            return Err(err);
+
+        // Merge worker branch into staging (authoritative).
+        match merge_ff_only(&staging_dir, &id) {
+            Ok(_) => {}
+            Err(_) => {
+                if let Err(err) = merge(&staging_dir, &id) {
+                    // If merge introduced conflicts, abort and surface the error.
+                    if let Ok(conflicts) = collect_merge_conflicts(&staging_dir) {
+                        let _ = abort_merge(&staging_dir);
+                        let files: Vec<String> = conflicts.iter().map(|c| c.file.clone()).collect();
+                        return Err(GitError::CommandFailure {
+                            stderr: format!(
+                                "merge conflict while merging {} into staging: {}",
+                                id,
+                                files.join(", ")
+                            ),
+                        });
+                    }
+                    return Err(err);
+                }
+            }
         }
+
+        // Keep worker aligned with staging after successful merge.
+        merge_ff_only(&path, "staging")?;
     }
     Ok(())
+}
+
+fn is_worker_branch(id: &str) -> bool {
+    id.starts_with("ws") && id[2..].chars().all(|c| c.is_ascii_digit())
 }
 
 pub fn collect_worktree_status(

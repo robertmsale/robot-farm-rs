@@ -55,6 +55,8 @@ impl McpTool for TaskGroupsDeleteTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Parameters for deleting a task group.")]
 struct TaskGroupsDeleteInput {
+    /// Slug of the task group to delete.
     pub slug: String,
 }

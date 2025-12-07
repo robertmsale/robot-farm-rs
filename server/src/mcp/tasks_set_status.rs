@@ -57,8 +57,12 @@ impl McpTool for TasksSetStatusTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Set the status (and optional owner) for a task.")]
 struct TasksSetStatusInput {
+    /// Slug of the task to update.
     pub slug: String,
+    /// New status value (READY, IN_PROGRESS, BLOCKED, COMPLETED, etc.).
     pub status: String,
+    /// Optional new owner label.
     pub owner: Option<String>,
 }

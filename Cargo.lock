@@ -408,6 +408,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
+name = "convert_case"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3143,6 +3152,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "schema_strict"
+version = "0.1.0"
+source = "git+https://github.com/robertmsale/schema_strict.git#75a7d505fb46e8eaa632c7f0bcef995e409a6810"
+dependencies = [
+ "schema_strict_macros",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "schema_strict_macros"
+version = "0.1.0"
+source = "git+https://github.com/robertmsale/schema_strict.git#75a7d505fb46e8eaa632c7f0bcef995e409a6810"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "schemars"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3291,7 +3322,6 @@ dependencies = [
  "http-body-util",
  "inventory",
  "num-traits",
- "oai_strict_schema",
  "once_cell",
  "openai-sdk-rs",
  "openapi",
@@ -3299,6 +3329,8 @@ dependencies = [
  "path-clean",
  "percent-encoding",
  "reqwest",
+ "schema_strict",
+ "schema_strict_macros",
  "schemars",
  "semver",
  "serde",

@@ -74,9 +74,14 @@ impl McpTool for TaskGroupsUpdateTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Fields that may be updated on a task group.")]
 struct TaskGroupsUpdateInput {
+    /// Current task group slug.
     pub slug: String,
+    /// Optional new slug.
     pub new_slug: Option<String>,
+    /// Optional new title.
     pub title: Option<String>,
+    /// Optional new description.
     pub description: Option<String>,
 }

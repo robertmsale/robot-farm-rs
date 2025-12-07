@@ -77,12 +77,20 @@ impl McpTool for TasksCreateTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Parameters for creating a new task inside a group.")]
 struct TasksCreateInputPayload {
+    /// Slug of the target task group.
     pub group_slug: String,
+    /// Slug for the new task (must be unique).
     pub slug: String,
+    /// Human-readable title for the task.
     pub title: String,
+    /// Optional commit hash to associate with the task.
     pub commit_hash: Option<String>,
+    /// Initial status for the task (defaults to READY).
     pub status: Option<String>,
+    /// Explicit owner label (defaults to caller).
     pub owner: Option<String>,
+    /// Detailed task description and acceptance notes.
     pub description: String,
 }

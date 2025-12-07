@@ -55,6 +55,8 @@ impl McpTool for TasksDeleteTool {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(description = "Parameters for deleting a task.")]
 struct TasksDeleteInput {
+    /// Slug of the task to delete.
     pub slug: String,
 }

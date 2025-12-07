@@ -3,9 +3,11 @@ use std::{collections::HashMap, sync::Arc};
 use async_trait::async_trait;
 use http::StatusCode;
 use once_cell::sync::Lazy;
+use schema_strict::strict_value_for_type;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
+use std::any::type_name;
 use thiserror::Error;
 
 use crate::{
@@ -791,5 +793,12 @@ pub const fn roles_coordination() -> &'static [AgentRole] {
 }
 
 pub fn schema_for_type<T: JsonSchema>() -> Value {
-    serde_json::to_value(schemars::schema_for!(T)).unwrap_or_else(|_| json!({"type": "object"}))
+    let (value, report) = strict_value_for_type::<T>();
+    debug_assert!(
+        report.is_valid(),
+        "strict schema for {} reported issues: {:?}",
+        type_name::<T>(),
+        report
+    );
+    value
 }

@@ -2,11 +2,11 @@ use crate::ai::schemas::{
     Assignment, OrchestratorIntent, OrchestratorTurn, WorkerCompletion, WorkerIntent, WorkerTurn,
 };
 use crate::db;
-use crate::db::task_group;
 use crate::db::assignments;
 use crate::db::feed::NewFeedEntry;
 use crate::db::message_queue::{MessageFilters, RelativePosition};
 use crate::db::task as task_db;
+use crate::db::task_group;
 use crate::globals::PROJECT_DIR;
 use crate::mcp::project_commands::ProjectCommandRegistry;
 use crate::models::process::{
@@ -20,6 +20,7 @@ use crate::shared::git::MergeConflict;
 use crate::shared::{git, shell};
 use crate::system::{
     events::{SystemActor, SystemEvent},
+    features,
     queue::{QueueCoordinator, QueueError},
     runner::{self, Persona, RunnerConfig},
     staging_hooks,
@@ -368,6 +369,57 @@ impl QueueManagerRuntime {
         Ok(())
     }
 
+    async fn maybe_ghost_commit(&self, worker_id: i64, turn: &WorkerTurn) {
+        if !features::ghost_commits() {
+            return;
+        }
+
+        match ghost_commit_worker_turn(worker_id, turn) {
+            Ok(_) => {}
+            Err(err) => {
+                warn!(?err, worker_id, "ghost commit failed for worker turn");
+                let note = format!("Ghost commit failed: {err}");
+                let _ = self
+                    .record_worker_feed(worker_id, &note, "", Some("system"))
+                    .await;
+            }
+        }
+    }
+
+    fn drift_trace(&self, worker_id: i64) -> Option<String> {
+        if !features::drift_manager() {
+            return None;
+        }
+        let log = self.state.worker_reasoning.get(&worker_id)?;
+        if log.is_empty() {
+            return None;
+        }
+        let body = log.join("\n\n---\n\n");
+        Some(format!(
+            "----- drift manager trace (ws{worker_id}) -----\n{body}\n----- end drift manager trace -----"
+        ))
+    }
+
+    fn capture_reasoning(&mut self, worker_id: i64, message: &str, category: Option<&str>) {
+        if !features::drift_manager() {
+            return;
+        }
+        let is_reasoning = match category {
+            Some(cat) => cat.eq_ignore_ascii_case("reasoning"),
+            None => message.to_ascii_lowercase().starts_with("reasoning:"),
+        };
+        if !is_reasoning {
+            return;
+        }
+        let entry = self
+            .state
+            .worker_reasoning
+            .entry(worker_id)
+            .or_insert_with(Vec::new);
+        entry.push(clean_reasoning_snippet(message));
+        trim_reasoning_log(entry);
+    }
+
     async fn handle_notification(
         &mut self,
         notification: ProcessNotification,
@@ -409,6 +461,7 @@ impl QueueManagerRuntime {
                             Err(err) => warn!(?err, worker_id, "failed to store worker thread id"),
                         }
                     }
+                    self.capture_reasoning(worker_id, &message, category.as_deref());
                     self.record_worker_feed(worker_id, &message, &raw, category.as_deref())
                         .await?;
                 }
@@ -431,6 +484,7 @@ impl QueueManagerRuntime {
                 AgentRunActor::Worker(worker_id) => {
                     self.state.active_workers.remove(&worker_id);
                     self.state.worker_runs.remove(&worker_id);
+                    self.state.worker_reasoning.remove(&worker_id);
                     QueueCoordinator::global().clear_assignment(worker_id);
                     debug!(%run_id, worker_id, "worker run completed");
                 }
@@ -450,11 +504,14 @@ impl QueueManagerRuntime {
         turn: WorkerTurn,
     ) -> Result<(), QueueManagerError> {
         info!(worker_id, intent = ?turn.intent, "processing worker turn");
+        self.maybe_ghost_commit(worker_id, &turn).await;
 
         match turn.intent {
             WorkerIntent::CompleteTask => {
                 if let Some(completed) = turn.completed {
-                    self.handle_worker_completion(worker_id, completed).await?;
+                    let drift_trace = self.drift_trace(worker_id);
+                    self.handle_worker_completion(worker_id, completed, drift_trace)
+                        .await?;
                 } else {
                     self.record_validation_failure(worker_id, "missing completion payload")
                         .await?;
@@ -462,10 +519,14 @@ impl QueueManagerRuntime {
             }
             WorkerIntent::Blocked => {
                 if let Some(blocked) = turn.blocked {
-                    let message = format!(
+                    let mut message = format!(
                         "ws{worker_id} is blocked on {}: {}",
                         blocked.task_slug, blocked.reason
                     );
+                    if let Some(trace) = self.drift_trace(worker_id) {
+                        message.push_str("\n\n");
+                        message.push_str(&trace);
+                    }
                     self.enqueue_message(
                         SystemActor::Worker(worker_id),
                         SystemActor::Orchestrator,
@@ -486,6 +547,10 @@ impl QueueManagerRuntime {
                     if let Some(hints) = Self::render_support_hints(worker_id) {
                         message.push_str("\n\n");
                         message.push_str(&hints);
+                    }
+                    if let Some(trace) = self.drift_trace(worker_id) {
+                        message.push_str("\n\n");
+                        message.push_str(&trace);
                     }
                     self.enqueue_message(
                         SystemActor::Worker(worker_id),
@@ -661,12 +726,14 @@ impl QueueManagerRuntime {
         &mut self,
         worker_id: i64,
         completed: WorkerCompletion,
+        drift_trace: Option<String>,
     ) -> Result<(), QueueManagerError> {
         PostTurnJob::spawn(
             worker_id,
             completed,
             self.middleware.clone(),
             self.db.clone(),
+            drift_trace,
         );
         Ok(())
     }
@@ -851,7 +918,10 @@ impl QueueManagerRuntime {
         // If staging is dirty, normalize it per config before trying to sync the worker.
         let staging = staging_path();
         if let Err(err) = ensure_clean_staging(worker_id, &staging) {
-            warn!(?err, worker_id, "failed to normalize dirty staging before dispatch; skipping turn");
+            warn!(
+                ?err,
+                worker_id, "failed to normalize dirty staging before dispatch; skipping turn"
+            );
             return Ok(false);
         }
 
@@ -925,6 +995,7 @@ impl QueueManagerRuntime {
             .map_err(|_| QueueManagerError::ResponseDropped)?;
 
         self.state.worker_runs.insert(worker_id, run_id);
+        self.state.worker_reasoning.insert(worker_id, Vec::new());
         Self::spawn_process_event_drain(worker_id, handle.events);
         self.state.active_workers.insert(worker_id);
         info!(
@@ -1362,6 +1433,7 @@ struct QueueRuntimeState {
     active_workers: HashSet<i64>,
     worker_runs: HashMap<i64, RunId>,
     orchestrator_run: Option<RunId>,
+    worker_reasoning: HashMap<i64, Vec<String>>,
 }
 
 impl Default for QueueRuntimeState {
@@ -1372,6 +1444,7 @@ impl Default for QueueRuntimeState {
             active_workers: HashSet::new(),
             worker_runs: HashMap::new(),
             orchestrator_run: None,
+            worker_reasoning: HashMap::new(),
         }
     }
 }
@@ -1442,6 +1515,7 @@ struct PostTurnJob {
     completion: WorkerCompletion,
     middleware: MiddlewareHandle,
     db: DatabaseManagerHandle,
+    drift_trace: Option<String>,
 }
 
 impl PostTurnJob {
@@ -1450,12 +1524,14 @@ impl PostTurnJob {
         completion: WorkerCompletion,
         middleware: MiddlewareHandle,
         db: DatabaseManagerHandle,
+        drift_trace: Option<String>,
     ) {
         let job = Self {
             worker_id,
             completion,
             middleware,
             db,
+            drift_trace,
         };
         spawn(async move {
             job.run().await;
@@ -1474,7 +1550,9 @@ impl PostTurnJob {
                     );
                 }
                 // Clear worker session only after full success (checks + merge/ff).
-                self.clear_worker_session().await;
+                if !features::persistent_threads() {
+                    self.clear_worker_session().await;
+                }
                 if let Err(err) = self.notify_orchestrator_completion().await {
                     warn!(
                         worker_id = self.worker_id,
@@ -1674,6 +1752,10 @@ impl PostTurnJob {
             message.push_str("\n");
             message.push_str(&extra);
         }
+        if let Some(trace) = self.drift_trace.as_deref() {
+            message.push_str("\n\n");
+            message.push_str(trace);
+        }
 
         self.db
             .enqueue_message(
@@ -1730,6 +1812,55 @@ impl PostTurnJob {
     }
 }
 
+fn ghost_commit_worker_turn(worker_id: i64, turn: &WorkerTurn) -> Result<(), git::GitError> {
+    let worker_root = worker_worktree_path(worker_id);
+    if !worker_root.exists() {
+        return Err(git::GitError::NotFound(worker_root.display().to_string()));
+    }
+    git::stage_all(&worker_root)?;
+    let message = ghost_commit_message(worker_id, turn);
+    match git::commit(&worker_root, &message) {
+        Ok(_) => Ok(()),
+        Err(git::GitError::CommandFailure { stderr }) if stderr.contains("nothing to commit") => {
+            Ok(())
+        }
+        Err(err) => Err(err),
+    }
+}
+
+fn ghost_commit_message(worker_id: i64, turn: &WorkerTurn) -> String {
+    let base = format!("ghost turn {:?} ws{worker_id}", turn.intent);
+    match turn.intent {
+        WorkerIntent::CompleteTask => {
+            if let Some(completed) = turn.completed.as_ref() {
+                let summary = compact_summary(&completed.commit_summary);
+                return format!("ghost complete {}: {}", completed.task_slug.trim(), summary);
+            }
+            base
+        }
+        WorkerIntent::Blocked => {
+            if let Some(blocked) = turn.blocked.as_ref() {
+                let reason = compact_summary(&blocked.reason);
+                return format!("ghost blocked {}: {}", blocked.task_slug.trim(), reason);
+            }
+            base
+        }
+        WorkerIntent::StatusUpdate => {
+            let summary = compact_summary(&turn.summary);
+            if summary.is_empty() {
+                base
+            } else {
+                format!("ghost status ws{worker_id}: {summary}")
+            }
+        }
+        WorkerIntent::AckPause => format!("ghost ack pause ws{worker_id}"),
+    }
+}
+
+fn compact_summary(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 async fn auto_commit_and_merge(
     worker_id: i64,
     completed: &WorkerCompletion,
@@ -1750,7 +1881,13 @@ async fn auto_commit_and_merge(
     match git::commit(&worker_root, &commit_message) {
         Ok(_) => {}
         Err(git::GitError::CommandFailure { stderr }) if stderr.contains("nothing to commit") => {
-            return Err(PostTurnError::NothingToCommit);
+            if !features::ghost_commits() {
+                return Err(PostTurnError::NothingToCommit);
+            }
+            debug!(
+                worker_id,
+                "ghost commits enabled; proceeding with clean worktree at COMPLETE_TASK"
+            );
         }
         Err(err) => return Err(PostTurnError::Git(err)),
     }
@@ -1773,7 +1910,10 @@ async fn auto_commit_and_merge(
 
     // Run staging hooks after staging has been updated.
     if let Err(err) = run_staging_hooks().await {
-        warn!(?err, "on_staging_change hook(s) failed after merging ws{worker_id}");
+        warn!(
+            ?err,
+            "on_staging_change hook(s) failed after merging ws{worker_id}"
+        );
     }
 
     // Keep worker branch aligned after staging is updated.
@@ -1794,15 +1934,11 @@ fn ensure_clean_staging(worker_id: i64, staging: &Path) -> Result<(), PostTurnEr
     match action {
         crate::system::dirty_staging::DirtyStagingAction::Commit => {
             git::stage_all(staging).map_err(PostTurnError::Git)?;
-            let msg = format!(
-                "Robot Farm auto-commit dirty staging before merging ws{worker_id}"
-            );
+            let msg = format!("Robot Farm auto-commit dirty staging before merging ws{worker_id}");
             git::commit(staging, &msg).map_err(PostTurnError::Git)?;
         }
         crate::system::dirty_staging::DirtyStagingAction::Stash => {
-            let msg = format!(
-                "Robot Farm auto-stash dirty staging before merging ws{worker_id}"
-            );
+            let msg = format!("Robot Farm auto-stash dirty staging before merging ws{worker_id}");
             git::stash_all(staging, &msg).map_err(PostTurnError::Git)?;
         }
     }
@@ -1826,12 +1962,9 @@ async fn run_staging_hooks() -> Result<(), PostTurnError> {
             continue;
         }
         // run locally on host (same as post_turn_checks)
-        let working_dir = shell::resolve_working_dir(
-            &workspace_root,
-            &staging_path(),
-            cmd.cwd.as_deref(),
-        )
-        .map_err(|err| PostTurnError::InvalidWorkingDir(err.to_string()))?;
+        let working_dir =
+            shell::resolve_working_dir(&workspace_root, &staging_path(), cmd.cwd.as_deref())
+                .map_err(|err| PostTurnError::InvalidWorkingDir(err.to_string()))?;
 
         let child = tokio::process::Command::new(&cmd.exec[0])
             .args(&cmd.exec[1..])
@@ -1842,7 +1975,10 @@ async fn run_staging_hooks() -> Result<(), PostTurnError> {
             .spawn()
             .map_err(|e| PostTurnError::Spawn(e.to_string()))?;
 
-        let output = child.wait_with_output().await.map_err(|e| PostTurnError::Spawn(e.to_string()))?;
+        let output = child
+            .wait_with_output()
+            .await
+            .map_err(|e| PostTurnError::Spawn(e.to_string()))?;
         if !output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -1858,11 +1994,30 @@ async fn run_staging_hooks() -> Result<(), PostTurnError> {
     Ok(())
 }
 
+const MAX_DRIFT_TRACE_CHARS: usize = 6000;
+
+fn clean_reasoning_snippet(message: &str) -> String {
+    let trimmed = message.trim_start_matches("Reasoning:").trim();
+    trimmed.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn trim_reasoning_log(log: &mut Vec<String>) {
+    let mut total: usize = log.iter().map(|s| s.len()).sum();
+    if total <= MAX_DRIFT_TRACE_CHARS {
+        return;
+    }
+    while total > MAX_DRIFT_TRACE_CHARS && !log.is_empty() {
+        let removed = log.remove(0);
+        total = total.saturating_sub(removed.len());
+    }
+}
+
 fn sanitize_feed_entry(entry: &Feed) -> Feed {
     let mut sanitized = entry.clone();
     sanitized.raw.clear();
     sanitized
 }
+
 #[derive(Debug, Error)]
 pub enum QueueManagerError {
     #[error(transparent)]

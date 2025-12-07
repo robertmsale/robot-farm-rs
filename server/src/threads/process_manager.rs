@@ -663,7 +663,7 @@ impl StructuredOutputCollector {
                 text: format!("Reasoning:\n{text}"),
                 raw: raw.to_string(),
                 thread_id: None,
-                category: None,
+                category: Some("reasoning".to_string()),
             }),
             TurnItemDetail::CommandExecution(cmd) => {
                 let mut summary = format!("Command `{}` {:?}", cmd.command, cmd.status);
