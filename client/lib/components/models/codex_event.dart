@@ -213,6 +213,24 @@ class CodexItem {
     if (json == null) {
       return const CodexItem(id: 'item', type: CodexItemType.agentMessage);
     }
+    final itemType = _itemTypeFromString(json['type']?.toString());
+
+    CodexToolCall? toolCall;
+    if (itemType == CodexItemType.mcpToolCall) {
+      // Codex emits MCP calls with the fields flattened under the item
+      // (server/tool/status). Older code expected a nested `tool_call` map,
+      // so populate from either shape.
+      if (json['tool_call'] is Map<String, dynamic>) {
+        toolCall = CodexToolCall.fromJson(json['tool_call'] as Map<String, dynamic>?);
+      } else {
+        toolCall = CodexToolCall(
+          server: json['server']?.toString() ?? 'robot_farm',
+          tool: json['tool']?.toString() ?? 'unknown',
+          status: json['status']?.toString() ?? 'unknown',
+        );
+      }
+    }
+
     final changes = (json['changes'] as List<dynamic>?)
         ?.map(
           (entry) => CodexFileChange.fromJson(entry as Map<String, dynamic>?),
@@ -225,16 +243,14 @@ class CodexItem {
         .toList();
     return CodexItem(
       id: json['id']?.toString() ?? 'item',
-      type: _itemTypeFromString(json['type']?.toString()),
+      type: itemType,
       message: json['text']?.toString(),
       command: json['command']?.toString(),
       output: json['aggregated_output']?.toString(),
       exitCode: (json['exit_code'] as num?)?.toInt(),
       status: json['status']?.toString(),
       fileChanges: changes,
-      toolCall: CodexToolCall.fromJson(
-        json['tool_call'] as Map<String, dynamic>?,
-      ),
+      toolCall: toolCall,
       query: json['query']?.toString(),
       todos: todos,
     );
@@ -251,7 +267,14 @@ class CodexItem {
       case CodexItemType.fileChange:
         return 'File changes (${fileChanges?.length ?? 0})';
       case CodexItemType.mcpToolCall:
-        return 'Tool ${toolCall?.tool ?? 'unknown'} (${toolCall?.status ?? 'status'})';
+        final call = toolCall;
+        if (call == null) {
+          return 'Tool unknown (status unknown)';
+        }
+        final label = call.server.isNotEmpty
+            ? '${call.server}::${call.tool}'
+            : call.tool;
+        return 'Tool $label (${call.status})';
       case CodexItemType.webSearch:
         return 'Web search: ${query ?? 'unknown'}';
       case CodexItemType.todoList:

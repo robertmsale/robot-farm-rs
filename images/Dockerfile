@@ -12,14 +12,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        ca-certificates \
-        jq \
-        libsqlite3-dev \
-        python3 \
-        python3-pip \
-        ripgrep \
-        sqlite3 \
-        tini
+    ca-certificates \
+    jq \
+    libsqlite3-dev \
+    python3 \
+    python3-pip \
+    ripgrep \
+    sqlite3 \
+    tini
 
 # Install Node.js 20.x from NodeSource rather than Debian's older channel.
 RUN mkdir -p /etc/apt/keyrings && \
@@ -30,7 +30,7 @@ RUN mkdir -p /etc/apt/keyrings && \
 
 RUN corepack enable && \
     corepack prepare pnpm@9.12.2 --activate && \
-    npm install -g @openai/codex@0.58.0
+    npm install -g @openai/codex@0.65.0
 
 WORKDIR /workspace
 

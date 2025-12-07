@@ -1175,6 +1175,11 @@ class HomeScreen extends GetView<ConnectionController> {
             icon: const Icon(Icons.playlist_add),
             onPressed: () => _openQuickTaskSheet(context),
           ),
+          IconButton(
+            tooltip: 'Change strategy',
+            icon: const Icon(Icons.tune),
+            onPressed: () => _openStrategySheet(context),
+          ),
           PopupMenuButton<_HomeMenuAction>(
             tooltip: 'More actions',
             onSelected: (action) {
@@ -1187,9 +1192,6 @@ class HomeScreen extends GetView<ConnectionController> {
                   break;
                 case _HomeMenuAction.taskWizard:
                   Get.toNamed('/task-wizard');
-                  break;
-                case _HomeMenuAction.changeStrategy:
-                  _openStrategySheet(context);
                   break;
                 case _HomeMenuAction.clearFeeds:
                   controller.clearFeeds();
@@ -1219,13 +1221,6 @@ class HomeScreen extends GetView<ConnectionController> {
                 child: ListTile(
                   leading: Icon(Icons.auto_fix_high),
                   title: Text('Task Wizard View'),
-                ),
-              ),
-              PopupMenuItem(
-                value: _HomeMenuAction.changeStrategy,
-                child: ListTile(
-                  leading: Icon(Icons.tune),
-                  title: Text('Change Strategy'),
                 ),
               ),
               PopupMenuItem(
@@ -1267,7 +1262,6 @@ enum _HomeMenuAction {
   tasksView,
   gitStatuses,
   taskWizard,
-  changeStrategy,
   clearFeeds,
   ffAllWorktrees,
 }
@@ -1397,9 +1391,8 @@ class _SystemFeed extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: viewModel.compactIcon ? 10 : 18,
-                        backgroundColor:
-                            viewModel.avatarBackgroundColor ??
-                            viewModel.color.withOpacity(0.15),
+                        backgroundColor: viewModel.avatarBackgroundColor ??
+                            _withOpacity(viewModel.color, 0.15),
                         child: Icon(
                           viewModel.icon,
                           color: viewModel.color,
@@ -1570,9 +1563,8 @@ class _FeedDetailSheetState extends State<_FeedDetailSheet> {
                       children: [
                         CircleAvatar(
                           radius: viewModel.compactIcon ? 14 : 24,
-                          backgroundColor:
-                              viewModel.avatarBackgroundColor ??
-                              viewModel.color.withOpacity(0.15),
+                          backgroundColor: viewModel.avatarBackgroundColor ??
+                              _withOpacity(viewModel.color, 0.15),
                           child: Icon(
                             viewModel.icon,
                             color: viewModel.color,
@@ -1695,7 +1687,7 @@ class _SystemEventViewModel {
         color = _reasoningAccentColor;
         cardColor = _reasoningCardColor;
         bubbleColor = _reasoningCardColor;
-        avatarBackgroundColor = _reasoningAccentColor.withOpacity(0.18);
+        avatarBackgroundColor = _withOpacity(_reasoningAccentColor, 0.18);
         compactIcon = true;
         titleMaxLines = 1;
         break;
@@ -1704,7 +1696,7 @@ class _SystemEventViewModel {
         color = _mcpAccentColor;
         cardColor = _mcpCardColor;
         bubbleColor = _mcpCardColor;
-        avatarBackgroundColor = _mcpAccentColor.withOpacity(0.18);
+        avatarBackgroundColor = _withOpacity(_mcpAccentColor, 0.18);
         compactIcon = true;
         break;
       case SystemFeedSpecialType.ackPause:
@@ -1712,35 +1704,35 @@ class _SystemEventViewModel {
         color = _pauseAccentColor;
         cardColor = _pauseCardColor;
         bubbleColor = _pauseCardColor;
-        avatarBackgroundColor = _pauseAccentColor.withOpacity(0.18);
+        avatarBackgroundColor = _withOpacity(_pauseAccentColor, 0.18);
         break;
       case SystemFeedSpecialType.statusUpdate:
         icon = Icons.update;
         color = _statusAccentColor;
         cardColor = _statusCardColor;
         bubbleColor = _statusCardColor;
-        avatarBackgroundColor = _statusAccentColor.withOpacity(0.18);
+        avatarBackgroundColor = _withOpacity(_statusAccentColor, 0.18);
         break;
       case SystemFeedSpecialType.assignTask:
         icon = Icons.assignment_ind;
         color = _assignAccentColor;
         cardColor = _assignCardColor;
         bubbleColor = _assignCardColor;
-        avatarBackgroundColor = _assignAccentColor.withOpacity(0.18);
+        avatarBackgroundColor = _withOpacity(_assignAccentColor, 0.18);
         break;
       case SystemFeedSpecialType.completeTask:
         icon = Icons.check_circle;
         color = _completeAccentColor;
         cardColor = _completeCardColor;
         bubbleColor = _completeCardColor;
-        avatarBackgroundColor = _completeAccentColor.withOpacity(0.18);
+        avatarBackgroundColor = _withOpacity(_completeAccentColor, 0.18);
         break;
       case SystemFeedSpecialType.threadStarted:
         icon = Icons.flag;
         color = _threadAccentColor;
         cardColor = _threadCardColor;
         bubbleColor = _threadCardColor;
-        avatarBackgroundColor = _threadAccentColor.withOpacity(0.18);
+        avatarBackgroundColor = _withOpacity(_threadAccentColor, 0.18);
         compactIcon = true;
         titleMaxLines = 1;
         break;
@@ -1749,7 +1741,7 @@ class _SystemEventViewModel {
         color = _commandAccentColor;
         cardColor = _commandCardColor;
         bubbleColor = _commandCardColor;
-        avatarBackgroundColor = _commandAccentColor.withOpacity(0.18);
+        avatarBackgroundColor = _withOpacity(_commandAccentColor, 0.18);
         break;
       case null:
         break;
@@ -1800,7 +1792,8 @@ class _SystemEventViewModel {
       bubbleColor = cardColor;
       avatarBackgroundColor = Theme.of(
         context,
-      ).colorScheme.error.withOpacity(0.18);
+      ).colorScheme.error;
+      avatarBackgroundColor = _withOpacity(avatarBackgroundColor, 0.18);
     }
 
     return _SystemEventViewModel(
@@ -1832,6 +1825,11 @@ bool _hasMeaningfulDetails(String details) {
   if (normalized.isEmpty) return false;
   if (normalized.startsWith('no additional details')) return false;
   return true;
+}
+
+Color _withOpacity(Color color, double opacity) {
+  final scaledAlpha = (color.a * opacity).clamp(0.0, 1.0);
+  return color.withValues(alpha: scaledAlpha);
 }
 
 class _OutputBubble extends StatelessWidget {
@@ -2270,6 +2268,12 @@ class SettingsController extends GetxController {
     'medium',
     'high',
   ];
+  static const List<String> _reasoningMaxLevels = <String>[
+    'low',
+    'medium',
+    'high',
+    'xhigh',
+  ];
   static const List<String> _reasoningMediumHigh = <String>['medium', 'high'];
 
   List<robot_farm_api.CommandConfig> get commands =>
@@ -2321,7 +2325,9 @@ class SettingsController extends GetxController {
 
   List<String> reasoningOptionsFor(CodexPersona persona) {
     final model = modelFor(persona);
-    return model == _modelCodexMini ? _reasoningMediumHigh : _reasoningLevels;
+    if (model == _modelCodexMini) return _reasoningMediumHigh;
+    if (_modelAllowsXHigh(model)) return _reasoningMaxLevels;
+    return _reasoningLevels;
   }
 
   @override
@@ -2450,6 +2456,9 @@ class SettingsController extends GetxController {
 
   void updateReasoning(CodexPersona persona, String value) {
     if (config.value == null) return;
+    if (value == 'xhigh' && !_modelAllowsXHigh(modelFor(persona))) {
+      return;
+    }
     if (_modelDisallowsLow(modelFor(persona)) && value == 'low') {
       return;
     }
@@ -2767,26 +2776,39 @@ class SettingsController extends GetxController {
 
   bool _modelDisallowsLow(String model) => model == _modelCodexMini;
 
+  bool _modelAllowsXHigh(String model) => model == _modelCodexMax;
+
   robot_farm_api.AgentReasoningOverrides _ensureReasoningCompatibility(
     CodexPersona persona,
     robot_farm_api.AgentModelOverrides models,
     robot_farm_api.AgentReasoningOverrides reasoning,
   ) {
-    if (!_modelDisallowsLow(_modelValueFrom(persona, models))) {
-      return reasoning;
+    final modelValue = _modelValueFrom(persona, models);
+    final reasoningValue = _reasoningValueFrom(persona, reasoning);
+
+    if (reasoningValue == 'xhigh' && !_modelAllowsXHigh(modelValue)) {
+      return _reasoningWith(
+        orchestrator:
+            persona == CodexPersona.orchestrator ? _parseReasoning('high') : null,
+        worker: persona == CodexPersona.worker ? _parseReasoning('high') : null,
+        wizard: persona == CodexPersona.wizard ? _parseReasoning('high') : null,
+        existing: reasoning,
+      );
     }
-    if (_reasoningValueFrom(persona, reasoning) != 'low') {
-      return reasoning;
+
+    if (_modelDisallowsLow(modelValue) && reasoningValue == 'low') {
+      final fallback = _parseReasoning(_defaultReasoning);
+      switch (persona) {
+        case CodexPersona.orchestrator:
+          return _reasoningWith(orchestrator: fallback, existing: reasoning);
+        case CodexPersona.worker:
+          return _reasoningWith(worker: fallback, existing: reasoning);
+        case CodexPersona.wizard:
+          return _reasoningWith(wizard: fallback, existing: reasoning);
+      }
     }
-    final fallback = _parseReasoning(_defaultReasoning);
-    switch (persona) {
-      case CodexPersona.orchestrator:
-        return _reasoningWith(orchestrator: fallback, existing: reasoning);
-      case CodexPersona.worker:
-        return _reasoningWith(worker: fallback, existing: reasoning);
-      case CodexPersona.wizard:
-        return _reasoningWith(wizard: fallback, existing: reasoning);
-    }
+
+    return reasoning;
   }
 
   String _modelValueFrom(
@@ -3175,6 +3197,7 @@ class SettingsScreen extends StatelessWidget {
 
 String _formatReasoningLabel(String value) {
   if (value.isEmpty) return value;
+  if (value.toLowerCase() == 'xhigh') return 'X-High';
   return '${value[0].toUpperCase()}${value.substring(1)}';
 }
 

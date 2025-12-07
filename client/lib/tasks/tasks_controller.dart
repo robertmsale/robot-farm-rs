@@ -18,7 +18,7 @@ class TasksController extends GetxController {
 
   final RxString groupSearchQuery = ''.obs;
   final Rx<robot_farm_api.TaskGroupStatus?> groupStatusFilter =
-      Rx<robot_farm_api.TaskGroupStatus?>(null);
+      Rx<robot_farm_api.TaskGroupStatus?>(robot_farm_api.TaskGroupStatus.ready);
 
   final RxString taskSearchQuery = ''.obs;
   final Rx<robot_farm_api.TaskStatus?> taskStatusFilter =
@@ -148,6 +148,48 @@ class TasksController extends GetxController {
 
   void updateGroupStatusFilter(robot_farm_api.TaskGroupStatus? status) {
     groupStatusFilter.value = status;
+  }
+
+  Future<void> archiveTaskGroup(robot_farm_api.TaskGroup group) async {
+    final api = _apiOrThrow();
+    try {
+      final path = '/task-groups/${group.id}/archive';
+      final response = await api.apiClient.invokeAPI(
+        path,
+        'POST',
+        <robot_farm_api.QueryParam>[],
+        null,
+        <String, String>{},
+        <String, String>{},
+        null,
+      );
+
+      if (response.statusCode >= 400) {
+        throw robot_farm_api.ApiException(
+          response.statusCode,
+          response.body,
+        );
+      }
+
+      if (response.body.isNotEmpty) {
+        final updated = await api.apiClient.deserializeAsync(
+          response.body,
+          'TaskGroup',
+        ) as robot_farm_api.TaskGroup;
+
+        final idx = taskGroups.indexWhere((g) => g.id == updated.id);
+        if (idx != -1) {
+          taskGroups[idx] = updated;
+          taskGroups.refresh();
+        }
+      }
+    } on robot_farm_api.ApiException catch (err) {
+      throw Exception(
+        err.message ?? 'Failed to archive task group (HTTP ${err.code}).',
+      );
+    } catch (err) {
+      throw Exception('Failed to archive task group: $err');
+    }
   }
 
   void updateTaskSearch(String value) {

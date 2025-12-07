@@ -62,7 +62,7 @@ class TaskWizardController extends GetxController {
 
     try {
       _socket!.sendText(jsonEncode({'type': 'prompt', 'prompt': prompt}));
-      feed.add(TaskWizardFeedEntry.user(prompt));
+      feed.insert(0, TaskWizardFeedEntry.user(prompt));
       promptController.clear();
       hasPrompt.value = false;
       isRunning.value = true;
@@ -168,17 +168,17 @@ class TaskWizardController extends GetxController {
         final eventJson = decoded['event'];
         if (eventJson is Map<String, dynamic>) {
           final event = CodexEvent.fromJson(eventJson);
-          feed.add(TaskWizardFeedEntry.event(event));
+          feed.insert(0, TaskWizardFeedEntry.event(event));
         }
         break;
       case 'log':
         final stream = decoded['stream'] ?? 'stdout';
         final line = decoded['line'] ?? '';
-        feed.add(TaskWizardFeedEntry.system('[$stream] $line'));
+        feed.insert(0, TaskWizardFeedEntry.system('[$stream] $line'));
         break;
       case 'error':
         final message = decoded['message']?.toString() ?? 'Unknown error';
-        feed.add(TaskWizardFeedEntry.system('Error: $message'));
+        feed.insert(0, TaskWizardFeedEntry.system('Error: $message'));
         Get.snackbar('Task Wizard', message);
         isRunning.value = false;
         break;
@@ -193,7 +193,8 @@ class TaskWizardController extends GetxController {
           );
         }
         if (response != null) {
-          feed.add(
+          feed.insert(
+            0,
             TaskWizardFeedEntry.finalMessage(
               response,
               status: status,
@@ -201,7 +202,8 @@ class TaskWizardController extends GetxController {
             ),
           );
         } else if (decoded['error'] != null) {
-          feed.add(
+          feed.insert(
+            0,
             TaskWizardFeedEntry.system('Wizard $status: ${decoded['error']}'),
           );
         }

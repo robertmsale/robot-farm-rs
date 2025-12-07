@@ -1,4 +1,8 @@
+# syntax=docker/dockerfile:1.10
+
 FROM buildpack-deps:trixie
+
+ARG SCHEMA_DIR=/tmp
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
@@ -13,27 +17,56 @@ RUN --mount=type=cache,target=/var/cache/apt \
         libsqlite3-dev \
         python3 \
         python3-pip \
+        ripgrep \
         sqlite3 \
-        curl \
-        git
+        tini
 
+# Install Node.js 20.x from NodeSource rather than Debian's older channel.
 RUN mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     printf "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main\n" > /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && \
-    apt-get install -y --no-install-recommends nodejs && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends nodejs
 
 RUN corepack enable && \
     corepack prepare pnpm@9.12.2 --activate && \
-    npm install -g @openai/codex@0.58.0
+    npm install -g @openai/codex@0.65.0
 
-RUN groupadd -g 3000 codex && \
-    useradd -m -u 3000 -g codex codex && \
-    mkdir -p /home/codex/.codex && \
-    chown -R codex:codex /home/codex
+WORKDIR /workspace
 
-USER codex
-WORKDIR /home/codex
+RUN mkdir -p /opt/robot-farm
 
-ENTRYPOINT ["codex"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["bash"]
+# Strip git tooling once build steps finish. Git operations should happen on the host.
+RUN apt-get purge -y git git-man && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+# Drop root privileges so in-container tasks cannot install system packages.
+ARG USERNAME=codex
+ARG UID=1000
+ARG GID=1000
+
+RUN set -eux; \
+    if getent group "${GID}" >/dev/null; then \
+        EXISTING_GROUP="$(getent group "${GID}" | cut -d: -f1)"; \
+        if [ "${EXISTING_GROUP}" != "${USERNAME}" ]; then \
+            groupmod --new-name "${USERNAME}" "${EXISTING_GROUP}"; \
+        fi; \
+    else \
+        groupadd --gid "${GID}" "${USERNAME}"; \
+    fi; \
+    if id -u "${USERNAME}" >/dev/null 2>&1; then \
+        usermod --uid "${UID}" --gid "${GID}" --shell /bin/bash "${USERNAME}"; \
+    else \
+        useradd --uid "${UID}" --gid "${GID}" --create-home --shell /bin/bash "${USERNAME}"; \
+    fi; \
+    mkdir -p /workspace; \
+    install -d -o "${UID}" -g "${GID}" "/home/${USERNAME}/.codex"; \
+    chown -R "${UID}:${GID}" /workspace "/home/${USERNAME}"
+
+USER ${USERNAME}
+ENV HOME=/home/${USERNAME}
+WORKDIR /workspace

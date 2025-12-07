@@ -77,6 +77,10 @@ pub fn build_routes() -> Router {
                 .delete(task_group::delete_task_group),
         )
         .route(
+            "/task-groups/{taskGroupId}/archive",
+            post(task_group::archive_task_group),
+        )
+        .route(
             "/task-deps",
             get(task_dependency::list_task_dependencies)
                 .post(task_dependency::create_task_dependency),

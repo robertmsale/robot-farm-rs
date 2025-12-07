@@ -21,6 +21,8 @@ pub enum ReasoningEffort {
     Medium,
     #[serde(rename = "high")]
     High,
+    #[serde(rename = "xhigh")]
+    XHigh,
 }
 
 impl std::fmt::Display for ReasoningEffort {
@@ -29,6 +31,7 @@ impl std::fmt::Display for ReasoningEffort {
             Self::Low => write!(f, "low"),
             Self::Medium => write!(f, "medium"),
             Self::High => write!(f, "high"),
+            Self::XHigh => write!(f, "xhigh"),
         }
     }
 }

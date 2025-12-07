@@ -109,6 +109,11 @@ fn ensure_supported(
             "Reasoning level \"low\" is not supported when the {persona} persona uses {model}."
         ));
     }
+    if matches!(reasoning, ReasoningEffort::XHigh) && model.label != MODEL_GPT_5_1_CODEX_MAX {
+        return Err(format!(
+            "Reasoning level \"xhigh\" is only available with {MODEL_GPT_5_1_CODEX_MAX} for the {persona} persona."
+        ));
+    }
     Ok(())
 }
 

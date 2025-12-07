@@ -1,6 +1,6 @@
 use crate::db;
 use axum::{Json, extract::Path, http::StatusCode};
-use openapi::models::{TaskGroup, TaskGroupCreateInput, TaskGroupUpdateInput};
+use openapi::models::{TaskGroup, TaskGroupCreateInput, TaskGroupStatus, TaskGroupUpdateInput};
 use tracing::error;
 
 const BUILTIN_GROUP_SLUGS: &[&str] = &["chores", "bugs", "hotfix"];
@@ -81,4 +81,30 @@ pub async fn delete_task_group(Path(task_group_id): Path<i64>) -> Result<StatusC
     } else {
         Err(StatusCode::NOT_FOUND)
     }
+}
+
+pub async fn archive_task_group(
+    Path(task_group_id): Path<i64>,
+) -> Result<Json<TaskGroup>, StatusCode> {
+    let group = db::task_group::get_task_group(task_group_id)
+        .await
+        .map_err(|err| {
+            error!(?err, task_group_id, "failed to load task group for archive");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if BUILTIN_GROUP_SLUGS.contains(&group.slug.to_ascii_lowercase().as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let updated = db::task_group::update_task_group_status(task_group_id, TaskGroupStatus::Done)
+        .await
+        .map_err(|err| {
+            error!(?err, task_group_id, "failed to archive task group");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    Ok(Json(updated))
 }

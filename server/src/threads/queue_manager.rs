@@ -504,7 +504,9 @@ impl QueueManagerRuntime {
         turn: WorkerTurn,
     ) -> Result<(), QueueManagerError> {
         info!(worker_id, intent = ?turn.intent, "processing worker turn");
-        self.maybe_ghost_commit(worker_id, &turn).await;
+        if matches!(turn.intent, WorkerIntent::StatusUpdate) {
+            self.maybe_ghost_commit(worker_id, &turn).await;
+        }
 
         match turn.intent {
             WorkerIntent::CompleteTask => {
@@ -1562,6 +1564,23 @@ impl PostTurnJob {
                 }
             }
             Err(error) => {
+                // Snapshot the worker tree even when validation fails so we don't lose context.
+                if features::ghost_commits() {
+                    let turn = WorkerTurn {
+                        intent: WorkerIntent::CompleteTask,
+                        summary: self.completion.commit_summary.clone(),
+                        details: self.completion.notes.clone(),
+                        completed: Some(self.completion.clone()),
+                        blocked: None,
+                    };
+                    if let Err(err) = ghost_commit_worker_turn(self.worker_id, &turn) {
+                        warn!(
+                            worker_id = self.worker_id,
+                            ?err,
+                            "ghost commit after failed post-turn checks"
+                        );
+                    }
+                }
                 if let Err(err) = self.notify_worker_failure(&error).await {
                     warn!(
                         worker_id = self.worker_id,
@@ -1601,6 +1620,14 @@ impl PostTurnJob {
                 .ok_or_else(|| PostTurnError::UnknownCheck(check_id.clone()))?;
             let result = self.run_check_command(&check_id, &command).await?;
             if !result.success {
+                debug!(
+                    worker_id = self.worker_id,
+                    check = %check_id,
+                    exit_code = ?result.exit_code,
+                    stdout_len = result.stdout.len(),
+                    stderr_len = result.stderr.len(),
+                    "post-turn check failed"
+                );
                 return Err(PostTurnError::CheckFailed {
                     id: check_id,
                     stdout: result.stdout,
@@ -1722,7 +1749,7 @@ impl PostTurnJob {
             target: format!("ws{}", self.worker_id),
             level: FeedLevel::Error,
             text: message.to_string(),
-            raw: String::new(),
+            raw: message.to_string(),
             category: "validation".to_string(),
         };
         let feed_entry = self
@@ -1817,12 +1844,35 @@ fn ghost_commit_worker_turn(worker_id: i64, turn: &WorkerTurn) -> Result<(), git
     if !worker_root.exists() {
         return Err(git::GitError::NotFound(worker_root.display().to_string()));
     }
+    debug!(worker_id, root = %worker_root.display(), intent = ?turn.intent, "ghost commit starting");
     git::stage_all(&worker_root)?;
+    if !git::is_dirty(&worker_root)? {
+        debug!(worker_id, "ghost commit skipped: clean worktree");
+        return Ok(());
+    }
     let message = ghost_commit_message(worker_id, turn);
     match git::commit(&worker_root, &message) {
-        Ok(_) => Ok(()),
-        Err(git::GitError::CommandFailure { stderr }) if stderr.contains("nothing to commit") => {
+        Ok(_) => {
+            debug!(worker_id, "ghost commit created");
             Ok(())
+        }
+        Err(git::GitError::CommandFailure { stderr }) => {
+            let lower = stderr.to_ascii_lowercase();
+            let nothing = [
+                "nothing to commit",
+                "working tree clean",
+                "no changes added to commit",
+                "nothing added to commit",
+            ]
+            .iter()
+            .any(|needle| lower.contains(needle));
+
+            if nothing {
+                debug!(worker_id, "ghost commit skipped: clean worktree");
+                Ok(())
+            } else {
+                Err(git::GitError::CommandFailure { stderr })
+            }
         }
         Err(err) => Err(err),
     }
@@ -2087,6 +2137,9 @@ impl PostTurnError {
                 if !stderr.trim().is_empty() {
                     msg.push_str("\nstderr:\n");
                     msg.push_str(stderr.trim());
+                }
+                if stdout.trim().is_empty() && stderr.trim().is_empty() {
+                    msg.push_str("\n(no stdout/stderr captured)");
                 }
                 msg
             }

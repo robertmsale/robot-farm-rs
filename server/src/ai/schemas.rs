@@ -1,6 +1,7 @@
 use schema_strict::{strict_schema_for_type, strip_sibling_keywords_from_ref};
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 /// Structured payload produced by the orchestrator turn loop.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -13,14 +14,14 @@ pub struct OrchestratorTurn {
     /// Orchestrator must set their worker_id (e.g., 'ws1') when messaging a worker; workers should provide null.
     #[schemars(required)]
     pub target: Option<String>,
-    /// Intent value describing the turn outcome.
+    // Intent value describing the turn outcome.
     pub intent: OrchestratorIntent,
     /// One-line summary of the turn.
     pub summary: String,
     /// Expanded details supporting the summary.
     #[schemars(required)]
     pub details: Option<String>,
-    /// Assignment payload when intent=ASSIGN_TASK.
+    // Assignment payload when intent=ASSIGN_TASK.
     #[schemars(required)]
     pub assignments: Option<Assignment>,
     /// Optional hint asking the system to re-enqueue the orchestrator to assign the next worker (e.g., \"ws2\").
@@ -36,17 +37,17 @@ pub struct OrchestratorTurn {
     description = "Structured agent turn payload."
 )]
 pub struct WorkerTurn {
-    /// Intent value describing the turn outcome.
+    // Intent value describing the turn outcome.
     pub intent: WorkerIntent,
     /// One-line summary of the turn.
     pub summary: String,
     /// Expanded details supporting the summary.
     #[schemars(required)]
     pub details: Option<String>,
-    /// Completed tasks payload when intent=COMPLETE_TASK.
+    // Completed tasks payload when intent=COMPLETE_TASK.
     #[schemars(required)]
     pub completed: Option<WorkerCompletion>,
-    /// Blocked tasks payload when intent=BLOCKED.
+    // Blocked tasks payload when intent=BLOCKED.
     #[schemars(required)]
     pub blocked: Option<BlockedEntry>,
 }
@@ -115,12 +116,16 @@ pub struct BlockedEntry {
 /// Generate a JSON Schema for `T` with OpenAI-specific cleanup applied.
 pub fn generated_schema_for<T: JsonSchema>() -> Schema {
     let (mut schema, report) = strict_schema_for_type::<T>();
-    debug_assert!(
-        report.is_valid(),
-        "strict schema for {} reported issues: {:?}",
-        std::any::type_name::<T>(),
-        report
-    );
+    if !report.is_valid() {
+        let schema_json = serde_json::to_string_pretty(&schema)
+            .unwrap_or_else(|_| "<failed to serialize schema>".to_string());
+        panic!(
+            "strict schema for {} reported issues: {:?}\nFull schema:\n{}",
+            std::any::type_name::<T>(),
+            report,
+            schema_json
+        );
+    }
     strip_sibling_keywords_from_ref(&mut schema);
     schema
 }

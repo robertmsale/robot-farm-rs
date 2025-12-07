@@ -26,7 +26,10 @@ use futures::{SinkExt, StreamExt};
 use openapi::models::FeedLevel;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::fs;
+use std::path::Path;
 use std::{env, path::PathBuf};
+use tempfile::TempDir;
 use tokio::{sync::mpsc, task::JoinHandle};
 use tracing::warn;
 use uuid::Uuid;
@@ -258,6 +261,7 @@ struct ActiveRun {
     kill_handle: ProcessKillHandle,
     prompt: String,
     stream_task: JoinHandle<()>,
+    workspace: TempDir,
 }
 
 enum TaskWizardError {
@@ -299,8 +303,12 @@ async fn spawn_task_wizard_process(
     ws_tx: mpsc::Sender<Message>,
     internal_tx: mpsc::Sender<InternalEvent>,
 ) -> Result<ActiveRun, TaskWizardError> {
+    let workspace = TempDir::new().map_err(|err| TaskWizardError::SpawnFailed(err.to_string()))?;
+    write_wizard_agents(&workspace)?;
+
     let api_port = resolve_api_port();
-    let docker_command = build_task_wizard_command(api_port, thread_id.as_deref());
+    let docker_command =
+        build_task_wizard_command(api_port, thread_id.as_deref(), workspace.path());
     let run_id = Uuid::new_v4();
     let metadata = RunMetadata {
         run_id,
@@ -345,10 +353,15 @@ async fn spawn_task_wizard_process(
         kill_handle: kill,
         prompt,
         stream_task,
+        workspace,
     })
 }
 
-fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<String> {
+fn build_task_wizard_command(
+    api_port: u16,
+    thread_id: Option<&str>,
+    workspace: &Path,
+) -> Vec<String> {
     let builder = match thread_id {
         Some(id) => CodexExecBuilder::resume().session_id(id.to_string()),
         None => CodexExecBuilder::new(),
@@ -359,7 +372,9 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
     let enabled_tools = [
         "tasks_list",
         "tasks_get",
+        "tasks_create",
         "tasks_update",
+        "tasks_set_status",
         "task_groups_list",
         "task_groups_get",
         "task_groups_create",
@@ -385,11 +400,13 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
         .config_override("mcp_servers.robot_farm.tool_timeout_sec=900")
         .config_override(tools_arg)
         .config_override(format!("mcp_servers.robot_farm.url=\"{default_mcp_url}\""))
+        .config_override("mcp_servers.robot_farm.http_headers.AGENT=\"wizard\"")
         .config_override(format!("model=\"{}\"", launch_settings.model))
         .config_override(format!(
             "model_reasoning_effort=\"{}\"",
             launch_settings.reasoning
         ))
+        .skip_git_repo_check(true)
         .build();
 
     let mut docker_args = DockerRunBuilder::new(DOCKER_IMAGE_WIZARD)
@@ -399,8 +416,16 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
         .attach("STDERR")
         .user("1000:1000")
         .workdir("/workspace")
-        .env("PATH", "")
         .command(codex_args)
+        .volume(workspace, "/workspace", Some("rw".into()))
+        .volume(
+            format!(
+                "{}/.codex",
+                env::var("HOME").unwrap_or_else(|_| "/home/codex".to_string())
+            ),
+            "/home/codex/.codex",
+            None,
+        )
         .build();
 
     docker_overrides::apply_overrides(
@@ -413,12 +438,19 @@ fn build_task_wizard_command(api_port: u16, thread_id: Option<&str>) -> Vec<Stri
 }
 
 fn resolve_api_port() -> u16 {
-    env::var("ROBOT_FARM_API_PORT")
+    // Prefer the actual server PORT if set; fall back to ROBOT_FARM_API_PORT for backwards compat.
+    let from_port_env = env::var("PORT").ok().and_then(|value| value.parse().ok());
+    let from_legacy = env::var("ROBOT_FARM_API_PORT")
         .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(8080)
+        .and_then(|value| value.parse().ok());
+    from_port_env.or(from_legacy).unwrap_or(8080)
 }
 
+fn write_wizard_agents(workspace: &TempDir) -> Result<(), TaskWizardError> {
+    let agents = include_str!("../../../directives/wizard.md");
+    let path = workspace.path().join("AGENTS.md");
+    fs::write(&path, agents).map_err(|err| TaskWizardError::SpawnFailed(err.to_string()))
+}
 fn spawn_event_forwarder(
     mut events: mpsc::Receiver<ProcessEvent>,
     ws_tx: mpsc::Sender<Message>,

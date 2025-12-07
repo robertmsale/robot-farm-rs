@@ -60,6 +60,25 @@ pub async fn delete_all_messages() -> DbResult<()> {
 }
 
 pub async fn enqueue_message(from_actor: &str, to_actor: &str, message: &str) -> DbResult<Message> {
+    // Avoid duplicate enqueues of the same message payload to the same recipient.
+    if let Some(row) = sqlx::query(
+        r#"
+        SELECT id, from_actor, to_actor, message, inserted_at
+        FROM message_queue
+        WHERE from_actor = ?1 AND to_actor = ?2 AND message = ?3
+        ORDER BY inserted_at ASC
+        LIMIT 1
+        "#,
+    )
+    .bind(from_actor)
+    .bind(to_actor)
+    .bind(message)
+    .fetch_optional(db::pool())
+    .await?
+    {
+        return Ok(row_to_message(row));
+    }
+
     let inserted_at = Utc::now().timestamp();
     let row = sqlx::query(
         r#"

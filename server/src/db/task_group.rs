@@ -104,16 +104,27 @@ pub async fn update_task_group(
     }
 
     let mut builder = QueryBuilder::<Sqlite>::new("UPDATE task_group SET ");
-    let mut assignments = builder.separated(", ");
+    let mut first = true;
 
     if let Some(slug) = slug {
-        assignments.push("slug = ").push_bind(slug);
+        if !first {
+            builder.push(", ");
+        }
+        first = false;
+        builder.push("slug = ").push_bind(slug);
     }
     if let Some(title) = title {
-        assignments.push("title = ").push_bind(title);
+        if !first {
+            builder.push(", ");
+        }
+        first = false;
+        builder.push("title = ").push_bind(title);
     }
     if let Some(description) = description {
-        assignments.push("description = ").push_bind(description);
+        if !first {
+            builder.push(", ");
+        }
+        builder.push("description = ").push_bind(description);
     }
 
     builder
@@ -137,6 +148,26 @@ pub async fn delete_task_group(task_group_id: i64) -> DbResult<bool> {
     .await?;
 
     Ok(result.rows_affected() > 0)
+}
+
+pub async fn update_task_group_status(
+    task_group_id: i64,
+    status: TaskGroupStatus,
+) -> DbResult<Option<TaskGroup>> {
+    let row = sqlx::query(
+        r#"
+        UPDATE task_group
+        SET status = ?1
+        WHERE id = ?2
+        RETURNING id, slug, title, description, status
+        "#,
+    )
+    .bind(status.to_string())
+    .bind(task_group_id)
+    .fetch_optional(db::pool())
+    .await?;
+
+    Ok(row.map(row_to_task_group))
 }
 
 pub async fn ensure_builtin_groups(pool: &SqlitePool) -> DbResult<()> {

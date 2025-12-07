@@ -26,12 +26,14 @@ class ReasoningEffort {
   static const low = ReasoningEffort._(r'low');
   static const medium = ReasoningEffort._(r'medium');
   static const high = ReasoningEffort._(r'high');
+  static const xhigh = ReasoningEffort._(r'xhigh');
 
   /// List of all possible values in this [enum][ReasoningEffort].
   static const values = <ReasoningEffort>[
     low,
     medium,
     high,
+    xhigh,
   ];
 
   static ReasoningEffort? fromJson(dynamic value) => ReasoningEffortTypeTransformer().decode(value);
@@ -73,6 +75,7 @@ class ReasoningEffortTypeTransformer {
         case r'low': return ReasoningEffort.low;
         case r'medium': return ReasoningEffort.medium;
         case r'high': return ReasoningEffort.high;
+        case r'xhigh': return ReasoningEffort.xhigh;
         default:
           if (!allowNull) {
             throw ArgumentError('Unknown enum value to decode: $data');
@@ -85,4 +88,3 @@ class ReasoningEffortTypeTransformer {
   /// Singleton [ReasoningEffortTypeTransformer] instance.
   static ReasoningEffortTypeTransformer? _instance;
 }
-

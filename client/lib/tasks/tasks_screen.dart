@@ -289,6 +289,7 @@ class TasksScreen extends GetView<TasksController> {
             groups: filteredGroups,
             onEdit: (group) => _editGroup(context, group),
             onOpen: controller.selectGroup,
+            onArchive: controller.archiveTaskGroup,
           ),
         );
       }
@@ -467,11 +468,13 @@ class _TaskGroupList extends StatelessWidget {
     required this.groups,
     required this.onEdit,
     required this.onOpen,
+    required this.onArchive,
   });
 
   final List<robot_farm_api.TaskGroup> groups;
   final Future<void> Function(robot_farm_api.TaskGroup group) onEdit;
   final Future<void> Function(int groupId) onOpen;
+  final Future<void> Function(robot_farm_api.TaskGroup group) onArchive;
 
   @override
   Widget build(BuildContext context) {
@@ -488,6 +491,7 @@ class _TaskGroupList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final group = groups[index];
+        final isBuiltin = _isBuiltinGroup(group.slug);
         return Card(
           child: ListTile(
             onTap: () async {
@@ -506,12 +510,40 @@ class _TaskGroupList extends StatelessWidget {
                 ),
               ],
             ),
-            trailing: IconButton(
-              tooltip: 'Edit group',
-              icon: const Icon(Icons.edit),
-              onPressed: () async {
-                await onEdit(group);
-              },
+            trailing: Wrap(
+              spacing: 4,
+              children: [
+                IconButton(
+                  tooltip: 'Archive (mark Done)',
+                  icon: const Icon(Icons.archive_outlined),
+                  onPressed: isBuiltin
+                      ? null
+                      : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await onArchive(group);
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Task group archived.'),
+                              ),
+                            );
+                          } catch (err) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to archive: $err'),
+                              ),
+                            );
+                          }
+                        },
+                ),
+                IconButton(
+                  tooltip: 'Edit group',
+                  icon: const Icon(Icons.edit),
+                  onPressed: () async {
+                    await onEdit(group);
+                  },
+                ),
+              ],
             ),
           ),
         );
@@ -583,6 +615,11 @@ class _TaskListView extends StatelessWidget {
       },
     );
   }
+}
+
+bool _isBuiltinGroup(String slug) {
+  final lower = slug.toLowerCase();
+  return lower == 'chores' || lower == 'bugs' || lower == 'hotfix';
 }
 
 class _EmptyFilterResultMessage extends StatelessWidget {

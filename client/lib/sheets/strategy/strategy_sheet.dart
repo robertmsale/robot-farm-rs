@@ -207,7 +207,9 @@ class _StrategySheetState extends State<StrategySheet> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: ListView(
-                    children: _taskGroups.map((group) {
+                    children: _taskGroups
+                        .where((group) => group.status != robot_farm_api.TaskGroupStatus.done)
+                        .map((group) {
                       final disabled = group.slug == 'chores';
                       return CheckboxListTile(
                         title: Text(group.title),
